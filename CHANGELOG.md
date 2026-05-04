@@ -1,0 +1,100 @@
+# @platform/core — Changelog
+
+## [Unreleased]
+
+## [1.0.5] — 2026-05-04
+
+### MLT VERIFY ASIN remediation — deployed to production
+
+- MLT deployed to Cloudflare Pages (build `76d8e932`, `https://mylittletablespoon.com`). All acceptance criteria met: 0 `dp/VERIFY` on live site, affiliate tag `mylittletbsp-20` present on all Amazon links, `NOT_ON_AMAZON` products render as plain text (no broken anchors).
+- **Platform bug fixed:** `affiliate-platform/src/lib/config.ts` `buildAffiliateUrl()` was naively constructing `amazon.com/dp/NOT_ON_AMAZON` URLs for products with the `NOT_ON_AMAZON` sentinel. Added guard: `amazon_asin !== 'NOT_ON_AMAZON'` before URL construction. `ProductCard` and all other components consuming `affiliate_url` now correctly receive `null` for un-linkable products — renders name as plain text, no button.
+- Post-deploy spot-check (5 articles): `staub-7-qt` (B000RWGAYG ✓), `breville-the-infuser-espresso-machine` (B0089SSOR6 ✓), `kitchenaid-ceramic-bowl-for-mixer` (B0B4T54RPB ✓), `demeyere-atlantis-fry-pan` (B09YHZ18FL ✓), `masutani-vg1-nakiri-165mm` (B000FR2YWK ✓). All 0 VERIFY, all carrying affiliate tag.
+- `NOT_ON_AMAZON` plain-text verification: `hexclad-baking-sheet` — 0 `dp/NOT_ON_AMAZON` links, product name renders as text; other Amazon links in that article are for co-referenced products that ARE on Amazon. Confirmed correct.
+- **Note for future sites:** `buildAffiliateUrl` guard must be applied before any new site clone that may have `NOT_ON_AMAZON` entries in `products.yaml`. The fix is now in platform source.
+
+### MLT VERIFY ASIN remediation — Phase 1 prep complete
+
+- Audit exported to `my-little-tablespoon/VERIFY-ASIN-AUDIT.md`: 90 VERIFY ASINs across 7 hubs, 83 products referenced in article bodies, 169 article `.md` files containing hardcoded `dp/VERIFY` links.
+- `my-little-tablespoon/VERIFY-ASIN-FILL.csv` — 90-row worksheet for manual ASIN lookup. Columns: product_id, product_name, brand, hub, article_count, blast_radius_rank (1=highest impact), amazon_search_url (convenience link, pre-filled), asin (user fills), notes. Sorted by blast_radius_rank ascending.
+- `affiliate-platform/tools/fill-asins-yaml.mjs` — limited-scope Phase 1 tool (272 lines). Updates `products.yaml` only. CLI: `node tools/fill-asins-yaml.mjs --site <site-path> --input <csv-path> [--dry-run]`. Validates ASIN format (`B0[A-Z0-9]{8}` or `[0-9]{10}`), accepts `NOT_ON_AMAZON` sentinel (writes literally), refuses to overwrite existing non-VERIFY ASINs, idempotent. Regex fix: key-detection pattern extended to include `.` for product IDs like `staub-braiser-3.5qt`. Prints prominent Phase 2 warning after every run.
+- Phase 1 applied: `my-little-tablespoon/content/products/products.yaml` patched. 90 VERIFY entries resolved — 84 real ASINs, 6 `NOT_ON_AMAZON`. Zero VERIFY entries remain in `products.yaml`.
+- Duplicate product IDs flagged: `kitchenaid-pasta-attachment` and `kitchenaid-pasta-roller-attachment` are identical entries (same name, brand, hub, ASIN `B01DBGQR1K`). `kitchenaid-pasta-attachment` is referenced in 4 articles; `kitchenaid-pasta-roller-attachment` in 1. Recommend removing `kitchenaid-pasta-roller-attachment` from `products.yaml` and updating the 1 article that references it — deferred to Phase 2.
+- `affiliate-platform/tools/rewrite-article-asins.mjs` — Phase 2 tool (≈310 lines). Rewrites `dp/VERIFY` links in article bodies using `products.yaml` as source of truth. Strips `NOT_ON_AMAZON` links to plain text. Applies frontmatter slug rewrites from `tools/slug-rewrites.json`. CLI: `node tools/rewrite-article-asins.mjs --site <path> [--slug-rewrites <json>] [--dry-run] [--verbose]`. Multi-level name resolution: exact → Jaccard/coverage scoped → Jaccard/coverage global. Parser bug fixed: section-comment boundary products are now saved before context reset.
+- `affiliate-platform/tools/slug-rewrites.json` — `kitchenaid-pasta-roller-attachment → kitchenaid-pasta-attachment` (dedup entry). Extend this file for future slug merges.
+- Phase 2 applied to MLT. Run result: 169 files changed, 461 VERIFY links resolved, 34 NOT_ON_AMAZON links stripped, 1 slug rewrite applied. 2 generic-anchor links ("This Dutch oven", "spiral dough hook upgrade") resolved manually. Post-run: 0 `dp/VERIFY` in article corpus, 0 occurrences of removed slug.
+- `my-little-tablespoon/content/products/products.yaml`: duplicate `kitchenaid-pasta-roller-attachment` block removed.
+- **MLT affiliate link status:** 84 working Amazon affiliate links (`dp/{ASIN}?tag=mylittletbsp-20`), 4 NOT_ON_AMAZON products stripped to plain text (hexclad-baking-sheet, masutani-vg1-nakiri, all-clad-pressure-cooker-6qt, made-in-nonstick-frying-pan-10). 2 orphan NOT_ON_AMAZON products (kitchenaid-range/oven) have no article references — no action needed. Live site ready to deploy.
+
+## [1.0.4] — 2026-05-04
+
+### Roundup validator added
+
+- `affiliate-platform/validators/validate-roundup.mjs` — mechanical enforcement of `article-roundup.v1.md`. 708 lines, pure Node, no external deps beyond platform package.json.
+- New dep: `gray-matter@^4.0.3` (frontmatter parsing).
+- 63 mechanical checks across 6 categories: frontmatter (F01–F11), body structure (B01–B16 plus per-product sub-checks), anti-patterns (A01–A09), FAQ (Q01–Q08), length (L01). 13 manual-review items (M01–M13) reported but do not cause failure.
+- CLI: `node validators/validate-roundup.mjs <file-or-directory>`. Exit 0 = all pass, exit 1 = any fail.
+- ⚠️ **FSG corpus flag (carried from [1.0.3]):** ~198 FSG roundup articles contain inline `**Pros:**` / `**Cons:**` bullet lists duplicating `<ProductCard />` rendering. Self-test confirms validator correctly flags A02 on all three FSG corpus articles. Remediation deferred — not addressed here.
+
+## [1.0.3] — 2026-05-04
+
+### Roundup article prompt added
+
+- `affiliate-platform/prompts/article-roundup.v1.md` written as canonical versioned prompt for `type: "roundup"` articles.
+- Nine sections: output contract, component injection points, voice rules, banned patterns, length contract, FAQ contract, persona injection point, brief injection point, style guide reference.
+- Key decisions locked: H3s under single `## Top Picks` H2 (tier grouping exception at 8+ products); no prose Quick Picks glance block (layout renders `<QuickPicks />` automatically); no inline Pros/Cons bullets (layout renders `<ProductCard />` with full pros/cons); hard ban on all dollar figures; 12 AI-tell phrases banned.
+- ⚠️ **FSG corpus flag:** Approximately 198 FSG roundup articles contain inline `**Pros:**` / `**Cons:**` bullet lists in the article body that duplicate what `<ProductCard />` already renders. These articles produce doubled pros/cons on the rendered page. Remediation deferred to a separate session — not addressed here.
+
+## [1.0.2] — 2026-05-04
+
+### Visual distinctiveness gap resolved — MLT site.config.yaml
+
+- `my-little-tablespoon/site.config.yaml` visual block updated:
+  - `primary_color`: `#2D5016` (forest green, shared with FSG) → `#2B4A7C` (slate blue, hue 217° — 123° from FSG green, 121° from OHT burgundy)
+  - `accent_color`: `#C19A4B` (gold, shared with FSG) → `#C27A3B` (copper)
+  - `font_headings`: `Lora` (shared with FSG) → `Bitter` (slab serif; categorically distinct from Lora and Playfair Display; weight-complete on Google Fonts)
+  - `font_body`: `Source Sans 3` — unchanged (body font is a weaker fingerprint signal)
+- No platform files modified. `BaseLayout.astro` already injects font and colour from config dynamically.
+- MLT build passes. Verified: `Bitter:ital,wght@0,400;0,600;0,700;1,400` loads in output HTML; `--color-primary: #2B4A7C` set in `:root`.
+- `affiliate-platform/CLAUDE.md` Section 6 table updated with actual per-site visual values.
+- FSG CLAUDE.md Known Issues cleared (visual gap was the only open item).
+- All three sites now have no open footprint violations. Footprint audit from 2026-05-04 fully resolved.
+
+## [1.0.1] — 2026-05-04
+
+### Rule 1 violation resolved — MLT persona background
+
+- `my-little-tablespoon/config/personas/emily.yaml`: `background` changed from `"Senior HR Director, financial services"` to `"Food scientist, consumer packaged goods"`.
+- `career_note` updated: fifteen years in food product development in the Boston corridor, moved to Portland, Maine.
+- `bio_short` updated: credential-first structure replaces the "N years — and has the [regrets] to prove it" accumulation formula that duplicated FSG's Wendy Hartley.
+- `bio_full` updated: leads with professional domain authority (heat-transfer trials, spec sheets, materials knowledge), pivots to personal practice, ends dry. Structurally distinct from FSG bio.
+- `voice_notes` updated: technically precise register, not evaluative-sceptical register. Different authority base from Wendy Hartley.
+- Region unchanged: Portland, Maine (206 body-copy occurrences, cannot change).
+- Name unchanged: Emily Prescott (breaks 200+ bylines if changed).
+- `affiliate-platform/CLAUDE.md` Rule 1 status updated to resolved; diversification table updated with actual values.
+- FSG and MLT site stubs updated: MLT Known Issues cleared; FSG Known Issues updated to reflect remaining visual gap.
+
+### OHT Wendy Collins drift assessment (no action taken)
+
+- Wendy Collins (OHT) confirmed structurally distinct from Wendy Hartley (FSG): different schema, origin-story bio formula, warm/celebratory register vs. sceptical/evaluative, no `background` or `career_note` fields. No changes required.
+
+## [1.0.0] — 2026-05-04
+
+### First formal contract release
+
+- Added `CLAUDE.md` as the canonical operating contract for all Claude Code sessions in this monorepo.
+- Defines six sections: repo ownership boundaries, three non-negotiable rules (persona background uniqueness, product-hub match, no VERIFY ASINs in production), build and run contract, decision authority, done-criteria for five task types, footprint diversification policy.
+- All 1,708 words; every rule stated as a yes/no check.
+- Site CLAUDE.md files for FSG, MLT, and OHT replaced with thin stubs referencing this file.
+
+### Platform established
+
+- `@platform/core` package created from canonical FSG source (layouts, components, lib, styles, scripts).
+- FSG, MLT, and OHT migrated to consume `@platform/core` via `file:../affiliate-platform` dependency.
+- Local `src/layouts/`, `src/components/`, `src/lib/`, `src/styles/` deleted from all three site repos.
+- All three sites build successfully from platform package.
+
+### Known issues documented
+
+- ~~FSG and MLT share `background: "Senior HR Director, financial services"` — Rule 1 violation.~~ Resolved in [1.0.1].
+- FSG and MLT share `primary_color: "#2D5016"` and `font_headings: "Lora"` — visual distinctiveness gap, flagged.
+- OHT: `ga4_measurement_id` null, persona images missing, Bing verification not set — all flagged in OHT stub.
