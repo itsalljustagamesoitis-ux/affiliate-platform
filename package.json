@@ -11,6 +11,10 @@
     "./src/styles/*": "./src/styles/*",
     "./scripts/*": "./scripts/*"
   },
+  "bin": {
+    "platform-build-validator": "./scripts/build-validator.mjs",
+    "platform-validate-asins": "./scripts/validate-asins.mjs"
+  },
   "files": [
     "src",
     "scripts",
