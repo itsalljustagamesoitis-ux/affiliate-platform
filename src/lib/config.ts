@@ -74,6 +74,7 @@ export interface ProductRecord {
   default_cons: string[]
   notes_for_writers?: string
   last_verified?: string
+  current_price?: string | null
 }
 
 export type ProductDatabase = Record<string, ProductRecord>

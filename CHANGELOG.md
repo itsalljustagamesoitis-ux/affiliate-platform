@@ -2,6 +2,43 @@
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-05-04
+
+### Phase 3 — products.yaml as single source of truth for ASINs and affiliate URLs
+
+**Architecture change**: Article bodies no longer contain hardcoded Amazon ASINs or affiliate tags. Products are referenced by slug; URL resolution happens at build time.
+
+#### New components
+
+- `affiliate-platform/src/components/ProductLink.astro` — Renders a product reference in Astro templates. Props: `slug` (required), `articleSlug` (optional, derived from page URL if omitted). Throws a loud build error on unknown slugs. Resolves `NOT_ON_AMAZON` to `<span data-unavailable>`, real ASINs to `<a rel="sponsored noopener">`. Intended for use in `.astro` layout and hub templates, not article markdown bodies.
+- `affiliate-platform/src/components/Price.astro` — Renders `current_price` from products.yaml by slug. Falls back to "Check current price" if field absent. Non-critical — missing price is not a build error.
+
+#### New plugin
+
+- `affiliate-platform/src/plugins/rehype-product-links.mjs` — Rehype plugin that transforms `[text](product:slug)` markdown links at build time. Runs before `rehypeExternalLinks` so resolved Amazon URLs get `rel="sponsored noopener"` added automatically. Resolves: AWIN product URLs, Amazon ASINs, or strips to `<span data-unavailable>` for NOT_ON_AMAZON. Throws on unknown slugs — drift is caught at build time, not silently rendered as broken links. Exported via `@platform/core/src/plugins/*`.
+
+#### New migration tool
+
+- `affiliate-platform/tools/markdown-to-productlink.mjs` — Migrates article bodies from `[text](amazon.com/dp/ASIN?tag=...)` to `[text](product:slug)`. Builds ASIN→slug reverse map from products.yaml. CLI: `node tools/markdown-to-productlink.mjs --site <path> [--dry-run] [--verbose]`. Idempotent; skips files with no Amazon links; reports unresolved ASINs and exits non-zero.
+
+#### New validator rules (fail the build)
+
+- `hardcoded-asin-source` — `amazon.com/dp/{ASIN}` found in any `.md/.mdx` article body. Use `[text](product:slug)` instead.
+- `hardcoded-affiliate-tag-source` — `?tag=` found in any `.md/.mdx` article body. Affiliate tags are injected at build time via the plugin.
+
+#### MLT migration applied
+
+- 200 articles migrated; 1143 links resolved; 2 unresolvable products added to products.yaml (`fat-daddios-round-cake-pan-9`, `nordic-ware-round-cake-pan-9`); 0 unresolved after catalog expansion.
+- Deployed build `e74db37f`, `https://mylittletablespoon.com`. Post-deploy spot-check: 0 `dp/VERIFY`, affiliate tag on all Amazon links, `data-product` slug attributes present, `NOT_ON_AMAZON` renders correctly.
+
+#### Implementation note
+
+MDX was evaluated and rejected for this corpus due to inline JSON-LD `<script type="application/ld+json">` blocks in article bodies — the MDX acorn parser treats `{` in script content as JSX expression delimiters. The rehype plugin approach (articles stay as `.md`) is cleaner for this use case. `ProductLink.astro` and `Price.astro` remain valuable for `.astro` layout templates.
+
+#### Rollout
+
+FSG and OHT migrations are deferred to follow-up sessions. OHT should receive the migration before article generation begins so new articles are born with the `product:slug` pattern.
+
 ## [1.0.5] — 2026-05-04
 
 ### MLT VERIFY ASIN remediation — deployed to production
