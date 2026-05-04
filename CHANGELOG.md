@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+Corpus backlog logged in CORPUS-BACKLOG.md following v1.2.0 calibration self-test. No corpus changes — OHT launch takes priority over remediation.
+
 ## [1.2.0] — 2026-05-04
 
 ### Per-site style policy — footprint diversification
