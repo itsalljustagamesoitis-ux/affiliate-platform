@@ -26,7 +26,7 @@ const roleLabels: Record<string, string> = {
 
 const imageUrl = !product.image
   ? null
-  : product.image.startsWith('http') || product.image.startsWith('/')
+  : product.image?.startsWith('http') || product.image?.startsWith('/')
     ? product.image
     : `${cfg.images.base_url}/${product.image}`
 

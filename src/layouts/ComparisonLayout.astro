@@ -26,8 +26,8 @@ const heroUrl = `${cfg.images.base_url}/${data.hero_image}`
 
 const productA = data.product_a ? resolveProduct({ id: data.product_a }, data.slug) : null
 const productB = data.product_b ? resolveProduct({ id: data.product_b }, data.slug) : null
-const imgA = productA?.image ? (productA.image.startsWith('http') || productA.image.startsWith('/') ? productA.image : `${cfg.images.base_url}/${productA.image}`) : null
-const imgB = productB?.image ? (productB.image.startsWith('http') || productB.image.startsWith('/') ? productB.image : `${cfg.images.base_url}/${productB.image}`) : null
+const imgA = productA?.image ? (productA.image?.startsWith('http') || productA.image?.startsWith('/') ? productA.image : `${cfg.images.base_url}/${productA.image}`) : null
+const imgB = productB?.image ? (productB.image?.startsWith('http') || productB.image?.startsWith('/') ? productB.image : `${cfg.images.base_url}/${productB.image}`) : null
 
 const winner = data.winner === 'product_a' ? productA : data.winner === 'product_b' ? productB : null
 const loser  = data.winner === 'product_a' ? productB : data.winner === 'product_b' ? productA : null

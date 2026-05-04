@@ -30,7 +30,7 @@ if (picks.length === 0) return
   <h2 class="quick-picks__heading">Quick Picks</h2>
   <div class="quick-picks__grid">
     {picks.map(p => {
-      const imageUrl = !p.image ? null : (p.image.startsWith('http') || p.image.startsWith('/') ? p.image : `${cfg.images.base_url}/${p.image}`)
+      const imageUrl = !p.image ? null : (p.image?.startsWith('http') || p.image?.startsWith('/') ? p.image : `${cfg.images.base_url}/${p.image}`)
       return (
         <div class="quick-pick">
           {p.role && <span class="quick-pick__role">{roleLabels[p.role] ?? p.role}</span>}

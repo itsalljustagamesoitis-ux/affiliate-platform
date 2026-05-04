@@ -193,7 +193,7 @@ export interface ResolvedProduct {
   id: string
   name: string
   brand: string
-  image: string
+  image: string | null
   price_band: string
   pros: string[]
   cons: string[]

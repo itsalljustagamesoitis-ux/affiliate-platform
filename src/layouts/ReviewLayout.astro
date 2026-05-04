@@ -26,7 +26,7 @@ const heroUrl = `${cfg.images.base_url}/${data.hero_image}`
 
 const primaryRef = data.products[0]
 const primary = primaryRef ? resolveProduct(primaryRef, data.slug) : null
-const imageUrl = primary?.image ? (primary.image.startsWith('http') || primary.image.startsWith('/') ? primary.image : `${cfg.images.base_url}/${primary.image}`) : null
+const imageUrl = primary?.image ? (primary.image?.startsWith('http') || primary.image?.startsWith('/') ? primary.image : `${cfg.images.base_url}/${primary.image}`) : null
 ---
 
 <BaseLayout
