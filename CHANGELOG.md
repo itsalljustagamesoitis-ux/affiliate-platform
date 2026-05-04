@@ -6,6 +6,8 @@ Corpus backlog logged in CORPUS-BACKLOG.md following v1.2.0 calibration self-tes
 
 FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violation noted in CORPUS-BACKLOG.md. No new flag — same backlog item.
 
+OHT VERIFY ASIN audit completed — 52 products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52.
+
 ## [1.3.0] — 2026-05-05
 
 ### Buyer guide prompt — `article-buyer-guide.v1.md`
