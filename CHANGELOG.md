@@ -2,6 +2,54 @@
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-05-04
+
+### Per-site style policy — footprint diversification
+
+**Architecture change**: A new required `style_policy` block in each site's `site.config.yaml` governs per-site structural calibration. The roundup prompt and validator now read from this block instead of using hardcoded values. No silent defaults — build fails with a clear error if the block is absent.
+
+#### New `style_policy` schema (`SiteConfig.style_policy`)
+
+- `word_count.{min,max}` — article body word count bounds (was hardcoded 2600–3200 everywhere)
+- `dollar_figures.allowed` — boolean; when `false`, the full dollar-figure ban in the validator and prompt applies; when `true`, sparse dollar references in prose are permitted
+- `buying_guide_heading.style` — `'How to Choose' | 'Buying Guide'`; controls the H2 heading for the buying guide section site-wide
+- `in_body_images.policy` — `'per_product' | 'fixed_count' | 'none'`; controls how in-body images appear in product sections
+- `in_body_images.fixed_count` — integer or null; required when policy is `fixed_count`
+
+#### Per-site values set
+
+| Site | heading | images | word count |
+|---|---|---|---|
+| FSG | `Buying Guide` | `fixed_count: 5` | 2000–3000 |
+| MLT | `How to Choose` | `none` | 2000–3000 |
+| OHT | `How to Choose` | `per_product` | 2000–3000 |
+
+#### `config.ts` changes
+
+- New `StylePolicy` interface exported from `src/lib/config.ts`
+- `SiteConfig` gains required `style_policy: StylePolicy` field
+- `getSiteConfig()` throws `'style_policy block missing in site.config.yaml'` if block absent
+
+#### Validator changes (`validators/validate-roundup.mjs`)
+
+- New `--site <path>` flag; auto-detects site root by walking up from article path if omitted
+- Exit code 2 on missing or malformed `style_policy` (config error, not article failure)
+- Policy header printed per file: `style_policy: words M–N | dollars X | buying guide "## H" | images P`
+- `L01` word count bounds now come from `style_policy.word_count`
+- `A03` dollar pattern check gated on `style_policy.dollar_figures.allowed`
+- `B07` / `B05` buying guide heading check uses `style_policy.buying_guide_heading.style`
+- `B11` three-way image policy: per_product (one per section), fixed_count (N total), none (zero)
+- `B13` comma separator check skipped for `none` policy; per-section for `per_product`; per-placed-image for `fixed_count`
+
+#### Prompt changes (`prompts/article-roundup.v1.md` → v1.1)
+
+- Word count section updated to reference `STYLE_POLICY.word_count.{min,max}`
+- Dollar figure ban made conditional on `STYLE_POLICY.dollar_figures.allowed`
+- Buying guide H2 references updated to `{STYLE_POLICY.buying_guide_heading.style}`
+- In-body image section now describes all three policies with explicit rules per policy
+- New Section 9: Style Policy Injection Point with field reference table
+- Old Section 9 (style guide reference) renumbered to Section 10
+
 ## [1.1.0] — 2026-05-04
 
 ### Phase 3 — products.yaml as single source of truth for ASINs and affiliate URLs
@@ -31,13 +79,24 @@
 - 200 articles migrated; 1143 links resolved; 2 unresolvable products added to products.yaml (`fat-daddios-round-cake-pan-9`, `nordic-ware-round-cake-pan-9`); 0 unresolved after catalog expansion.
 - Deployed build `e74db37f`, `https://mylittletablespoon.com`. Post-deploy spot-check: 0 `dp/VERIFY`, affiliate tag on all Amazon links, `data-product` slug attributes present, `NOT_ON_AMAZON` renders correctly.
 
+#### FSG migration applied
+
+- Pre-flight: 0 VERIFY entries, 736 hardcoded ASIN links across 198 articles, 198 products in catalog, affiliate tag `fourseasong-20`.
+- 10 orphan ASINs resolved: 10 new products added to products.yaml (hiland-wgthg-patio-heater, orbit-yard-enforcer-sprinkler, liquid-fence-concentrate, litom-solar-motion-spotlights, birdies-metal-raised-garden-bed, mammotion-luba-2-awd × 3 variants, hartman-mow-house, f273702-propane-adapter-hose).
+- Duplicate slug collision resolved: `hiland-pyramid-patio-heater` existed for ASIN B07B94686C; B004KH4LAE variant renamed to `hiland-wgthg-patio-heater`; 3 affected articles updated.
+- 197 articles migrated; 792 links resolved; 0 unresolved.
+- Pushed to main branch `d4f6d4d`, Cloudflare Pages build triggered via Git integration (`https://fourseasongardener.com`).
+- Post-build spot-check (5 articles): affiliate tag on all Amazon links, `data-product` slug attributes present, 0 `product:` href leaks in rendered HTML.
+
 #### Implementation note
 
 MDX was evaluated and rejected for this corpus due to inline JSON-LD `<script type="application/ld+json">` blocks in article bodies — the MDX acorn parser treats `{` in script content as JSX expression delimiters. The rehype plugin approach (articles stay as `.md`) is cleaner for this use case. `ProductLink.astro` and `Price.astro` remain valuable for `.astro` layout templates.
 
 #### Rollout
 
-FSG and OHT migrations are deferred to follow-up sessions. OHT should receive the migration before article generation begins so new articles are born with the `product:slug` pattern.
+- ✅ MLT — migrated and deployed `e74db37f`
+- ✅ FSG — migrated and deployed `d4f6d4d`
+- ⏳ OHT — deferred; should receive migration before article generation begins so new articles are born with the `product:slug` pattern
 
 ## [1.0.5] — 2026-05-04
 

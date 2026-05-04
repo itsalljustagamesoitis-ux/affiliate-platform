@@ -1,6 +1,6 @@
 # Roundup Article Prompt — v1
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Type:** `roundup`  
 **Scope:** All sites consuming `@platform/core` (FSG, MLT, OHT)  
 **Status:** Active  
@@ -75,7 +75,7 @@ The layout renders components before and after the article body. This order is f
 [body]    intro paragraphs + hub link
 [body]    ## Top Picks
 [body]      ### Product Name × N (prose reviews, hub images, comma separators)
-[body]    ## How to Choose
+[body]    ## {STYLE_POLICY.buying_guide_heading.style}
 [body]      ### Subsection × 3–5
 [body]    ## Frequently Asked Questions
 [body]      ### Question × 5 (H3s)
@@ -145,9 +145,11 @@ Persona-specific register is injected via `{{PERSONA_YAML}}` (see Section 7). Th
 
 ## 4. Banned Patterns
 
-### Price and dollar patterns — hard ban
+### Price and dollar patterns
 
-No dollar figures anywhere in the article body: not in prose, not in bullet lists (if any appear for non-product purposes), not in headings, not in FAQ answers. Banned patterns:
+Governed by `STYLE_POLICY.dollar_figures.allowed` (injected via `{{STYLE_POLICY}}`).
+
+**When `allowed: false` (hard ban):** No dollar figures anywhere in the article body — not in prose, not in bullet lists, not in headings, not in FAQ answers. Banned patterns:
 
 - Any `$X` amount
 - Any `$X–$Y` range
@@ -160,6 +162,8 @@ No dollar figures anywhere in the article body: not in prose, not in bullet list
 - "at the $X price point"
 
 The single permitted pricing signal is "Check current price on Amazon." as the final sentence of each product section (Section 2).
+
+**When `allowed: true`:** Dollar figures are permitted in prose to anchor a recommendation (e.g., "At under $40, this is the most practical option for occasional bakers"). Use sparingly — one dollar reference per product section maximum. The "Check current price on Amazon." closing sentence still applies regardless.
 
 ### AI-tell phrases — hard ban
 
@@ -194,7 +198,7 @@ These follow from Section 2 but are stated here for completeness:
 
 ### Total word count
 
-2,600–3,200 words. Count the article body only — frontmatter and JSON-LD schema blocks are excluded. Below 2,600: qualitative reviews are too thin or buying guide sections are incomplete. Above 3,200: sections are being padded. If the natural endpoint for a 3–4 product article falls at 2,400 words, add one buying guide subsection rather than inflating product prose.
+`STYLE_POLICY.word_count.min`–`STYLE_POLICY.word_count.max` words (injected via `{{STYLE_POLICY}}`). Count the article body only — frontmatter and JSON-LD schema blocks are excluded. Below the minimum: qualitative reviews are too thin or buying guide sections are incomplete. Above the maximum: sections are being padded. If the natural endpoint falls short, add one buying guide subsection rather than inflating product prose.
 
 ### Intro
 
@@ -206,7 +210,15 @@ These follow from Section 2 but are stated here for completeness:
 
 Do not open every product section with the product name in the first sentence — vary the entry point across sections.
 
-After each product section's prose, place one in-body image followed by a comma separator on its own line:
+In-body image placement is governed by `STYLE_POLICY.in_body_images.policy` (injected via `{{STYLE_POLICY}}`):
+
+**`per_product`:** After each product section's prose, place one in-body image followed by a comma separator on its own line. Every product H3 gets exactly one image.
+
+**`fixed_count`:** Place exactly `STYLE_POLICY.in_body_images.fixed_count` images total, distributed evenly across product sections in order. For example, with 5 images and 4 products: products 1–4 get one image each and product 1 gets a second image (or use editorial judgment to distribute naturally). Comma separator applies to every placed image.
+
+**`none`:** No in-body images in the article body. Omit all image markdown and comma separators from product sections. The hero image (frontmatter) and component images are still rendered by the layout — this policy only suppresses images added within product section prose.
+
+Regardless of policy, always use the comma separator format when an image is placed:
 
 ```markdown
 ![descriptive alt text referencing the product category](/images/articles/{hub_slug}-{N}.jpg)
@@ -216,7 +228,7 @@ After each product section's prose, place one in-body image followed by a comma 
 
 Images are selected from the site's image bank (`public/images/articles/`). Use hub-matched images — the `{hub_slug}` prefix identifies the correct set. Do not repeat an image number already used in the article (hero or prior sections).
 
-### Buying guide (`## How to Choose`)
+### Buying guide (`## {STYLE_POLICY.buying_guide_heading.style}`)
 
 3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 500–700 words. Subsections cover the decision variables specific to this product category. At least one subsection must include a contextual link to the hub page (different anchor text from the intro hub link). Generic advice that applies to any product category is not appropriate.
 
@@ -325,7 +337,37 @@ The generating script must run all four checks before passing the brief to the m
 
 ---
 
-## 9. Style Guide Reference
+## 9. Style Policy Injection Point
+
+The generating script passes `{{STYLE_POLICY}}` before generation. This block is sourced from `style_policy` in `site.config.yaml` for the active site. A valid `{{STYLE_POLICY}}` must contain all five fields:
+
+```yaml
+word_count:
+  min: {integer}
+  max: {integer}
+dollar_figures:
+  allowed: {boolean}
+buying_guide_heading:
+  style: "{How to Choose | Buying Guide}"
+in_body_images:
+  policy: "{per_product | fixed_count | none}"
+  fixed_count: {integer | null}
+```
+
+If `{{STYLE_POLICY}}` is absent or malformed, the generating script must halt before calling the model with exit code 2. No silent defaults.
+
+**How policy values are applied in the generated article:**
+
+| Policy field | Where it applies |
+|---|---|
+| `word_count.min` / `word_count.max` | Section 5 length contract |
+| `dollar_figures.allowed` | Section 4 dollar ban rule |
+| `buying_guide_heading.style` | H2 heading for the buying guide section |
+| `in_body_images.policy` + `fixed_count` | Image placement within product H3 sections (Section 5) |
+
+---
+
+## 10. Style Guide Reference
 
 Full voice and style rules — opening patterns, transition words, paragraph structure, sentence cadence, punctuation conventions — are defined in:
 

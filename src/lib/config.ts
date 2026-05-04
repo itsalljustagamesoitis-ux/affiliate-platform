@@ -4,6 +4,23 @@ import yaml from 'js-yaml'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+export interface StylePolicy {
+  word_count: {
+    min: number
+    max: number
+  }
+  dollar_figures: {
+    allowed: boolean
+  }
+  buying_guide_heading: {
+    style: 'How to Choose' | 'Buying Guide'
+  }
+  in_body_images: {
+    policy: 'per_product' | 'fixed_count' | 'none'
+    fixed_count: number | null
+  }
+}
+
 export interface SiteConfig {
   site: {
     brand_name: string
@@ -43,6 +60,7 @@ export interface SiteConfig {
   deployment: {
     cloudflare_pages_project: string
   }
+  style_policy: StylePolicy
 }
 
 export interface PersonaConfig {
@@ -108,7 +126,12 @@ let _products: ProductDatabase | null = null
 let _nav: NavConfig | null = null
 
 export function getSiteConfig(): SiteConfig {
-  if (!_siteConfig) _siteConfig = loadYaml<SiteConfig>('site.config.yaml')
+  if (!_siteConfig) {
+    _siteConfig = loadYaml<SiteConfig>('site.config.yaml')
+    if (!_siteConfig.style_policy) {
+      throw new Error('style_policy block missing in site.config.yaml')
+    }
+  }
   return _siteConfig
 }
 

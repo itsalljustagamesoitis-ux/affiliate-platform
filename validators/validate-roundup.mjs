@@ -11,9 +11,10 @@
  * Manual-review items are reported but do not cause failure.
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs'
-import { resolve, join } from 'path'
+import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { resolve, join, dirname } from 'path'
 import matter from 'gray-matter'
+import yaml from 'js-yaml'
 
 // ---------------------------------------------------------------------------
 // Constants from article-roundup.v1.md
@@ -174,12 +175,42 @@ function hasHubLink(text, hubSlug) {
 }
 
 // ---------------------------------------------------------------------------
+// Style policy loading
+// ---------------------------------------------------------------------------
+
+function findSiteRoot(filePath) {
+  let dir = dirname(resolve(filePath))
+  for (let i = 0; i < 10; i++) {
+    if (existsSync(join(dir, 'site.config.yaml'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
+function loadStylePolicy(siteRoot) {
+  const configPath = join(siteRoot, 'site.config.yaml')
+  let cfg
+  try {
+    cfg = yaml.load(readFileSync(configPath, 'utf8'))
+  } catch (e) {
+    throw new Error(`Could not read ${configPath}: ${e.message}`)
+  }
+  if (!cfg || !cfg.style_policy) {
+    throw new Error(`style_policy block missing in ${configPath}`)
+  }
+  return cfg.style_policy
+}
+
+// ---------------------------------------------------------------------------
 // Validator class
 // ---------------------------------------------------------------------------
 
 class FileValidator {
-  constructor(filePath) {
+  constructor(filePath, stylePolicy) {
     this.path = filePath
+    this.stylePolicy = stylePolicy
     this.passes = []
     this.fails  = []
     this.manuals = []
@@ -309,10 +340,11 @@ class FileValidator {
     const hub         = fm.hub || ''
     const productCount = Array.isArray(fm.products) ? fm.products.length : 0
     const allKeys     = [...sections.keys()].filter(k => k !== '__intro__')
+    const buyGuideStyle = this.stylePolicy.buying_guide_heading.style
 
     // Locate canonical sections (allow heading suffix after keyword)
     const topPicksKey   = allKeys.find(k => k.startsWith('Top Picks') && !k.includes('at a Glance'))
-    const buyGuideKey   = allKeys.find(k => k.startsWith('How to Choose'))
+    const buyGuideKey   = allKeys.find(k => k.startsWith(buyGuideStyle))
     const faqKey        = allKeys.find(k => k.startsWith('Frequently Asked Questions'))
 
     // B01: intro content present before first H2
@@ -333,17 +365,17 @@ class FileValidator {
     if (introWords >= 80 && introWords <= 120) this.pass('B04', `Intro word count ${introWords} (80–120)`)
     else this.fail('B04', 'Intro word count must be 80–120', `found ${introWords}`)
 
-    // B05: section order Top Picks → How to Choose → FAQ
+    // B05: section order Top Picks → {buyGuideStyle} → FAQ
     const tpIdx = allKeys.findIndex(k => k.startsWith('Top Picks') && !k.includes('at a Glance'))
-    const bgIdx = allKeys.findIndex(k => k.startsWith('How to Choose'))
+    const bgIdx = allKeys.findIndex(k => k.startsWith(buyGuideStyle))
     const fqIdx = allKeys.findIndex(k => k.startsWith('Frequently Asked Questions'))
     if (tpIdx !== -1 && bgIdx !== -1 && fqIdx !== -1 && tpIdx < bgIdx && bgIdx < fqIdx) {
-      this.pass('B05', 'Section order correct: Top Picks → How to Choose → Frequently Asked Questions')
+      this.pass('B05', `Section order correct: Top Picks → ${buyGuideStyle} → Frequently Asked Questions`)
     } else {
       this.fail(
         'B05',
-        'Section order must be: ## Top Picks → ## How to Choose → ## Frequently Asked Questions',
-        `positions — Top Picks: ${tpIdx}, How to Choose: ${bgIdx}, FAQ: ${fqIdx} (−1 = not found)`,
+        `Section order must be: ## Top Picks → ## ${buyGuideStyle} → ## Frequently Asked Questions`,
+        `positions — Top Picks: ${tpIdx}, ${buyGuideStyle}: ${bgIdx}, FAQ: ${fqIdx} (−1 = not found)`,
       )
     }
 
@@ -352,10 +384,10 @@ class FileValidator {
     if (tpCount === 1) this.pass('B06', 'Exactly one ## Top Picks H2')
     else this.fail('B06', 'Must have exactly one ## Top Picks H2', `found ${tpCount}`)
 
-    // B07: exactly one ## How to Choose
-    const bgCount = allKeys.filter(k => k.startsWith('How to Choose')).length
-    if (bgCount === 1) this.pass('B07', 'Exactly one ## How to Choose H2')
-    else this.fail('B07', 'Must have exactly one "## How to Choose" H2 (not "## Buying Guide")', `found ${bgCount}`)
+    // B07: exactly one ## {buyGuideStyle}
+    const bgCount = allKeys.filter(k => k.startsWith(buyGuideStyle)).length
+    if (bgCount === 1) this.pass('B07', `Exactly one ## ${buyGuideStyle} H2`)
+    else this.fail('B07', `Must have exactly one "## ${buyGuideStyle}" H2`, `found ${bgCount}`)
 
     // B08: exactly one ## Frequently Asked Questions
     const fqCount = allKeys.filter(k => k.startsWith('Frequently Asked Questions')).length
@@ -375,6 +407,21 @@ class FileValidator {
           `H3s: ${productSections.length}, products frontmatter: ${productCount}`)
       }
 
+      const imagePolicy = this.stylePolicy.in_body_images.policy
+
+      // B11 for fixed_count: check total images across all product sections
+      if (imagePolicy === 'fixed_count') {
+        const expectedCount = this.stylePolicy.in_body_images.fixed_count
+        const totalImages = productSections.reduce((sum, sec) =>
+          sum + sec.lines.filter(l => /!\[.*?\]\(\/images\/articles\//.test(l)).length, 0
+        )
+        if (totalImages === expectedCount)
+          this.pass('B11', `fixed_count policy — ${totalImages} total in-body images (expected ${expectedCount})`)
+        else
+          this.fail('B11', `fixed_count policy requires exactly ${expectedCount} in-body image(s) total`,
+            `found ${totalImages}`)
+      }
+
       productSections.forEach((sec, i) => {
         const label = `product[${i}] "${sec.heading.slice(0, 50)}"`
 
@@ -385,13 +432,22 @@ class FileValidator {
         else
           this.fail(`B10.${i}`, `${label}: must have 2–4 prose paragraphs`, `found ${paraCount}`)
 
-        // B11: exactly one /images/articles/ image
+        // B11 per-section: per_product and none policies
         const imgLines = sec.lines.filter(l => /!\[.*?\]\(\/images\/articles\//.test(l))
-        if (imgLines.length === 1)
-          this.pass(`B11.${i}`, `${label}: exactly one in-body image from /images/articles/`)
-        else
-          this.fail(`B11.${i}`, `${label}: must have exactly one image from /images/articles/`,
-            `found ${imgLines.length}`)
+        if (imagePolicy === 'per_product') {
+          if (imgLines.length === 1)
+            this.pass(`B11.${i}`, `${label}: exactly one in-body image (per_product policy)`)
+          else
+            this.fail(`B11.${i}`, `${label}: per_product policy requires exactly one image`,
+              `found ${imgLines.length}`)
+        } else if (imagePolicy === 'none') {
+          if (imgLines.length === 0)
+            this.pass(`B11.${i}`, `${label}: no in-body images (none policy — correct)`)
+          else
+            this.fail(`B11.${i}`, `${label}: none policy — no in-body images permitted`,
+              `found ${imgLines.length}`)
+        }
+        // fixed_count: per-section check handled above; skip here
 
         // B12: ends with "Check current price on Amazon."
         const lastLine = getLastContentLine(sec.lines)
@@ -401,11 +457,22 @@ class FileValidator {
           this.fail(`B12.${i}`, `${label}: must end with "Check current price on Amazon."`,
             `last line: "${lastLine.slice(0, 100)}"`)
 
-        // B13: comma separator on its own line
-        if (sec.lines.some(l => l.trim() === ','))
-          this.pass(`B13.${i}`, `${label}: comma separator present`)
-        else
-          this.fail(`B13.${i}`, `${label}: must have a comma separator (,) on its own line after the image`)
+        // B13: comma separator required when images are expected for this section
+        const sectionHasImage = imgLines.length > 0
+        const commaPresent = sec.lines.some(l => l.trim() === ',')
+        if (imagePolicy === 'none') {
+          // no images expected, no comma needed — skip B13
+        } else if (imagePolicy === 'per_product') {
+          if (commaPresent)
+            this.pass(`B13.${i}`, `${label}: comma separator present`)
+          else
+            this.fail(`B13.${i}`, `${label}: must have a comma separator (,) on its own line after the image`)
+        } else if (imagePolicy === 'fixed_count') {
+          if (sectionHasImage && !commaPresent)
+            this.fail(`B13.${i}`, `${label}: image present but no comma separator on its own line`)
+          else if (sectionHasImage)
+            this.pass(`B13.${i}`, `${label}: comma separator present`)
+        }
       })
     } else {
       this.fail('B09', 'No ## Top Picks section found — cannot check product H3s')
@@ -437,9 +504,9 @@ class FileValidator {
       else
         this.fail('B16', `Buying guide must contain a contextual hub link to /${hub}/`, 'no matching link found')
     } else {
-      this.fail('B14', 'No ## How to Choose section found — cannot check buying guide')
-      this.fail('B15', 'No ## How to Choose section found — cannot check buying guide word count')
-      this.fail('B16', 'No ## How to Choose section found — cannot check buying guide hub link')
+      this.fail('B14', `No ## ${buyGuideStyle} section found — cannot check buying guide`)
+      this.fail('B15', `No ## ${buyGuideStyle} section found — cannot check buying guide word count`)
+      this.fail('B16', `No ## ${buyGuideStyle} section found — cannot check buying guide hub link`)
     }
 
     // FAQ checks
@@ -545,11 +612,15 @@ class FileValidator {
     else
       this.pass('A02', 'No **Pros:** / **Cons:** bullet lists in body')
 
-    // A03: no banned price/dollar patterns
+    // A03: no banned price/dollar patterns (only when dollar_figures.allowed = false)
     const bodyNoJson = stripJsonLd(body)
-    const priceHits  = PRICE_PATTERNS.filter(p => p.re.test(bodyNoJson)).map(p => p.label)
-    if (priceHits.length === 0) this.pass('A03', 'No banned price/dollar patterns')
-    else this.fail('A03', 'Banned price patterns found', priceHits.join(', '))
+    if (!this.stylePolicy.dollar_figures.allowed) {
+      const priceHits = PRICE_PATTERNS.filter(p => p.re.test(bodyNoJson)).map(p => p.label)
+      if (priceHits.length === 0) this.pass('A03', 'No banned price/dollar patterns')
+      else this.fail('A03', 'Banned price patterns found (dollar_figures.allowed = false)', priceHits.join(', '))
+    } else {
+      this.pass('A03', 'Dollar figures allowed by style_policy — price pattern check skipped')
+    }
 
     // A04: no AI-tell phrases (case-insensitive)
     const lower   = bodyNoJson.toLowerCase()
@@ -608,11 +679,13 @@ class FileValidator {
   // -------------------------------------------------------------------------
 
   checkLength(body) {
+    const min = this.stylePolicy.word_count.min
+    const max = this.stylePolicy.word_count.max
     const words = countWords(body)
-    if (words >= 2600 && words <= 3200)
-      this.pass('L01', `Total body word count ${words} (2,600–3,200)`)
+    if (words >= min && words <= max)
+      this.pass('L01', `Total body word count ${words} (${min.toLocaleString()}–${max.toLocaleString()})`)
     else
-      this.fail('L01', 'Total body word count must be 2,600–3,200', `found ${words}`)
+      this.fail('L01', `Total body word count must be ${min.toLocaleString()}–${max.toLocaleString()}`, `found ${words}`)
   }
 
   // -------------------------------------------------------------------------
@@ -651,9 +724,18 @@ function collectFiles(target) {
   return [target]
 }
 
+function printPolicyHeader(policy) {
+  const p = policy
+  console.log(`  style_policy: words ${p.word_count.min}–${p.word_count.max}` +
+    ` | dollars ${p.dollar_figures.allowed ? 'allowed' : 'banned'}` +
+    ` | buying guide "## ${p.buying_guide_heading.style}"` +
+    ` | images ${p.in_body_images.policy}${p.in_body_images.policy === 'fixed_count' ? `(${p.in_body_images.fixed_count})` : ''}`)
+}
+
 function printReport(v) {
   const status = v.fails.length === 0 ? '✓ PASS' : '✗ FAIL'
   console.log(`\nFILE: ${v.path}`)
+  printPolicyHeader(v.stylePolicy)
   console.log(`${status}  PASS: ${v.passes.length}  FAIL: ${v.fails.length}  MANUAL: ${v.manuals.length}`)
   for (const f of v.fails) {
     const obs = f.observed ? ` — ${f.observed}` : ''
@@ -665,13 +747,24 @@ function printReport(v) {
 }
 
 function main() {
-  const arg = process.argv[2]
-  if (!arg) {
-    console.error('Usage: node validators/validate-roundup.mjs <file-or-directory>')
+  const args = process.argv.slice(2)
+  let siteArg = null
+  let targetArg = null
+
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--site' && args[i + 1]) {
+      siteArg = args[++i]
+    } else {
+      targetArg = args[i]
+    }
+  }
+
+  if (!targetArg) {
+    console.error('Usage: node validators/validate-roundup.mjs [--site <site-root>] <file-or-directory>')
     process.exit(1)
   }
 
-  const target = resolve(arg)
+  const target = resolve(targetArg)
   let files
   try { files = collectFiles(target) }
   catch (e) { console.error(`Error: ${e.message}`); process.exit(1) }
@@ -681,8 +774,27 @@ function main() {
     process.exit(1)
   }
 
+  // Resolve site root: --site flag > auto-detect from first file > auto-detect from target dir
+  const probeFile = files[0] || target
+  const siteRoot = siteArg
+    ? resolve(siteArg)
+    : (findSiteRoot(probeFile) || findSiteRoot(target))
+
+  if (!siteRoot) {
+    console.error(`Error: Could not find site.config.yaml. Use --site <site-root> to specify the site directory.`)
+    process.exit(2)
+  }
+
+  let stylePolicy
+  try {
+    stylePolicy = loadStylePolicy(siteRoot)
+  } catch (e) {
+    console.error(`Config error: ${e.message}`)
+    process.exit(2)
+  }
+
   const validators = files.map(f => {
-    const v = new FileValidator(f)
+    const v = new FileValidator(f, stylePolicy)
     v.run()
     printReport(v)
     return v
