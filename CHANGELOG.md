@@ -4,6 +4,43 @@
 
 Corpus backlog logged in CORPUS-BACKLOG.md following v1.2.0 calibration self-test. No corpus changes — OHT launch takes priority over remediation.
 
+FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violation noted in CORPUS-BACKLOG.md. No new flag — same backlog item.
+
+## [1.3.0] — 2026-05-05
+
+### Buyer guide prompt — `article-buyer-guide.v1.md`
+
+**New prompt**: `prompts/article-buyer-guide.v1.md` — full production spec for `type: "buyer_guide"` articles across FSG, MLT, and OHT.
+
+#### Structure differences from roundup
+
+- Four-section H2 body: `## What to Look For in {category_noun}` → `## Top Picks` → `## {STYLE_POLICY.buying_guide_heading.style}` → `## Frequently Asked Questions`
+- "What to Look For" section (400–600 words, 3–5 H3 subsections) teaches evaluation criteria before any product is named
+- Layout: `BuyerGuideLayout.astro` — no `<ComparisonTable />`; `<ProductCard showRole />` rendered below body under `<h2>Detailed Reviews</h2>`
+- Tags: `["{hub_slug}", "buyer_guide"]` (not `"roundup"`)
+
+#### Intro lock (D4 amendment)
+
+Intro structure is fixed: paragraph 1 establishes search intent + product category + hub link (link must appear in paragraph 1, not deferred); paragraph 2 frames evaluation criteria at principle level; optional paragraph 3 only if paragraph 2 cannot contain the framing naturally. Prevents model from inflating the intro into a soft mini-buyer-guide that competes with "What to Look For".
+
+#### Brief additions (D6 amendment)
+
+New required brief field `category_noun` provides the product category noun for the `## What to Look For in {category_noun}` H2. Generating script halts if absent. If brief contains `h2_structure`, it is ignored — the prompt defines structure authoritatively.
+
+#### Banned patterns (D8 amendment)
+
+AI-tell phrase ban includes implementation note: enforcement applies to prose only; validator must exclude `<script type="application/ld+json">` blocks to avoid double-triggering on FAQ answer text echoed verbatim in JSON-LD.
+
+#### Structural bans added vs roundup
+
+- No `**Price:**` or `**Best for:**` codas at end of product sections
+- No role label in H3 product headings (`### Best Overall: Product Name` form banned)
+- No bold role subtitle below H3 product headings
+
+#### Style policy
+
+All five `{{STYLE_POLICY.*}}` placeholders carry over from the roundup spec unchanged. No new policy fields introduced.
+
 ## [1.2.0] — 2026-05-04
 
 ### Per-site style policy — footprint diversification
