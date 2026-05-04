@@ -34,15 +34,17 @@ if (picks.length === 0) return
       return (
         <div class="quick-pick">
           {p.role && <span class="quick-pick__role">{roleLabels[p.role] ?? p.role}</span>}
-          <img
-            src={imageUrl}
-            alt={p.name}
-            class="quick-pick__img"
-            width="160"
-            height="120"
-            loading="lazy"
-            decoding="async"
-          />
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt={p.name}
+              class="quick-pick__img"
+              width="160"
+              height="120"
+              loading="lazy"
+              decoding="async"
+            />
+          )}
           <h3 class="quick-pick__name">{productDisplayName(p)}</h3>
           {p.pros[0] && <p class="quick-pick__reason">{p.pros[0]}</p>}
           {p.affiliate_url && (

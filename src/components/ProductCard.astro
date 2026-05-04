@@ -41,14 +41,16 @@ const isAmazon = product.affiliate_url?.includes('amazon.com')
 
   <div class="product-card__inner">
     <div class="product-card__image">
-      <img
-        src={imageUrl}
-        alt={product.name}
-        width="280"
-        height="210"
-        loading="lazy"
-        decoding="async"
-      />
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt={product.name}
+          width="280"
+          height="210"
+          loading="lazy"
+          decoding="async"
+        />
+      )}
     </div>
 
     <div class="product-card__body">
