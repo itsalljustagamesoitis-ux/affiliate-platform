@@ -224,7 +224,7 @@ These follow from Section 2 but are stated here for completeness:
 
 ### "What to Look For in {category_noun}" section
 
-3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 400–600 words. Subsections cover the evaluation criteria specific to this product category — the factors a buyer must understand before they can choose confidently. This section is educational, not product-comparative. Do not name specific products from the roundup. **Required:** At least one H3 subsection must include a contextual link to the hub page using a site-relative path with different anchor text from the intro link — e.g., `our [complete dinnerware guide](/dinnerware/)`. This link is required in this section; it cannot be deferred to the buying guide.
+3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 400–600 words. Subsections cover the evaluation criteria specific to this product category — the factors a buyer must understand before they can choose confidently. This section is educational, not product-comparative. Do not name specific products from the roundup. **Hub link required:** In the final paragraph of the last H3 subsection in this section, include a sentence that links to the hub using a site-relative path and different anchor text from the intro — for example: "Exploring the full range of [dinnerware](/dinnerware/) options before committing to a style is worth the time." Adapt the anchor text to the hub; do not use the identical wording from the intro.
 
 ### Per-product sections (H3s under `## Top Picks`)
 

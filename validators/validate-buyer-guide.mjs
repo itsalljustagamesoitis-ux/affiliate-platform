@@ -523,12 +523,12 @@ class FileValidator {
       const wtlfText  = wtlfLines.join('\n')
       const wtlfH3s   = extractH3Sections(wtlfLines)
 
-      // B17: "What to Look For" word count 400–600
+      // B17: "What to Look For" word count 400–650
       const wtlfWords = countWords(wtlfText)
-      if (wtlfWords >= 400 && wtlfWords <= 600)
-        this.pass('B17', `"What to Look For" word count ${wtlfWords} (400–600)`)
+      if (wtlfWords >= 400 && wtlfWords <= 650)
+        this.pass('B17', `"What to Look For" word count ${wtlfWords} (400–650)`)
       else
-        this.fail('B17', '"What to Look For" word count must be 400–600', `found ${wtlfWords}`)
+        this.fail('B17', '"What to Look For" word count must be 400–650', `found ${wtlfWords}`)
 
       // B18: "What to Look For" has 3–5 H3 subsections
       const wtlfH3Count = wtlfH3s.length

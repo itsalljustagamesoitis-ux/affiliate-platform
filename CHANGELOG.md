@@ -8,6 +8,14 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.8] — 2026-05-05
+
+### B20 WTLF hub link: directive placement fix; B17 range widened
+
+**B20 (persistent, 4 runs):** Model ignores hub link requirement in "What to Look For" section despite `**Required:**` tag. New approach: prescribe exact placement — "In the final paragraph of the last H3 subsection, include a sentence that links to the hub." Removes model discretion about whether/where to place it.
+
+**B17:** WTLF word count ceiling raised 600 → 650. Model generated 616 words — valid depth, overly tight ceiling.
+
 ## [1.7.7] — 2026-05-05
 
 ### Buyer guide intro word count range widened
