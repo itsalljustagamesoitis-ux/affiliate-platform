@@ -214,7 +214,7 @@ These follow from Section 2 but are stated here for completeness:
 
 ### Intro
 
-2–3 paragraphs, 100–150 words total. Structure is fixed:
+2–3 paragraphs, 100–150 words total (hard floor: if your draft comes in under 100 words, expand paragraph 1 or 2 by 1–2 sentences). Structure is fixed:
 
 **Paragraph 1 (required):** Establishes search intent and product category. Names what the reader is trying to accomplish and why this category of product serves that goal. Contains a contextual link to the hub page using a **site-relative path** (e.g., `[dinnerware](/dinnerware/)`) — never an absolute URL — this link must appear in paragraph 1, not deferred to a later paragraph. One specific detail that signals the persona's domain knowledge without stating credentials.
 
@@ -252,7 +252,7 @@ Images are selected from the site's image bank (`public/images/articles/`). Use 
 
 ### Buying guide (`## {STYLE_POLICY.buying_guide_heading.style}`)
 
-3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 500–700 words. Subsections cover the purchase-decision variables specific to this product category — the factors that determine which pick is right for a given buyer's situation. This section is decision-oriented where "What to Look For" was criteria-oriented; they are complementary, not redundant. At least one subsection must include a contextual link to the hub page (different anchor text from the intro and "What to Look For" hub links). Generic advice that applies to any product category is not appropriate.
+3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 500–700 words (hard floor: if your draft comes in under 500 words, add a sentence to the thinnest subsection — do not pad, add a genuinely useful point). Subsections cover the purchase-decision variables specific to this product category — the factors that determine which pick is right for a given buyer's situation. This section is decision-oriented where "What to Look For" was criteria-oriented; they are complementary, not redundant. At least one subsection must include a contextual link to the hub page using a site-relative path (different anchor text from the intro and "What to Look For" hub links). Generic advice that applies to any product category is not appropriate.
 
 ### FAQ (`## Frequently Asked Questions`)
 

@@ -8,6 +8,16 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.6] — 2026-05-05
+
+### Buyer guide word count hard-floor enforcement
+
+Model consistently generates ~94% of stated minimums. Pattern observed across runs: intro 94/100, buying guide 474/500.
+
+**Fix — intro (`prompts/article-buyer-guide.v1.md`, intro spec):** Added hard-floor note: "if your draft comes in under 100 words, expand paragraph 1 or 2 by 1–2 sentences."
+
+**Fix — buying guide (`prompts/article-buyer-guide.v1.md`, buying guide spec):** Added hard-floor note: "if your draft comes in under 500 words, add a sentence to the thinnest subsection." Also added relative-path requirement for the buying guide hub link (consistency with intro and WTLF specs from v1.7.5).
+
 ## [1.7.5] — 2026-05-05
 
 ### Buyer guide hub link spec fixes
