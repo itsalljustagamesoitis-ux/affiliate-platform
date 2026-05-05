@@ -256,7 +256,7 @@ Images are selected from the site's image bank (`public/images/articles/`). Use 
 
 ### FAQ (`## Frequently Asked Questions`)
 
-5 questions. Each answer 2–4 sentences. Total section: 300–450 words. See Section 6 for full FAQ contract.
+5 questions. Each answer 2–3 sentences, 50–80 words. Total section: 300–450 words. See Section 6 for full FAQ contract.
 
 ---
 
@@ -277,7 +277,7 @@ Each question is an H3. Questions must be full interrogative sentences. They mus
 
 ### Answer format
 
-2–4 sentences of plain prose per answer. No bullet lists inside FAQ answers. Where natural, name a specific product from the article and link to its Amazon URL. Do not end FAQ answers with "Check current price on Amazon." — that closing sentence is reserved for product sections only.
+2–3 sentences of plain prose per answer, 50–80 words maximum. No bullet lists inside FAQ answers. Where natural, name a specific product from the article and link to its Amazon URL. Do not end FAQ answers with "Check current price on Amazon." — that closing sentence is reserved for product sections only.
 
 ### Schema block
 

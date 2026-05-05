@@ -509,6 +509,7 @@ def generate_article(
     body = _americanize(body)
     body = _enforce_price_ban(body, dollar_allowed)
     body = _enforce_faq_sentence_limit(body)
+    body = _enforce_ai_tell_bans(body)
     title, description = generate_title_and_desc(article, body, client)
     return body, title, description, product_keys
 
@@ -839,11 +840,15 @@ def _enforce_faq_sentence_limit(body: str, max_sentences: int = 4) -> str:
 
 def _fix_punctuation(text: str) -> str:
     """Hard-fix punctuation the model generates despite instructions."""
-    text = text.replace("\u2014", ",")
-    text = text.replace("\u2013", ",")
-    text = text.replace("---", ",")
+    # Em/en dashes at line boundaries produce orphan commas — strip rather than replace
+    text = re.sub(r"[ \t]*[\u2014\u2013][ \t]*\n", "\n", text)   # trailing dash before newline
+    text = re.sub(r"\n[ \t]*[\u2014\u2013][ \t]*", "\n", text)   # leading dash after newline
+    # Intra-sentence dashes: replace with comma-space
+    text = text.replace("\u2014", ", ")
+    text = text.replace("\u2013", ", ")
+    text = text.replace("---", ", ")
     text = text.replace(" -- ", ", ")
-    text = text.replace("--", ",")
+    text = text.replace("--", ", ")
     text = re.sub(r"\(\s*\)", "", text)
     text = re.sub(r",\s*\)", ")", text)
     text = re.sub(r"\(\s*,", "(", text)
@@ -851,3 +856,59 @@ def _fix_punctuation(text: str) -> str:
     text = re.sub(r",\s*\.", ".", text)
     text = re.sub(r"[^\S\n]{2,}", " ", text)
     return text
+
+
+# AI-tell phrases to scrub from article body before validation
+_AI_TELL_PHRASES = [
+    "in this article",
+    "in this guide",
+    "in today's world",
+    "when it comes to",
+    "look no further",
+    "let's dive in",
+    "the perfect",
+    "game-changer",
+    "elevate your",
+    "navigate the world of",
+    "without further ado",
+]
+
+# Sentence boundary pattern — splits on . ? ! followed by whitespace or end of string
+_SENTENCE_RE = re.compile(r'(?<=[.?!])\s+')
+
+
+def _enforce_ai_tell_bans(body: str) -> str:
+    """Remove sentences containing banned AI-tell phrases. Logs each removal."""
+    # Only scrub prose — leave JSON-LD blocks intact
+    json_marker = '<script type="application/ld+json">'
+    if json_marker in body:
+        prose, _, rest = body.partition(json_marker)
+        return _enforce_ai_tell_bans(prose) + json_marker + rest
+
+    lines = body.split("\n")
+    cleaned_lines = []
+    for line in lines:
+        # Skip heading lines, image lines, frontmatter-style lines
+        if line.startswith("#") or line.startswith("!") or line.startswith("---"):
+            cleaned_lines.append(line)
+            continue
+
+        for phrase in _AI_TELL_PHRASES:
+            if phrase.lower() in line.lower():
+                # Try to remove just the sentence containing the phrase
+                sentences = _SENTENCE_RE.split(line)
+                kept = [s for s in sentences if phrase.lower() not in s.lower()]
+                if kept:
+                    print(f"  [AI-TELL] removed sentence containing '{phrase}'")
+                    line = " ".join(kept)
+                else:
+                    # Whole line is the offending sentence — drop it
+                    print(f"  [AI-TELL] removed line containing '{phrase}'")
+                    line = ""
+                break  # one phrase per line pass is enough
+        cleaned_lines.append(line)
+
+    # Collapse any double blank lines left by removals
+    result = "\n".join(cleaned_lines)
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result

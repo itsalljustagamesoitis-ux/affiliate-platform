@@ -8,6 +8,16 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.2] — 2026-05-05
+
+### Calibration fixes — FAQ length, AI-tell scrubber, punctuation
+
+**Fix 1 — FAQ answer length tightened (`prompts/article-buyer-guide.v1.md`):** Each answer now 2–3 sentences, 50–80 words maximum (was 2–4 sentences, no word cap). Total FAQ section lands at 300–450 words, within the validator's Q06 band. Previous spec produced 750+ word FAQ sections that failed Q06.
+
+**Fix 2 — AI-tell scrubber (`producer/article_builder.py`):** New `_enforce_ai_tell_bans()` post-processing pass runs after `_enforce_faq_sentence_limit`, before the validator. Detects and removes sentences containing any of 11 banned AI-tell phrases ("in this article", "in this guide", "in today's world", "when it comes to", "look no further", "let's dive in", "the perfect", "game-changer", "elevate your", "navigate the world of", "without further ado"). Removal is logged per occurrence. JSON-LD blocks are excluded from scrubbing.
+
+**Fix 3 — Stray comma artifact (`producer/article_builder.py`):** `_fix_punctuation()` was replacing all em-dashes with commas unconditionally. Em-dashes at line boundaries (e.g., before a blank line + heading) produced orphan `,` lines. Fix: strip boundary em-dashes before the intra-sentence replacement pass. Boundary pattern `[\u2014\u2013]` at start/end of line is now removed, not replaced.
+
 ## [1.7.1] — 2026-05-05
 
 ### Validator: VERIFY ASIN references now WARNING not FAIL
