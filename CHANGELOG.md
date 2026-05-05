@@ -8,6 +8,12 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.9] — 2026-05-05
+
+### Roundup B12 Amazon link terminal enforcement
+
+Model added prose after the "Check current price on Amazon." line in one product section (product[4]), failing B12. Spec said sections "end with" the link but did not explicitly forbid trailing content. Added: "**This is the literal last line of the section — no prose, no sentences, no content of any kind follows it.**"
+
 ## [1.7.8] — 2026-05-05
 
 ### B20 WTLF hub link: directive placement fix; B17 range widened

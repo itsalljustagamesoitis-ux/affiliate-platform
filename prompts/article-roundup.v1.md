@@ -113,7 +113,7 @@ The article body is the voice layer. It provides:
 
 ### "Check current price on Amazon." sentence
 
-Each product H3 section in the article body ends with this exact sentence, formatted as a hyperlink over the entire phrase:
+Each product H3 section in the article body ends with this exact sentence, formatted as a hyperlink over the entire phrase. **This is the literal last line of the section — no prose, no sentences, no content of any kind follows it.**
 
 > [Check current price on Amazon.](https://www.amazon.com/dp/{ASIN}?tag={amazon_tracking_id})
 

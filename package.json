@@ -1,7 +1,7 @@
 {
   "name": "@platform/core",
   "type": "module",
-  "version": "1.7.8",
+  "version": "1.7.9",
   "description": "Shared platform layer for affiliate sites (FSG, MLT, OHT)",
   "exports": {
     "./src/layouts/*": "./src/layouts/*",
