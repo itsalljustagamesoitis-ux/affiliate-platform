@@ -6,9 +6,12 @@
 
 **Implementation status:**
 - Section 2 (catalog-growth path): **Implemented** in `producer/article_builder.py` (v1.5.0)
-- Section 3 (validator responsibility): **Partial** — roundup validator integration live; buyer_guide validator pending
+- Section 3 (validator responsibility): **Partial** — roundup validator integration live; buyer_guide validator live (v1.6.0)
 - Section 4 (audit-verify.mjs): **Not yet built** — fill sheet produced manually
 - Section 5 (NOT_ON_AMAZON rendering): **Implemented** in `src/plugins/rehype-product-links.mjs`
+- Section 6 (catalog sizing thresholds): **Implemented** in `tools/assign-products.mjs` (v1.7.0)
+
+**Schema note:** FSG uses `category` as the catalog grouping field; MLT and OHT use `hub`. `assign-products.mjs` auto-detects which field is present. Future normalisation pass should align all three sites to `hub`. Not blocking.
 
 ---
 
@@ -192,3 +195,53 @@ The `data-unavailable="true"` attribute is the hook for future non-Amazon affili
 - NOT_ON_AMAZON is not an error state. It is a confirmed editorial decision.
 - NOT_ON_AMAZON entries do not trigger build failures.
 - NOT_ON_AMAZON entries do not count against the VERIFY audit. `audit-verify.mjs` targets only `VERIFY`, not `NOT_ON_AMAZON`.
+
+---
+
+## 6. Catalog Sizing Thresholds
+
+A catalog that is too thin relative to the article count causes excessive product reuse: the same products appear across too many articles, reducing editorial diversity and affiliate click quality.
+
+This section defines the thresholds used by `tools/assign-products.mjs` to evaluate catalog health before running assignments. Thresholds are calibrated against MLT, which has a deliberately well-stocked catalog accepted as the reference baseline.
+
+### Grouping field auto-detection
+
+Some sites use `hub` as the catalog grouping field; others (FSG) use `category`. `assign-products.mjs` auto-detects which field is present: if any catalog entry contains a `hub` key, `hub` is used; otherwise it falls back to `category`. Article-side grouping always prefers `hub_slug`, then `hub`, then `category`.
+
+### Threshold definitions
+
+| Threshold | Formula | Meaning |
+|-----------|---------|---------|
+| **Floor** | `⌈articles / 4⌉` products per hub | Hard minimum. Below this, assignment quality degrades to the point where the tool should not run. |
+| **Target** | `⌈articles / 2⌉` products per hub | Operational minimum. Below this, concentration risk is significant and catalog growth is recommended. |
+| **Comfortable** | ≤ 1.5× ratio (articles ÷ products) | Informational. At or below this ratio the catalog is well-stocked and concentration is within acceptable range. Matches MLT's well-stocked hubs. |
+
+### Calibration basis
+
+Derived from MLT's production catalog (200 articles, 137 products, 7 hubs). MLT's two largest hubs — cast-iron (35 articles, 21 products, ratio 1.67) and stainless-cookware (43 articles, 23 products, ratio 1.87) — were built deliberately and accepted as healthy. Both pass target=`⌈a/2⌉` and fail target=`⌈a/1.5⌉`. The target threshold was set to match actual good practice, not aspirational density.
+
+### Enforcement in assign-products.mjs
+
+`assign-products.mjs` runs the threshold check before the assignment pass:
+
+1. **Below floor (any hub):** Print the failing hub(s), exit 2. Assignments are not run. The catalog must be grown before the tool can proceed.
+2. **Below target (any hub):** Print a warning for each hub. Assignments continue. Exit 1 at the end (same as gap/no-hub warnings).
+3. **All hubs at target or above:** No threshold output. Assignments proceed normally.
+
+Flag `--skip-threshold-check` bypasses the check entirely (useful when intentionally running on a thin catalog for diagnostic purposes). The flag prints a prominent warning to stderr.
+
+### Scope
+
+Thresholds apply per hub and in aggregate (total products vs total articles). A site that passes per-hub checks but fails in aggregate has catalog gaps concentrated in underrepresented hubs — surface both views.
+
+### Example OHT state at initial catalog (54 products, 200 articles)
+
+| Hub | Articles | Products | Floor | Target | Status |
+|-----|----------|----------|-------|--------|--------|
+| dinnerware | 50 | 12 | 13 | 25 | **Below floor** |
+| linens | 44 | 9 | 11 | 22 | **Below floor** |
+| glassware | 50 | 16 | 13 | 25 | Below target |
+| decor | 36 | 11 | 9 | 18 | Below target |
+| serveware | 20 | 6 | 5 | 10 | Below target |
+
+Growth target to reach comfortable (≤ 1.5 ratio): approximately 136 total products (+82 from 54).

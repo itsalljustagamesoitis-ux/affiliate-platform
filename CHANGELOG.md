@@ -6,7 +6,41 @@ Corpus backlog logged in CORPUS-BACKLOG.md following v1.2.0 calibration self-tes
 
 FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violation noted in CORPUS-BACKLOG.md. No new flag — same backlog item.
 
-OHT VERIFY ASIN audit completed — 52 products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52.
+OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
+
+## [1.7.0] — 2026-05-05
+
+### Catalog sizing thresholds — `tools/assign-products.mjs` + `CATALOG-BEHAVIOUR.md` Section 6
+
+#### Threshold check in `assign-products.mjs`
+
+`assign-products.mjs` now runs a catalog health check before the assignment pass. If any hub falls below the floor threshold the tool exits 2 and assignments do not run. If any hub falls below target a warning is printed but assignments continue.
+
+| Threshold | Formula | Enforcement |
+|-----------|---------|-------------|
+| **Floor** | `⌈articles / 4⌉` per hub | Exit 2 — assignments blocked |
+| **Target** | `⌈articles / 2⌉` per hub | Warn, continue |
+| **Comfortable** | ratio ≤ 1.5 | Informational only |
+
+Thresholds are calibrated against MLT's production catalog (200 articles, 137 products, 7 hubs). MLT's two largest hubs — cast-iron (35 articles, 21 products, ratio 1.67) and stainless-cookware (43 articles, 23 products, ratio 1.87) — were built deliberately and accepted as the healthy baseline. Both pass target = `⌈a/2⌉`; the threshold was set to match actual good practice, not aspirational density.
+
+New flag `--skip-threshold-check` bypasses the gate entirely (prints a prominent stderr warning). Useful for intentional thin-catalog runs or diagnostic passes.
+
+#### Grouping field auto-detection
+
+`detectGroupingField()` inspects the raw catalog: if any entry contains a `hub` key, `hub` is used as the grouping field; otherwise falls back to `category`. MLT and OHT use `hub`; FSG uses `category` (schema drift — see note below). The catalog report line now prints `[grouped by: hub]` or `[grouped by: category]` so the field in use is always visible.
+
+**Schema drift note:** FSG's `products.yaml` uses `category` as the grouping field; MLT and OHT use `hub`. Auto-detection is non-breaking for all three sites. A future normalisation pass should align all three to `hub`. Not blocking.
+
+#### `CATALOG-BEHAVIOUR.md` Section 6 added
+
+Section 6 codifies the threshold definitions, calibration basis, per-hub enforcement rules, aggregate scope, and the OHT pre-growth example table (dinnerware and linens were below floor before the 2026-05-05 catalog growth run). Implementation status block updated.
+
+#### Files modified
+
+- `tools/assign-products.mjs` — added `detectGroupingField()`, `checkThresholds()`, `--skip-threshold-check` flag, threshold gate in main(), `[grouped by: ...]` in catalog report line
+- `CATALOG-BEHAVIOUR.md` — Section 6 added; implementation status block updated (Section 3 partial, Section 6 implemented v1.7.0)
+- `package.json` — version bumped 1.6.0 → 1.7.0
 
 ## [1.6.0] — 2026-05-05
 
