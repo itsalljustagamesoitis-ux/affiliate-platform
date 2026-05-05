@@ -8,6 +8,14 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.5] — 2026-05-05
+
+### Buyer guide hub link spec fixes
+
+**Fix 1 — Relative URL requirement (`prompts/article-buyer-guide.v1.md`, intro):** Paragraph 1 spec now requires hub links use site-relative paths (e.g., `](/dinnerware/)`) and explicitly bans absolute URLs. Root cause of B02 FAIL: model was generating `https://onehappytable.com/dinnerware/` which the `hasHubLink` validator pattern (matches `]\(/{slug}/\)` only) does not recognize.
+
+**Fix 2 — "What to Look For" hub link emphasis (`prompts/article-buyer-guide.v1.md`, WTLF section):** Hub link requirement now marked **Required** with an example (`our [complete dinnerware guide](/dinnerware/)`) and explicit note that it cannot be deferred to the buying guide. Root cause of B20 FAIL: model was placing the required WTLF hub link in "How to Choose" instead.
+
 ## [1.7.4] — 2026-05-05
 
 ### Spurious comma scrubber

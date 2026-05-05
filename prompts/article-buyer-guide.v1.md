@@ -216,7 +216,7 @@ These follow from Section 2 but are stated here for completeness:
 
 2–3 paragraphs, 100–150 words total. Structure is fixed:
 
-**Paragraph 1 (required):** Establishes search intent and product category. Names what the reader is trying to accomplish and why this category of product serves that goal. Contains a contextual link to the hub page — this link must appear in paragraph 1, not deferred to a later paragraph. One specific detail that signals the persona's domain knowledge without stating credentials.
+**Paragraph 1 (required):** Establishes search intent and product category. Names what the reader is trying to accomplish and why this category of product serves that goal. Contains a contextual link to the hub page using a **site-relative path** (e.g., `[dinnerware](/dinnerware/)`) — never an absolute URL — this link must appear in paragraph 1, not deferred to a later paragraph. One specific detail that signals the persona's domain knowledge without stating credentials.
 
 **Paragraph 2 (required):** Frames the evaluation criteria — what separates a good choice from a poor one in this category, at the level of principle (not yet naming specific features or products). Sets up the "What to Look For" section without duplicating it.
 
@@ -224,7 +224,7 @@ These follow from Section 2 but are stated here for completeness:
 
 ### "What to Look For in {category_noun}" section
 
-3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 400–600 words. Subsections cover the evaluation criteria specific to this product category — the factors a buyer must understand before they can choose confidently. This section is educational, not product-comparative. Do not name specific products from the roundup. At least one subsection must include a contextual link to the hub page (different anchor text from the intro hub link).
+3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 400–600 words. Subsections cover the evaluation criteria specific to this product category — the factors a buyer must understand before they can choose confidently. This section is educational, not product-comparative. Do not name specific products from the roundup. **Required:** At least one H3 subsection must include a contextual link to the hub page using a site-relative path with different anchor text from the intro link — e.g., `our [complete dinnerware guide](/dinnerware/)`. This link is required in this section; it cannot be deferred to the buying guide.
 
 ### Per-product sections (H3s under `## Top Picks`)
 
