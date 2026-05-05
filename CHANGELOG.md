@@ -8,6 +8,52 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52.
 
+## [1.5.0] — 2026-05-05
+
+### Platform producer — `producer/` introduced
+
+New module `affiliate-platform/producer/` lifts MLT's per-site producer into the shared platform layer. All three consuming sites (FSG, MLT, OHT) can now use a single platform producer via a thin site-side shell.
+
+#### Files introduced
+
+- `producer/__init__.py`
+- `producer/requirements.txt`
+- `producer/prompt_loader.py` — loads platform prompt files and renders `{{STYLE_POLICY}}`, `{{PRODUCT_COUNT.*}}`, `{{PERSONA_YAML}}`, `{STYLE_POLICY.buying_guide_heading.style}` placeholders before passing to the model; validates style_policy completeness (exits 2 on missing fields)
+- `producer/data_loader.py` — all data-loading functions parameterised on `site_root: Path` (no per-site ROOT constants)
+- `producer/article_builder.py` — platform article builder with all R1–R10 refactors applied (see below)
+- `producer/producer_main.py` — unified CLI entry point with `--site <path>` flag
+
+#### Site-side thin shells
+
+- `my-little-tablespoon/producer/mlt-producer.py` — delegates to platform producer
+- `four-season-gardener/producer/fsg-producer-v2.py` — delegates to platform producer
+- `one-happy-table/producer/oht-producer-v2.py` — delegates to platform producer
+
+Original per-site entry points preserved in each site's `producer/.legacy/`.
+
+#### Refactors applied (R1–R10)
+
+| Ref | Change |
+|-----|--------|
+| R1 | `SYSTEM` constant removed — system prompt comes from `prompt_loader.load_prompt()` |
+| R2 | `TYPE_WORD_COUNTS` dict removed — word count comes from `style_policy.word_count` in site.config.yaml |
+| R3 | `H2_STRUCTURES` dict removed |
+| R4 | `h2_structure` from pipeline ignored for platform-prompted types (roundup, buyer_guide) with console warning |
+| R5 | `product_count` enforcement: halt on shortfall, trim to max on excess |
+| R6 | Catalog-growth path: missing product slugs auto-added to products.yaml with `amazon_asin: VERIFY`, prominent warning logged |
+| R7 | Validator integration: `validate-roundup.mjs` invoked for roundup type after generation; non-zero exit halts run with code 2; unknown types skip with warning |
+| R8 | `{{STYLE_POLICY}}` injected into system prompt via `prompt_loader` |
+| R9 | `_fix_punctuation`, `_americanize`, EEAT block, sibling links, two-model generation (Sonnet body + Haiku title/meta) all preserved verbatim |
+| R10 | `author` derived from `site_config["persona"]["config_path"]` stem; `category` from enriched article data |
+
+#### Fallback for non-platform-prompted types
+
+Article types without a platform prompt (Review, Comparison, Informational) use a minimal persona-based system built from the persona YAML and site style_policy. These types are not deprecated — they generate correctly, just without the full platform spec contract.
+
+#### CATALOG-BEHAVIOUR.md updated
+
+Status note updated from "spec, not yet implemented" to "spec + implemented in producer/article_builder.py R6".
+
 ## [1.4.0] — 2026-05-05
 
 ### Product count promoted to first-class field; catalog-growth behaviour spec

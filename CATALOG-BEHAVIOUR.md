@@ -4,6 +4,12 @@
 **Status:** Active  
 **Applies to:** Producer implementations, ASIN-fill tooling, build validator
 
+**Implementation status:**
+- Section 2 (catalog-growth path): **Implemented** in `producer/article_builder.py` (v1.5.0)
+- Section 3 (validator responsibility): **Partial** — roundup validator integration live; buyer_guide validator pending
+- Section 4 (audit-verify.mjs): **Not yet built** — fill sheet produced manually
+- Section 5 (NOT_ON_AMAZON rendering): **Implemented** in `src/plugins/rehype-product-links.mjs`
+
 ---
 
 ## 1. Statement of Intent
