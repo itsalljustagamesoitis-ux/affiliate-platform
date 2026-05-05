@@ -8,6 +8,44 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52.
 
+## [1.6.0] — 2026-05-05
+
+### Buyer guide validator — `validators/validate-buyer-guide.mjs` introduced
+
+Adds mechanical validation for `type: buyer_guide` articles, mirroring the rule structure of `validate-roundup.mjs` (v1.5.0 baseline) with buyer-guide-specific adaptations from `prompts/article-buyer-guide.v1.md`.
+
+#### Files introduced
+
+- `validators/validate-buyer-guide.mjs` — standalone ESM validator; same exit-code contract as `validate-roundup.mjs` (0 = pass, 1 = fail, 2 = config error)
+
+#### Files modified
+
+- `producer/article_builder.py` — R7 `validator_map` now includes `"buyer_guide"` → `validate-buyer-guide.mjs`; buyer guide articles no longer skip validation with a warning
+
+#### Rule deltas from `validate-roundup.mjs`
+
+| Rule | Change |
+|------|--------|
+| F02 | type = `"buyer_guide"` (was `"roundup"`) |
+| F07 | tags must include `"buyer_guide"` (was `"roundup"`) |
+| F08 | product count 3–5 (was 3–6) |
+| B03 | intro 2–3 paragraphs (was exactly 2) |
+| B04 | intro 100–150 words (was 80–135) |
+| B05 | section order: What to Look For → Top Picks → {buyGuideStyle} → FAQ |
+| B15 | buying guide word count 500–700 (was 450–750) |
+| B17 | NEW — "What to Look For" word count 400–600 |
+| B18 | NEW — "What to Look For" has 3–5 H3 subsections |
+| B19 | NEW — exactly one "## What to Look For in …" H2 present |
+| B20 | NEW — "What to Look For" contains a hub link |
+| A10 | NEW — no `**Price:**` / `**Best for:**` label-value codas |
+| M14 | NEW — at least one FAQ question addresses a "What to Look For" criterion |
+| M15 | NEW — "What to Look For" section does not name specific products |
+| M16 | NEW — intro hub link must appear in paragraph 1 (mechanical check not possible) |
+
+All other rules (F01, F03–F06, F09–F11, B01–B02, B06–B14, B16, B09–B13, Q01–Q08, A01–A09, L01, M01–M13) carry over unchanged from the roundup validator calibrated thresholds.
+
+---
+
 ## [1.5.0] — 2026-05-05
 
 ### Platform producer — `producer/` introduced

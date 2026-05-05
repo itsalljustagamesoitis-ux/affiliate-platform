@@ -172,6 +172,7 @@ def _run_validator(article_type: str, md_path: Path, site_root: Path) -> tuple:
     norm_type = article_type.lower().replace(" ", "_")
     validator_map = {
         "roundup": PLATFORM_ROOT / "validators/validate-roundup.mjs",
+        "buyer_guide": PLATFORM_ROOT / "validators/validate-buyer-guide.mjs",
     }
     validator_path = validator_map.get(norm_type)
 
