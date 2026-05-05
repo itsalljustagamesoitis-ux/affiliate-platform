@@ -1,6 +1,6 @@
 # Roundup Article Prompt — v1
 
-**Version:** 1.1  
+**Version:** 1.2  
 **Type:** `roundup`  
 **Scope:** All sites consuming `@platform/core` (FSG, MLT, OHT)  
 **Status:** Active  
@@ -46,7 +46,13 @@ Every field above is required. No null values except `updated`. `disclosure_requ
 
 ### Product count
 
-3–6 products canonical. Minimum 3 to justify the roundup format. Maximum 6 before the article becomes a catalogue.
+```yaml
+product_count:
+  min: 3
+  max: 6
+```
+
+If the brief specifies fewer than {{PRODUCT_COUNT.min}} products that match the article's hub, the producer halts and surfaces the shortfall. If the brief specifies more than {{PRODUCT_COUNT.max}}, the producer trims to {{PRODUCT_COUNT.max}} highest-fit (highest-rated, then most relevant by category match).
 
 Tier grouping under sub-H2s (`## Premium Picks`, `## Mid-Range Picks`) is a documented exception allowed only when product count is 8 or more. Default: all H3 product sections live directly under a single `## Top Picks` H2.
 
@@ -102,7 +108,7 @@ The article body is the voice layer. It provides:
 
 - Qualitative framing and context the component data cannot supply
 - Persona-grounded prose review per product (why this product, for whom, what trade-offs matter in practice)
-- Buying guide reasoning under `## How to Choose`
+- Buying guide reasoning under `## {STYLE_POLICY.buying_guide_heading.style}`
 - FAQ answers with accompanying schema
 
 ### "Check current price on Amazon." sentence
@@ -180,6 +186,8 @@ Absent from all corpus articles. Do not use:
 - "in this article" / "in this guide"
 - "without further ado"
 
+**Implementation note:** Banned-phrase enforcement applies to article prose only. Validator must exclude `<script type="application/ld+json">` blocks. FAQ answer text echoed verbatim in JSON-LD is the same string and would otherwise double-trigger this rule.
+
 ### Structural bans
 
 These follow from Section 2 but are stated here for completeness:
@@ -187,7 +195,7 @@ These follow from Section 2 but are stated here for completeness:
 - No `## Top Picks at a Glance` section or any prose bullet summary of picks
 - No `**Pros:**` or `**Cons:**` bullet lists anywhere in the article body
 - No comparison tables or grids in the article body
-- No role label in H3 product headings — e.g., not `### Product Name (Best Overall)`
+- No role label in H3 product headings — e.g., not `### Best Overall: Product Name`
 - No bold role subtitle below product H3 headings — e.g., not `**Best for induction cooking**`
 - No `**Who buys this:**` coda at the end of product sections
 - No hardcoded dollar amounts anywhere

@@ -1,6 +1,6 @@
 # Buyer Guide Article Prompt — v1
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Type:** `buyer_guide`  
 **Scope:** All sites consuming `@platform/core` (FSG, MLT, OHT)  
 **Status:** Active  
@@ -46,9 +46,15 @@ Every field above is required. No null values except `updated`. `disclosure_requ
 
 ### Product count
 
-3–6 products canonical. Minimum 3 to justify the format. Maximum 6 before the article becomes a catalogue.
+```yaml
+product_count:
+  min: 3
+  max: 5
+```
 
-Tier grouping under sub-H2s (`## Premium Picks`, `## Mid-Range Picks`) is a documented exception allowed only when product count is 8 or more. Default: all H3 product sections live directly under a single `## Top Picks` H2.
+If the brief specifies fewer than {{PRODUCT_COUNT.min}} products that match the article's hub, the producer halts and surfaces the shortfall. If the brief specifies more than {{PRODUCT_COUNT.max}}, the producer trims to {{PRODUCT_COUNT.max}} highest-fit (highest-rated, then most relevant by category match).
+
+Buyer guide articles do not use tier grouping. All H3 product sections live directly under a single `## Top Picks` H2. The tier grouping exception available to roundups (8+ products) does not apply to this format.
 
 ### Amazon link format
 
@@ -354,7 +360,7 @@ The generating script must run all four checks before passing the brief to the m
 
 1. **ASIN check:** All product `asin` values must be non-VERIFY. Any VERIFY ASIN → halt.
 2. **Product existence check:** All product `id` values must exist in `content/products/products.yaml`. Any missing ID → halt.
-3. **Hub match check:** Each product's `hub` field in products.yaml must match the brief `hub`. Any mismatch → halt.
+3. **Hub match check (Rule 2):** Each product's `hub` field in products.yaml must match the brief `hub`. Any mismatch → halt.
 4. **Cannibalization check:** The `target_keyword` must not already appear as a `target_keyword` frontmatter value in any file under `content/articles/`. Duplicate → halt.
 
 ---

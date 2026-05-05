@@ -8,6 +8,47 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52.
 
+## [1.4.0] — 2026-05-05
+
+### Product count promoted to first-class field; catalog-growth behaviour spec
+
+#### Product count — roundup (article-roundup.v1.md → v1.2)
+
+- `product_count.min: 3`, `product_count.max: 6` — no change to underlying rule; formalised as a YAML spec block with `{{PRODUCT_COUNT.min}}` / `{{PRODUCT_COUNT.max}}` placeholders
+- Enforcement note added: producer halts on shortfall; trims to `max` highest-fit on excess
+- Three accidental cross-prompt drifts corrected (see consistency check below)
+
+#### Product count — buyer_guide (article-buyer-guide.v1.md → v1.1)
+
+- `product_count.min: 3`, `product_count.max: 5` — new rule derived from MLT corpus
+  - MLT buyer_guide distribution (176 articles): 4 products 56%, 5 products 35%, 3 products 6%; 1–2 product outliers 3%
+  - 10th–90th percentile range is 4–5; min=3 / max=5 covers 97% of corpus
+- Tier grouping exception from roundup explicitly excluded: buyer guides never use sub-H2 tier grouping
+- Same enforcement language and placeholder syntax as roundup
+
+#### Cross-prompt consistency fixes (accidental drifts normalised)
+
+1. **AI-tell implementation note** — added to roundup prompt (was buyer_guide-only; same JSON-LD echo problem exists in both)
+2. **H3 heading ban example** — normalised to `### Best Overall: Product Name` in both (roundup had `(Best Overall)` parenthetical form)
+3. **Section 2 buying guide reference** — roundup now uses `{STYLE_POLICY.buying_guide_heading.style}` (was hardcoded `## How to Choose`)
+4. **Hub match check label** — buyer_guide now includes `(Rule 2)` to match roundup
+
+#### Intentional cross-prompt differences (not normalised)
+
+- `**Price:**` / `**Best for:**` coda ban: buyer_guide-only (corpus-specific finding from FSG deer-repellent-granules)
+- "voice and education layer" vs "voice layer" in Section 2: buyer_guide-specific (has "What to Look For" section)
+- Extra FAQ question requirement about "What to Look For": buyer_guide-specific
+- `category_noun` and `h2_structure` brief fields: buyer_guide-specific
+- Extended persona note mentioning "What to Look For": buyer_guide-specific
+
+#### CATALOG-BEHAVIOUR.md introduced
+
+New spec file `affiliate-platform/CATALOG-BEHAVIOUR.md` documents the producer-adds-on-demand contract and ASIN-fill cycle. Covers: entry format, slug derivation, conflict check rules, validator responsibility (VERIFY is generation-permitted / build-blocked), the fill cycle (audit → populate → apply → build), and the NOT_ON_AMAZON editorial contract.
+
+Producer integration with this spec is a separate concern. The platform publishes the contract; whether each site's producer reads from it is a separate session.
+
+`tools/audit-verify.mjs` is specified in Section 4 of CATALOG-BEHAVIOUR.md but not yet built — flagged for a future session.
+
 ## [1.3.0] — 2026-05-05
 
 ### Buyer guide prompt — `article-buyer-guide.v1.md`
