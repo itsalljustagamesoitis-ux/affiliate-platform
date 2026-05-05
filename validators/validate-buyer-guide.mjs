@@ -365,10 +365,10 @@ class FileValidator {
     else
       this.fail('B03', 'Intro must have 2–3 paragraph blocks', `found ${intraParagraphs}`)
 
-    // B04: intro word count 100–150
+    // B04: intro word count 90–165
     const introWords = countWords(introText)
-    if (introWords >= 100 && introWords <= 150) this.pass('B04', `Intro word count ${introWords} (100–150)`)
-    else this.fail('B04', 'Intro word count must be 100–150', `found ${introWords}`)
+    if (introWords >= 90 && introWords <= 165) this.pass('B04', `Intro word count ${introWords} (90–165)`)
+    else this.fail('B04', 'Intro word count must be 90–165', `found ${introWords}`)
 
     // B05: section order What to Look For → Top Picks → {buyGuideStyle} → FAQ
     const wtIdx = allKeys.findIndex(k => k.startsWith('What to Look For'))

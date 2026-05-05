@@ -214,7 +214,7 @@ These follow from Section 2 but are stated here for completeness:
 
 ### Intro
 
-2–3 paragraphs, 100–150 words total (hard floor: if your draft comes in under 100 words, expand paragraph 1 or 2 by 1–2 sentences). Structure is fixed:
+2–3 paragraphs, 100–160 words total. Structure is fixed:
 
 **Paragraph 1 (required):** Establishes search intent and product category. Names what the reader is trying to accomplish and why this category of product serves that goal. Contains a contextual link to the hub page using a **site-relative path** (e.g., `[dinnerware](/dinnerware/)`) — never an absolute URL — this link must appear in paragraph 1, not deferred to a later paragraph. One specific detail that signals the persona's domain knowledge without stating credentials.
 

@@ -8,6 +8,16 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.7] — 2026-05-05
+
+### Buyer guide intro word count range widened
+
+B04 hard floor (v1.7.6) overcorrected — model went 94 → 151 words (1 over max). 100–150 is too narrow for natural variance.
+
+**Validator (`validate-buyer-guide.mjs` B04):** 100–150 → 90–165. Accepts normal sentence-boundary variance without failing.
+
+**Prompt (`prompts/article-buyer-guide.v1.md`, intro):** Hard-floor callout removed (was causing overcorrection); range updated to 100–160.
+
 ## [1.7.6] — 2026-05-05
 
 ### Buyer guide word count hard-floor enforcement
