@@ -207,15 +207,18 @@ def run(args, site_root: Path):
                 article, product_keys, products, title, description, site_config
             )
 
+            # Always write .md first — R7 validator needs it regardless of path
+            md_content = frontmatter + body + "\n"
+
             if args.publish:
-                # Write to temp file, validate, then move to content/articles/
+                # Publish path: validate .md, then move to content/articles/ on pass
                 with tempfile.NamedTemporaryFile(
                     suffix=".md", dir=staging_dir, delete=False, mode="w", encoding="utf-8"
                 ) as tmp_f:
                     tmp_path = Path(tmp_f.name)
-                    tmp_f.write(frontmatter + body + "\n")
+                    tmp_f.write(md_content)
 
-                valid = _run_validator(article["type"], tmp_path, site_root)
+                valid, validator_output = _run_validator(article["type"], tmp_path, site_root)
                 if not valid:
                     tmp_path.unlink(missing_ok=True)
                     print(
@@ -229,23 +232,48 @@ def run(args, site_root: Path):
                 article["published"] = True
                 print(f" done. {word_count} words → content/articles/{slug}.md")
             else:
-                # Stage as .docx for human review
+                # Staging path: write .md, run R7 validator, route to staging/ or staging/failed/
+                md_path = staging_dir / f"{slug}.md"
+                md_path.write_text(md_content, encoding="utf-8")
+
+                valid, validator_output = _run_validator(article["type"], md_path, site_root)
+                if not valid:
+                    # Move to staging/failed/ with validator output appended
+                    failed_dir = staging_dir / "failed"
+                    failed_dir.mkdir(exist_ok=True)
+                    failed_path = failed_dir / f"{slug}.md"
+                    failed_path.write_text(
+                        md_content
+                        + "\n\n---\n<!-- VALIDATOR FAILURES -->\n"
+                        + validator_output,
+                        encoding="utf-8",
+                    )
+                    md_path.unlink(missing_ok=True)
+                    print(
+                        f" done ({word_count} words) — validator FAIL → "
+                        f"staging/failed/{slug}.md"
+                    )
+                else:
+                    print(f" done. {word_count} words → staging/{slug}.md")
+
+                article["staged"] = True
+
+                # Also write .docx alongside .md for human review in Word/Pages
                 try:
                     site_producer = site_root / "producer"
                     if site_producer.exists() and str(site_producer) not in sys.path:
                         sys.path.insert(0, str(site_producer))
                     from docx_writer import build_docx
+                    docx_dest = (
+                        staging_dir / "failed" / f"{slug}.docx"
+                        if not valid
+                        else staging_dir / f"{slug}.docx"
+                    )
                     doc = build_docx(article, body, title, description)
-                    out_path = staging_dir / f"{slug}.docx"
-                    doc.save(out_path)
-                    article["staged"] = True
-                    print(f" done. {word_count} words → staging/{slug}.docx")
+                    doc.save(docx_dest)
+                    print(f"  Also: {docx_dest.relative_to(site_root)} (human review copy)")
                 except ImportError:
-                    # Fallback: write .md to staging if docx_writer not available
-                    out_path = staging_dir / f"{slug}.md"
-                    out_path.write_text(frontmatter + body + "\n", encoding="utf-8")
-                    article["staged"] = True
-                    print(f" done. {word_count} words → staging/{slug}.md")
+                    pass  # .md alone is sufficient
 
             article.pop("_siblings", None)
             save_pipeline(pipeline, site_root)

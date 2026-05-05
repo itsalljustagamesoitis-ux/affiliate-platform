@@ -162,10 +162,12 @@ def _enforce_product_count(article: dict, products: dict, metadata: dict) -> lis
 # Validator integration (CATALOG-BEHAVIOUR.md §3)
 # ---------------------------------------------------------------------------
 
-def _run_validator(article_type: str, md_path: Path, site_root: Path) -> bool:
+def _run_validator(article_type: str, md_path: Path, site_root: Path) -> tuple:
     """
-    Run platform validator for this article type. Returns True if valid (or no validator).
-    Logs result. Does NOT sys.exit — caller handles exit on False.
+    Run platform validator for this article type.
+    Returns (passed: bool, output: str).
+      passed=True when no validator exists for this type (not an error).
+    Logs result. Does NOT sys.exit — caller handles on False.
     """
     norm_type = article_type.lower().replace(" ", "_")
     validator_map = {
@@ -174,12 +176,14 @@ def _run_validator(article_type: str, md_path: Path, site_root: Path) -> bool:
     validator_path = validator_map.get(norm_type)
 
     if not validator_path:
-        print(f"  VALIDATOR: No platform validator for type '{article_type}' — skipping.")
-        return True
+        msg = f"  VALIDATOR: No platform validator for type '{article_type}' — skipping."
+        print(msg)
+        return True, msg
 
     if not validator_path.exists():
-        print(f"  VALIDATOR: {validator_path.name} not found — skipping.")
-        return True
+        msg = f"  VALIDATOR: {validator_path.name} not found — skipping."
+        print(msg)
+        return True, msg
 
     result = subprocess.run(
         ["node", str(validator_path), "--site", str(site_root), str(md_path)],
@@ -187,16 +191,16 @@ def _run_validator(article_type: str, md_path: Path, site_root: Path) -> bool:
         text=True,
     )
 
+    output = result.stdout + (("\n" + result.stderr) if result.stderr else "")
+
     if result.returncode != 0:
         print(f"  VALIDATOR FAIL ({validator_path.name}) exit={result.returncode}")
-        if result.stdout:
-            print(result.stdout[-1500:])
-        if result.stderr:
-            print(result.stderr[-500:])
-        return False
+        print(output[-2000:])
+        return False, output
 
     print(f"  VALIDATOR: {validator_path.name} PASS")
-    return True
+    print(output[-500:] if output.strip() else "")
+    return True, output
 
 
 # ---------------------------------------------------------------------------
@@ -347,9 +351,34 @@ AFFILIATE LINKS:
 When mentioning a product by name, link to its Amazon URL using the product name as anchor text.
 Format: [Product Name](https://www.amazon.com/dp/ASIN?tag={amazon_tag})
 
-FAQ SECTION:
+H3 PRODUCT HEADING FORMAT (REQUIRED):
+H3 product section headings must be plain text product names only. DO NOT make the H3 a hyperlink.
+Correct: `### Shun Classic 7-Inch Santoku`
+Wrong: `### [Shun Classic 7-Inch Santoku](url)`
+Wrong: `### Shun Classic 7-Inch Santoku (Best Overall)`
+The first mention of the product name IN THE BODY TEXT of the section should link to Amazon — not the heading itself.
+
+PRODUCT SECTION CLOSER (REQUIRED — every product H3):
+Each product H3 section MUST end with this exact line (the full phrase is the hyperlink):
+[Check current price on Amazon.](https://www.amazon.com/dp/ASIN?tag={amazon_tag})
+Replace ASIN with the product's ASIN. This line is mandatory on EVERY product section, no exceptions.
+
+INTRO LENGTH (HARD LIMIT):
+Write exactly 2 intro paragraphs. Target 85–100 words total. Hard ceiling: 110 words — if you go over, cut sentences. Two short paragraphs only. Do NOT write a third paragraph. Do NOT add transitional bridge sentences between the intro and the first H2.
+
+PRODUCT SECTION COUNT (HARD REQUIREMENT):
+Write one H3 section for EVERY product listed above. {len(product_keys)} products = {len(product_keys)} H3 sections under ## Top Picks. Do not skip any product.
+
+FAQ SECTION (HARD LIMITS):
 End with an H2 "Frequently Asked Questions" section containing exactly 5 Q&A pairs.
-Use H3 for each question. Questions should be the kind a real buyer would search.
+Use H3 for each question. Each answer: 2–4 sentences, maximum 60 words per answer. Total FAQ section: 300–450 words maximum.
+Questions should reflect real buyer decisions specific to this product category.
+Immediately after the last FAQ answer, include the FAQPage JSON-LD schema block.
+
+BUYING GUIDE LENGTH: The buying guide section must be 500–700 words total. Write 3–5 H3 subsections. Each H3 subsection: 2–3 paragraphs, minimum 80 words. If you finish the guide and word count is under 500, expand the last subsection before moving to FAQ.
+
+PRICE RULE (HARD BAN — applies everywhere in this article):
+No dollar figures ($X, $X–$Y), no "around $", no "starting at", no "typically around", no "priced at", no "costs about", no "for under $", no "at the $X price point". Use price band language only (budget, mid-range, premium). The ONLY pricing signal allowed is "Check current price on Amazon." at the end of each product section.
 
 Write the full article body now. Do not include frontmatter. Start with the intro paragraph."""
 
@@ -361,7 +390,7 @@ Write the full article body now. Do not include frontmatter. Start with the intr
 # ---------------------------------------------------------------------------
 
 def generate_title_and_desc(article: dict, body: str, client) -> tuple:
-    """Draft title (<65 chars) and meta description (150-160 chars) from body."""
+    """Draft title (50-65 chars) and meta description (150-160 chars) from body."""
     import anthropic
 
     prompt = f"""Write a title and meta description for this article.
@@ -372,8 +401,8 @@ Article opening:
 {body[:600]}
 
 Rules:
-- Title: under 65 characters, keyword near the front, specific and honest (no "ultimate", no "best ever")
-- Meta description: 150–160 characters exactly, plain sentence, no em dashes, no exclamation marks
+- Title: MINIMUM 50 characters, maximum 65 characters. Count the characters before finalizing. Titles under 50 chars will be rejected. Keyword near the front, specific and honest (no "ultimate", no "best ever"). Example length check: "Best Rated Santoku Knives: Top Picks for Home Cooks" = 51 chars (acceptable minimum).
+- Meta description: MINIMUM 140 characters, MAXIMUM 155 characters. Count the characters before finalizing. Target 148 characters. Plain sentence, no em dashes, no exclamation marks.
 
 Return JSON only:
 {{"title": "...", "description": "..."}}"""
@@ -425,7 +454,8 @@ def generate_article(
 
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=4096,
+        # 8192: platform system prompt is ~23K chars vs legacy ~4K — output budget compressed at 4096
+        max_tokens=8192,
         system=system_text,
         messages=[{"role": "user", "content": prompt}],
     )

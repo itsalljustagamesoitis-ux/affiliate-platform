@@ -113,11 +113,18 @@ The article body is the voice layer. It provides:
 
 ### "Check current price on Amazon." sentence
 
-Each product H3 section in the article body ends with the sentence:
+Each product H3 section in the article body ends with this exact sentence, formatted as a hyperlink over the entire phrase:
 
-> Check current price on Amazon.
+> [Check current price on Amazon.](https://www.amazon.com/dp/{ASIN}?tag={amazon_tracking_id})
 
-The product name in that sentence links to its Amazon URL. This is the only pricing signal in the article body. No dollar figures, price ranges, or pricing language of any kind appear anywhere else (see Section 4).
+The link anchor is the **full phrase** "Check current price on Amazon." — link the whole sentence, not just "Amazon" and not just the product name. Do NOT modify the wording — it is fixed.
+
+Correct: `[Check current price on Amazon.](url)`
+Wrong: `Check current price on [Amazon](url).`
+Wrong: `Check current price on [Product Name](url).`
+Wrong: `[Product Name](url) — Check current price on Amazon.`
+
+This is the only pricing signal in the article body. No dollar figures, price ranges, or pricing language of any kind appear anywhere else (see Section 4).
 
 ---
 
