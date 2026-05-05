@@ -510,6 +510,7 @@ def generate_article(
     body = _enforce_price_ban(body, dollar_allowed)
     body = _enforce_faq_sentence_limit(body)
     body = _enforce_ai_tell_bans(body)
+    body = _strip_spurious_commas(body)
     title, description = generate_title_and_desc(article, body, client)
     return body, title, description, product_keys
 
@@ -858,7 +859,37 @@ def _fix_punctuation(text: str) -> str:
     return text
 
 
-# AI-tell phrases to scrub from article body before validation
+def _strip_spurious_commas(body: str) -> str:
+    """Remove comma-only lines that are NOT immediately after an image markdown line.
+
+    The prompt spec places a bare comma separator after each in-body image:
+        ![alt](url)
+        (blank)
+        ,
+    That pattern is intentional and must be preserved.
+
+    The model over-applies the pattern — also inserting comma lines after
+    'Check current price on Amazon.' links and between H2 sections. Those
+    are artifacts and are stripped here.
+    """
+    lines = body.split("\n")
+    out = []
+    for i, line in enumerate(lines):
+        if line.strip() in (",", ", "):
+            # Check if an image line appears within 2 lines above (allowing one blank line)
+            prev1 = lines[i - 1].strip() if i >= 1 else ""
+            prev2 = lines[i - 2].strip() if i >= 2 else ""
+            after_image = prev1.startswith("![") or prev2.startswith("![")
+            if after_image:
+                out.append(line)  # spec-driven: keep
+            else:
+                pass  # artifact: drop
+        else:
+            out.append(line)
+    result = "\n".join(out)
+    # Collapse any triple-blank lines left by removals
+    result = re.sub(r"\n{3,}", "\n\n", result)
+    return result
 _AI_TELL_PHRASES = [
     "in this article",
     "in this guide",

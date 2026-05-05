@@ -8,6 +8,16 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.4] — 2026-05-05
+
+### Spurious comma scrubber
+
+**Root cause:** The prompt spec requires a bare `,` separator line immediately after each in-body image (image → blank → comma). The model over-applies this pattern — it also emits `, ` lines after Amazon "Check current price" links and between H2 sections, producing artifact commas that are not spec-driven.
+
+**Fix — `_strip_spurious_commas()` (`producer/article_builder.py`):** New post-processing pass added to the end of the chain. Logic: for every line whose stripped content is `,` or `, `, check whether the line 1 or 2 positions above is an image markdown line (`![`). If yes: spec-driven separator, preserve. If no: artifact, drop. Trailing blank-line normalization (`\n{3,}` → `\n\n`) runs after removal.
+
+Verified on pre-fix staging articles: 6 artifacts removed from `costa-nova-dinnerware.md` (9 → 3), 7 artifacts removed from `best-non-toxic-dinnerware.md` (13 → 6). All preserved commas confirmed image-adjacent. No spec-driven commas dropped.
+
 ## [1.7.3] — 2026-05-05
 
 ### Roundup product count raised to min 6, max 8
