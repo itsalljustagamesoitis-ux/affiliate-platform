@@ -258,23 +258,6 @@ def run(args, site_root: Path):
 
                 article["staged"] = True
 
-                # Also write .docx alongside .md for human review in Word/Pages
-                try:
-                    site_producer = site_root / "producer"
-                    if site_producer.exists() and str(site_producer) not in sys.path:
-                        sys.path.insert(0, str(site_producer))
-                    from docx_writer import build_docx
-                    docx_dest = (
-                        staging_dir / "failed" / f"{slug}.docx"
-                        if not valid
-                        else staging_dir / f"{slug}.docx"
-                    )
-                    doc = build_docx(article, body, title, description)
-                    doc.save(docx_dest)
-                    print(f"  Also: {docx_dest.relative_to(site_root)} (human review copy)")
-                except ImportError:
-                    pass  # .md alone is sufficient
-
             article.pop("_siblings", None)
             save_pipeline(pipeline, site_root)
 

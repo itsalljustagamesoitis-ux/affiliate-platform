@@ -364,18 +364,24 @@ Each product H3 section MUST end with this exact line (the full phrase is the hy
 Replace ASIN with the product's ASIN. This line is mandatory on EVERY product section, no exceptions.
 
 INTRO LENGTH (HARD LIMIT):
-Write exactly 2 intro paragraphs. Target 85–100 words total. Hard ceiling: 110 words — if you go over, cut sentences. Two short paragraphs only. Do NOT write a third paragraph. Do NOT add transitional bridge sentences between the intro and the first H2.
+Write exactly 2 intro paragraphs. Target 80–95 words total. Hard ceiling: 105 words — if your draft exceeds 105 words, cut the longest sentences until you're under. Two short paragraphs only. Do NOT write a third paragraph. Do NOT add transitional bridge sentences between the intro and the first H2.
 
 PRODUCT SECTION COUNT (HARD REQUIREMENT):
 Write one H3 section for EVERY product listed above. {len(product_keys)} products = {len(product_keys)} H3 sections under ## Top Picks. Do not skip any product.
 
 FAQ SECTION (HARD LIMITS):
 End with an H2 "Frequently Asked Questions" section containing exactly 5 Q&A pairs.
-Use H3 for each question. Each answer: 2–4 sentences, maximum 60 words per answer. Total FAQ section: 300–450 words maximum.
+Use H3 for each question. Each answer: MAXIMUM 4 sentences. STOP at 4. If you have written a 5th sentence, delete it before moving to the next question.
+Target 55–75 words per answer. Total FAQ section: 300–450 words — if your draft exceeds 450 words, cut the longest answer.
+No bullet lists inside answers.
 Questions should reflect real buyer decisions specific to this product category.
 Immediately after the last FAQ answer, include the FAQPage JSON-LD schema block.
 
-BUYING GUIDE LENGTH: The buying guide section must be 500–700 words total. Write 3–5 H3 subsections. Each H3 subsection: 2–3 paragraphs, minimum 80 words. If you finish the guide and word count is under 500, expand the last subsection before moving to FAQ.
+BUYING GUIDE LENGTH: The buying guide section must be 500–700 words total. Write 3–5 H3 subsections. Each H3 subsection: 2–3 paragraphs, 80–120 words per subsection (hard max 120 per subsection). STOP the buying guide when you reach 700 words total — do not overshoot.
+BUYING GUIDE HUB LINK: At least one subsection of the buying guide must include a contextual link to the hub page ({hub_url}). This is separate from the hub links in the intro and closing — the buying guide needs its own hub link.
+
+BANNED PHRASES (never use anywhere in the article body):
+"in this article", "in this guide", "let's dive in", "look no further", "the perfect", "game-changer", "when it comes to", "in today's world", "without further ado"
 
 PRICE RULE (HARD BAN — applies everywhere in this article):
 No dollar figures ($X, $X–$Y), no "around $", no "starting at", no "typically around", no "priced at", no "costs about", no "for under $", no "at the $X price point". Use price band language only (budget, mid-range, premium). The ONLY pricing signal allowed is "Check current price on Amazon." at the end of each product section.
@@ -390,10 +396,10 @@ Write the full article body now. Do not include frontmatter. Start with the intr
 # ---------------------------------------------------------------------------
 
 def generate_title_and_desc(article: dict, body: str, client) -> tuple:
-    """Draft title (50-65 chars) and meta description (150-160 chars) from body."""
+    """Draft title (50-70 chars) and meta description (140-160 chars) from body."""
     import anthropic
 
-    prompt = f"""Write a title and meta description for this article.
+    base_prompt = f"""Write a title and meta description for this article.
 
 Keyword: {article['keyword']}
 Type: {article['type']}
@@ -401,22 +407,59 @@ Article opening:
 {body[:600]}
 
 Rules:
-- Title: MINIMUM 50 characters, maximum 65 characters. Count the characters before finalizing. Titles under 50 chars will be rejected. Keyword near the front, specific and honest (no "ultimate", no "best ever"). Example length check: "Best Rated Santoku Knives: Top Picks for Home Cooks" = 51 chars (acceptable minimum).
-- Meta description: MINIMUM 140 characters, MAXIMUM 155 characters. Count the characters before finalizing. Target 148 characters. Plain sentence, no em dashes, no exclamation marks.
+- Title: MINIMUM 50 characters, maximum 70 characters. Count the characters. Titles under 50 chars are rejected. Keyword near the front, specific and honest (no "ultimate", no "best ever"). If your draft is under 50 chars, extend it: add "Reviewed", "Tested", "for Home Cooks", "Top Picks", etc.
+- Meta description: MINIMUM 140 characters, MAXIMUM 160 characters. Count the characters. Target 150. If under 140, add a phrase. Plain sentence, no em dashes, no exclamation marks.
 
-Return JSON only:
+Return JSON only — no other text:
 {{"title": "...", "description": "..."}}"""
 
-    resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=200,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    text = resp.content[0].text.strip()
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    data = json.loads(text[start:end])
-    return data.get("title", ""), data.get("description", "")
+    def _parse(text: str):
+        start = text.find("{")
+        if start == -1:
+            return None
+        try:
+            decoder = json.JSONDecoder()
+            data, _ = decoder.raw_decode(text, start)
+            return data
+        except json.JSONDecodeError:
+            try:
+                end = text.rfind("}") + 1
+                return json.loads(text[start:end])
+            except json.JSONDecodeError:
+                return None
+
+    best_title, best_desc = "", ""
+    best_score = float('-inf')
+    feedback = ""
+
+    for attempt in range(3):
+        prompt = base_prompt + feedback
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = _parse(resp.content[0].text.strip())
+        if data is None:
+            continue
+        title = data.get("title", "")
+        description = data.get("description", "")
+        t_len = len(title)
+        d_len = len(description)
+        t_ok = 50 <= t_len <= 70
+        d_ok = 140 <= d_len <= 160
+        score = -(abs(t_len - 60) if not t_ok else 0) - (abs(d_len - 150) if not d_ok else 0)
+        if score > best_score:
+            best_title, best_desc, best_score = title, description, score
+        if t_ok and d_ok:
+            break
+        issues = []
+        if not t_ok:
+            issues.append(f"title={t_len} chars — {'ADD words to reach 50+' if t_len < 50 else 'CUT to reach 70 or less'}")
+        if not d_ok:
+            issues.append(f"description={d_len} chars — {'ADD a phrase to reach 140+' if d_len < 140 else 'CUT to reach 160 or less'}")
+        feedback = f"\n\nPrevious attempt issues: {'; '.join(issues)}. Fix and return JSON only."
+    return best_title, best_desc
 
 
 # ---------------------------------------------------------------------------
@@ -460,8 +503,11 @@ def generate_article(
         messages=[{"role": "user", "content": prompt}],
     )
     body = resp.content[0].text.strip()
+    dollar_allowed = site_config.get("style_policy", {}).get("dollar_figures", {}).get("allowed", False)
     body = _fix_punctuation(body)
     body = _americanize(body)
+    body = _enforce_price_ban(body, dollar_allowed)
+    body = _enforce_faq_sentence_limit(body)
     title, description = generate_title_and_desc(article, body, client)
     return body, title, description, product_keys
 
@@ -563,8 +609,8 @@ def build_frontmatter(
             f'# winner_reason: ""  # SET THIS after review\n'
         )
 
-    cluster = article.get("cluster", "")
-    tags = [cluster, article["type"].lower()]
+    hub_slug_tag = article.get("hub_slug", article.get("hub", ""))
+    tags = [hub_slug_tag, article["type"].lower()]
 
     def _clean_yaml(s: str) -> str:
         return s.replace("\u2014", ",").replace("\u2013", ",").replace('"', '\\"')
@@ -676,6 +722,118 @@ def _americanize(text: str) -> str:
         else:
             text = re.sub(pattern, repl, text, flags=re.IGNORECASE)
     return text
+
+
+def _enforce_price_ban(body: str, dollar_allowed: bool) -> str:
+    """
+    Post-process: replace banned price phrases when dollar_figures.allowed = false.
+    The model occasionally writes these despite instructions — catch them here.
+    """
+    if dollar_allowed:
+        return body
+    # Replace banned phrases with neutral alternatives that preserve meaning
+    # Only applied outside <script> blocks (JSON-LD schema)
+    script_pattern = re.compile(r'<script[^>]*>.*?</script>', re.DOTALL)
+    scripts = script_pattern.findall(body)
+    body_no_scripts = script_pattern.sub('\x00SCRIPT\x00', body)
+
+    replacements = [
+        (r'\bpriced at\b', 'positioned at'),
+        (r'\btypically around\b', 'generally'),
+        (r'\bstarting at\b', 'beginning at'),
+        (r'\bcosts about\b', 'falls in the'),
+        (r'\bfor under \$', 'for a budget buy, '),
+        (r'\baround \$\d+', 'in the mid-range'),
+        (r'\$\d+[\.,]?\d*', ''),  # remove any remaining dollar amounts
+    ]
+    for pattern, replacement in replacements:
+        body_no_scripts = re.sub(pattern, replacement, body_no_scripts, flags=re.IGNORECASE)
+
+    # Restore script blocks
+    script_iter = iter(scripts)
+    body = re.sub(r'\x00SCRIPT\x00', lambda _: next(script_iter), body_no_scripts)
+    return body
+
+
+def _enforce_intro_length(body: str, max_words: int = 120) -> str:
+    """Post-process: trim intro to max_words if over limit."""
+    lines = body.split('\n')
+    h2_idx = next((i for i, l in enumerate(lines) if l.startswith('## ')), None)
+    if h2_idx is None:
+        return body
+    intro_lines = lines[:h2_idx]
+    rest_lines = lines[h2_idx:]
+    intro_text = '\n'.join(intro_lines).strip()
+    words = intro_text.split()
+    if len(words) <= max_words:
+        return body
+    # Truncate at last sentence boundary within max_words
+    truncated = ' '.join(words[:max_words])
+    # Walk back to nearest sentence end [.!?]
+    for i in range(len(truncated) - 1, max(0, len(truncated) - 40), -1):
+        if truncated[i] in '.!?':
+            truncated = truncated[:i + 1]
+            break
+    return truncated + '\n\n' + '\n'.join(rest_lines)
+
+
+def _enforce_faq_sentence_limit(body: str, max_sentences: int = 4) -> str:
+    """
+    Post-process: truncate FAQ answers that exceed max_sentences.
+    Uses the same sentence-counting heuristic as the validator (validate-roundup.mjs).
+    """
+    faq_marker = "\n## Frequently Asked Questions"
+    faq_start = body.find(faq_marker)
+    if faq_start == -1:
+        return body
+
+    pre_faq = body[:faq_start]
+    faq_section = body[faq_start:]
+
+    def count_sentences(text: str) -> int:
+        t = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text)
+        t = re.sub(r'[*_`]', '', t).strip()
+        if not t:
+            return 0
+        matches = re.findall(r'[.!?](?=\s+[A-Z]|$)', t)
+        return len(matches) if matches else (1 if len(t) > 20 else 0)
+
+    def truncate_to_n(text: str, n: int) -> str:
+        if count_sentences(text) <= n:
+            return text
+        # Find inter-sentence boundaries: [.!?] followed by space+capital
+        ends = list(re.finditer(r'[.!?](?=\s+[A-Z])', text))
+        # n boundaries → n+1 sentences; cut after boundary n-1 (0-indexed n-1)
+        if len(ends) >= n:
+            cut = ends[n - 1].end()
+            return text[:cut].strip()
+        return text
+
+    # Split FAQ on H3 boundaries
+    lines = faq_section.split('\n')
+    result_lines = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        result_lines.append(line)
+        if line.startswith('### '):
+            # Collect answer lines until next H3, H2, or script block
+            answer_lines = []
+            i += 1
+            while i < len(lines):
+                l = lines[i]
+                if l.startswith('### ') or l.startswith('## ') or l.startswith('<script'):
+                    break
+                answer_lines.append(l)
+                i += 1
+            answer_text = '\n'.join(answer_lines).rstrip()
+            truncated = truncate_to_n(answer_text, max_sentences)
+            result_lines.append(truncated)
+            # Don't increment i — outer loop will handle the break line
+            continue
+        i += 1
+
+    return pre_faq + '\n'.join(result_lines)
 
 
 def _fix_punctuation(text: str) -> str:
