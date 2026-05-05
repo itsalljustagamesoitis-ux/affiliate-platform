@@ -23,7 +23,7 @@ _PROMPT_MAP = {
 
 # Platform-level product_count limits (not site-overridable per CATALOG-BEHAVIOUR.md)
 _PRODUCT_COUNT = {
-    "roundup":     {"min": 3, "max": 6},
+    "roundup":     {"min": 6, "max": 8},
     "buyer_guide": {"min": 3, "max": 5},
 }
 

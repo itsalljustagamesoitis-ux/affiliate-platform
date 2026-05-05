@@ -8,6 +8,16 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.3] — 2026-05-05
+
+### Roundup product count raised to min 6, max 8
+
+`tools/assign-products.mjs` `TYPE_TARGETS.roundup` raised from 3 → 6. `prompts/article-roundup.v1.md` `product_count.min` raised from 3 → 6, max raised to 8. Fallback in `producer/article_builder.py` updated to match.
+
+Calibration basis: MLT empirical floor — median 6 products at 242 words/product = ~1,450 Top Picks words, total ~2,238 body words, passing L01 (2,000–3,000) with margin. Original min of 3 was structurally insufficient: 3 products × 212 words/product = 636 Top Picks words, total ~1,598 — 402 words short of L01 minimum even with correct per-product depth.
+
+OHT all 5 roundup hubs confirmed able to support 6 products (dinnerware 34, glassware 35, linens 32 in catalog).
+
 ## [1.7.2] — 2026-05-05
 
 ### Calibration fixes — FAQ length, AI-tell scrubber, punctuation

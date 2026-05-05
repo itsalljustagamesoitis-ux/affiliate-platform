@@ -29,7 +29,7 @@ import yaml from 'js-yaml'
 
 const TYPE_TARGETS = {
   buyer_guide: 3,
-  roundup: 3,
+  roundup: 6,
   comparison: 2,
   review: 1,
 }

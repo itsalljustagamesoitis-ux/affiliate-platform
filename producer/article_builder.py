@@ -124,7 +124,7 @@ def _enforce_product_count(article: dict, products: dict, metadata: dict) -> lis
       - No assigned products: use hub-matched products (min-max enforced)
     """
     assigned = article.get("products", [])
-    pc = metadata.get("product_count", {"min": 3, "max": 6})
+    pc = metadata.get("product_count", {"min": 6, "max": 8})
     min_count = pc["min"]
     max_count = pc["max"]
 

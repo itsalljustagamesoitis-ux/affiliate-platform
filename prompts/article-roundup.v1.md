@@ -48,8 +48,8 @@ Every field above is required. No null values except `updated`. `disclosure_requ
 
 ```yaml
 product_count:
-  min: 3
-  max: 6
+  min: 6
+  max: 8
 ```
 
 If the brief specifies fewer than {{PRODUCT_COUNT.min}} products that match the article's hub, the producer halts and surfaces the shortfall. If the brief specifies more than {{PRODUCT_COUNT.max}}, the producer trims to {{PRODUCT_COUNT.max}} highest-fit (highest-rated, then most relevant by category match).
