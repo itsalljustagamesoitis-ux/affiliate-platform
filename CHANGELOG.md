@@ -8,6 +8,12 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+## [1.7.1] — 2026-05-05
+
+### Validator: VERIFY ASIN references now WARNING not FAIL
+
+`validate-roundup.mjs` and `validate-buyer-guide.mjs` — check A09 (VERIFY placeholder ASINs in Amazon links) downgraded from `fail` to `warn`. Matches `CATALOG-BEHAVIOUR.md` Section 3 spec: VERIFY is generation-permitted, build-blocked. The build-validator (`scripts/build-validator.mjs`) remains the gate at deploy time. Both validators now also surface a `WARN` count in their report header and print `[WARN]` lines alongside `[FAIL]` lines.
+
 ## [1.7.0] — 2026-05-05
 
 ### Catalog sizing thresholds — `tools/assign-products.mjs` + `CATALOG-BEHAVIOUR.md` Section 6

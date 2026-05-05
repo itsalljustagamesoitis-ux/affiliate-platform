@@ -211,13 +211,15 @@ class FileValidator {
   constructor(filePath, stylePolicy) {
     this.path = filePath
     this.stylePolicy = stylePolicy
-    this.passes = []
-    this.fails  = []
-    this.manuals = []
+    this.passes   = []
+    this.fails    = []
+    this.warnings = []
+    this.manuals  = []
   }
 
-  pass(id, msg)             { this.passes.push({ id, msg }) }
+  pass(id, msg)              { this.passes.push({ id, msg }) }
   fail(id, msg, observed='') { this.fails.push({ id, msg, observed }) }
+  warn(id, msg, observed='') { this.warnings.push({ id, msg, observed }) }
   manual(id, msg)            { this.manuals.push({ id, msg }) }
 
   run() {
@@ -667,10 +669,11 @@ else
     else
       this.pass('A08', 'No comparison tables in body')
 
-    // A09: no VERIFY placeholder ASINs in Amazon links
+    // A09: VERIFY placeholder ASINs — warning only at generation stage (CATALOG-BEHAVIOUR.md §3)
+    // Build-validator is the gate; producer-stage validator surfaces count without blocking.
     const verifyHits = [...body.matchAll(/amazon\.com\/dp\/VERIFY/gi)]
     if (verifyHits.length > 0)
-      this.fail('A09', 'VERIFY placeholder ASIN(s) in Amazon links — resolve before publish',
+      this.warn('A09', 'VERIFY placeholder ASIN(s) in Amazon links — resolve before publish',
         `${verifyHits.length} occurrence(s)`)
     else
       this.pass('A09', 'No VERIFY placeholder ASINs in body links')
@@ -738,10 +741,14 @@ function printReport(v) {
   const status = v.fails.length === 0 ? '✓ PASS' : '✗ FAIL'
   console.log(`\nFILE: ${v.path}`)
   printPolicyHeader(v.stylePolicy)
-  console.log(`${status}  PASS: ${v.passes.length}  FAIL: ${v.fails.length}  MANUAL: ${v.manuals.length}`)
+  console.log(`${status}  PASS: ${v.passes.length}  FAIL: ${v.fails.length}  WARN: ${v.warnings.length}  MANUAL: ${v.manuals.length}`)
   for (const f of v.fails) {
     const obs = f.observed ? ` — ${f.observed}` : ''
     console.log(`[FAIL] ${f.id}: ${f.msg}${obs}`)
+  }
+  for (const w of v.warnings) {
+    const obs = w.observed ? ` — ${w.observed}` : ''
+    console.log(`[WARN] ${w.id}: ${w.msg}${obs}`)
   }
   for (const m of v.manuals) {
     console.log(`[MANUAL] ${m.id}: ${m.msg}`)
