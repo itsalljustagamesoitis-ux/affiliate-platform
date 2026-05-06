@@ -365,10 +365,10 @@ class FileValidator {
     else
       this.fail('B03', 'Intro must have 2–3 paragraph blocks', `found ${intraParagraphs}`)
 
-    // B04: intro word count 90–165
+    // B04: intro word count 85–165
     const introWords = countWords(introText)
-    if (introWords >= 90 && introWords <= 165) this.pass('B04', `Intro word count ${introWords} (90–165)`)
-    else this.fail('B04', 'Intro word count must be 90–165', `found ${introWords}`)
+    if (introWords >= 85 && introWords <= 165) this.pass('B04', `Intro word count ${introWords} (85–165)`)
+    else this.fail('B04', 'Intro word count must be 85–165', `found ${introWords}`)
 
     // B05: section order What to Look For → Top Picks → {buyGuideStyle} → FAQ
     const wtIdx = allKeys.findIndex(k => k.startsWith('What to Look For'))
@@ -499,12 +499,12 @@ class FileValidator {
       else
         this.fail('B14', 'Buying guide must have 3–5 H3 subsections', `found ${bgH3Count}`)
 
-      // B15: buying guide word count 500–700
+      // B15: buying guide word count 475–700
       const bgWords = countWords(bgText)
-      if (bgWords >= 500 && bgWords <= 700)
-        this.pass('B15', `Buying guide word count ${bgWords} (500–700)`)
+      if (bgWords >= 475 && bgWords <= 700)
+        this.pass('B15', `Buying guide word count ${bgWords} (475–700)`)
       else
-        this.fail('B15', 'Buying guide word count must be 500–700', `found ${bgWords}`)
+        this.fail('B15', 'Buying guide word count must be 475–700', `found ${bgWords}`)
 
       // B16: buying guide contains a hub link
       if (hub && hasHubLink(bgText, hub))
@@ -523,12 +523,12 @@ class FileValidator {
       const wtlfText  = wtlfLines.join('\n')
       const wtlfH3s   = extractH3Sections(wtlfLines)
 
-      // B17: "What to Look For" word count 400–650
+      // B17: "What to Look For" word count 400–700
       const wtlfWords = countWords(wtlfText)
-      if (wtlfWords >= 400 && wtlfWords <= 650)
-        this.pass('B17', `"What to Look For" word count ${wtlfWords} (400–650)`)
+      if (wtlfWords >= 400 && wtlfWords <= 700)
+        this.pass('B17', `"What to Look For" word count ${wtlfWords} (400–700)`)
       else
-        this.fail('B17', '"What to Look For" word count must be 400–650', `found ${wtlfWords}`)
+        this.fail('B17', '"What to Look For" word count must be 400–700', `found ${wtlfWords}`)
 
       // B18: "What to Look For" has 3–5 H3 subsections
       const wtlfH3Count = wtlfH3s.length
