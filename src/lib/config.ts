@@ -156,6 +156,7 @@ export function getNav(): NavConfig {
 export function getHubLabel(hubSlug: string): string {
   const nav = getNav()
   for (const cat of nav.categories) {
+    if (cat.slug === hubSlug) return cat.label
     const hub = cat.hubs?.find(h => h.slug === hubSlug)
     if (hub) return hub.label
   }
