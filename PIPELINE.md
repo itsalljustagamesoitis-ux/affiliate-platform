@@ -32,13 +32,11 @@ Steps are sequential. Every site follows the same order. No skipping, no reorder
 
 When a step cannot be completed, the build halts at that step. No proceeding with placeholders or known gaps. Nothing in the sequence moves forward until the step is genuinely complete.
 
-A step doesn't have to *block* the next step for the order to be enforced. The domain could technically be registered at point 4 or point 8 — Amazon doesn't care which. But variable order means tooling has to handle multiple states, verification at each step becomes conditional, and "where did I leave off on site N" loses its deterministic answer. Fixed order means muscle memory, predictable gaps, and tooling that can assume "by point N, X is true."
-
 ### 1.2 Categories → hubs → articles
 
 Every site has the same hierarchy: categories at the top, hubs within categories, articles within hubs.
 
-Sites that are naturally flat (one category, multiple hubs) just have N=1 categories. The structure is consistent even when the data is simple. This facilitates expansion later.
+Sites that are naturally flat (one category, multiple hubs) just have N=1 categories. The structure is consistent even when the data is simple.
 
 ### 1.3 One persona per site
 
@@ -108,7 +106,20 @@ All template content uses obvious placeholder tokens (`{{TOKEN_NAME}}`) or visib
 
 Build verification at multiple points (site shell verification, local build smoke, deploy-and-verify) checks for remaining placeholder tokens and hard-fails if any found.
 
-### 1.12 Locked vs judgment vs TBC
+### 1.12 Affiliate link format
+
+Articles use the `product:slug` markdown protocol for affiliate links:
+
+```
+[Product Name](product:product-slug)
+[Check current price on Amazon.](product:product-slug)
+```
+
+The platform's rehype plugin (`src/plugins/rehype-product-links.mjs`) resolves these to affiliate URLs at build time using `buildAffiliateUrl()`. The `ProductLink.astro` component exists as a parallel resolution mechanism but is not used in article bodies.
+
+Producer emits `product:slug` directly. No raw Amazon URLs, no `?tag=` strings should ever appear in article source files. Build-validator blocks these as `hardcoded-asin-source` and `hardcoded-affiliate-tag-source` errors.
+
+### 1.13 Locked vs judgment vs TBC
 
 **Locked specifications cannot be overridden site-by-site:**
 
@@ -120,11 +131,13 @@ Build verification at multiple points (site shell verification, local build smok
 - AMAZON_TAG single source of truth (1.8)
 - 10% hard/soft fail boundary (1.10)
 - Placeholders obvious, not plausible (1.11)
+- product:slug affiliate link format (1.12)
 - Cookie consent platform default (Consent Mode v2)
 - Image bank: 150 images per site, 1200x630, hub-based naming
 - Image assignment: random within hub
 - Producer run mode: foreground with `tee` to log file
-- Regeneration pass once, then ship (no iterative calibration per site)
+- Producer output destination: `staging/` (not `content/articles/`)
+- Regeneration pass once, then publish (no iterative calibration per site)
 - Cloudflare deploy timeout: 10 minutes hard fail
 - Dashboard phase transitions: Phase 1 sites 1-10, Phase 2 sites 11-30, Phase 3 sites 31+
 
@@ -144,6 +157,7 @@ Build verification at multiple points (site shell verification, local build smok
 - Operational task cadences
 - Automation tiering build targets
 - Phase 2 sweep timing and fix priority
+- De-footprinting strategy for sites 11+
 
 ---
 
@@ -345,7 +359,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 5. If no suitable expired domain exists, register a fresh domain
 6. Register through Cloudflare
 
-**Domain selection is judgment, not gates.** Considerations: age, backlink quality, referring domains count, TLD preference, Wayback content history. Each domain decision considers all factors in context.
+**Domain selection is judgment, not gates.** Considerations: age, backlink quality, referring domains count, TLD preference, Wayback content history.
 
 **Tools:** External — expireddomains.net, SEMrush, Cloudflare.
 
@@ -446,7 +460,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 
 **What it does:** Build the technical site repo from template, configured for the new site identity.
 
-**Tools:** `tools/initialise-site.mjs` — needs to be built. Currently sites are built by cloning FSG template and manually fixing inheritance bugs.
+**Tools:** `tools/initialise-site.mjs` — needs to be built.
 
 **What it produces:**
 
@@ -465,6 +479,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - `data/pipeline.json` populated (from point 3)
 - `content/products/products.yaml` empty
 - `content/articles/` empty
+- `staging/` empty (producer's output destination)
 - `.gitignore`, `package.json`, `tsconfig.json`
 
 **Technical SEO included via platform defaults:**
@@ -476,8 +491,9 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - URL structure (trailing slashes, kebab-case slugs)
 - Image optimization (webp, sized variants, lazy loading)
 - Internal linking
-- Cookie consent (Consent Mode v2 with localStorage gating, already implemented platform-wide)
-- Affiliate click tracking (GA4 events with link_position, already implemented)
+- Cookie consent (Consent Mode v2 with localStorage gating)
+- Affiliate click tracking (GA4 events with link_position)
+- Affiliate link resolution (rehype-product-links plugin transforms `product:slug` at build time)
 
 **Verification:** `tools/verify-site-shell.mjs`:
 
@@ -557,12 +573,14 @@ Mission:
 
 **Hard pause if:** Amazon Associates rejects the tracking ID application.
 
+**Single Amazon Associates account supports up to 50 sites.** Portfolio of 100 sites can use one account; tracking IDs are the per-site identifier.
+
 **Verification:**
 
 - Tracking ID exists in Amazon Associates dashboard
 - wrangler.toml [vars] matches Amazon Associates ID
 - Cloudflare Pages env vars (Production + Preview) match
-- Live affiliate link contains correct `?tag=<tracking-id>`
+- Live affiliate link contains correct `?tag=<tracking-id>` after rehype plugin resolution
 
 **Failure modes:**
 
@@ -682,7 +700,7 @@ Escalations batched for human review at end of lookup pass.
 
 **Run mode:** Foreground with `tee` to log file.
 
-**Output destination:** Producer writes directly to `content/articles/`. No staging directory.
+**Output destination:** Producer writes to `staging/`. Articles move to `content/articles/` in point 14 after regeneration is complete.
 
 **Command:**
 
@@ -694,10 +712,9 @@ Runs unattended for 1.5-3 hours.
 
 **Producer changes needed for v1.8.0:**
 
-- Write to `content/articles/` instead of `staging/`
 - Embed `hero_image` in frontmatter from pipeline.json
-- Embed body images at predictable positions
-- Emit `<ProductLink slug="..."/>` syntax
+- Embed body images at predictable positions in markdown (after intro H2, after Top Picks H2, after How to Choose H2, after FAQ H2 — 4 fixed positions)
+- Affiliate links already use `product:slug` format (verified — no change needed)
 
 **Verification:**
 
@@ -714,31 +731,38 @@ Runs unattended for 1.5-3 hours.
 
 ---
 
-### Point 14: Regeneration pass
+### Point 14: Regeneration pass and publish
 
-**What it does:** Regenerate failed articles once, then ship.
+**What it does:** Regenerate failed articles once in staging, then move all staged articles to content/articles/.
 
 **No iterative calibration cycles per site.**
 
 **Process:**
 
-1. Identify articles with hard fails after first generation
-2. Regenerate each once with `--force --id N`
-3. Articles still failing after regeneration: hand-edit, drop, or accept (judgment per article)
-4. Soft fails ship with logged warning
+1. Identify articles in `staging/failed/` after first generation
+2. Regenerate each once with `--force --id N` (writes back to staging/)
+3. Articles still failing after regeneration: hand-edit in staging/, drop, or accept (judgment per article)
+4. Soft fails ship with logged warning to calibration-log.yaml
+5. Strip any validator output appended to failed articles
+6. Move all staged articles to `content/articles/` via `tools/publish-staging.mjs`
+7. Verify count matches expected publish count
 
 **Hard fail rate consistently above threshold (>5%) across multiple sites becomes a platform-level review.**
+
+**Tools:** `tools/publish-staging.mjs` — needs to be built. Moves files from staging to content/articles/, strips validator output, reports counts.
 
 **Verification:**
 
 - All articles in content/articles/ are publishable
 - Hard fail count = 0
 - Soft fail count surfaced and accepted
+- staging/ and staging/failed/ are empty after publish
 
 **Failure modes:**
 
 - Persistent hard fails on a small set of articles
 - Calibration drift if validators get widened during a site (forbidden)
+- Validator output not stripped before publish (causes Astro build issues)
 
 ---
 
@@ -768,7 +792,7 @@ npm run build
 - Article frontmatter malformed
 - Image reference broken
 - Internal link broken
-- Build-validator complaining about Phase 3 migration
+- Build-validator finding raw Amazon URLs (shouldn't happen — producer emits product:slug)
 - Placeholder tokens that escaped earlier checks
 
 ---
@@ -781,7 +805,7 @@ npm run build
 
 **Pre-condition gate: `tools/verify-bindings.mjs --site <slug>` runs first.**
 
-This catches the OHT-style "wires connected to wrong endpoints" failures that consumed hours of debugging. Eight checks performed:
+This catches the OHT-style "wires connected to wrong endpoints" failures. Eight checks performed:
 
 1. Cloudflare project name = site slug
 2. Cloudflare project's GitHub repo = expected repo (`itsalljustagamesoitis-ux/<site-slug>`)
@@ -1056,17 +1080,20 @@ Three tiers, sequenced by site count and value.
 - `tools/source-products-per-article.mjs` — per-article ASIN lookup (point 10)
 - `tools/source-images-pexels.mjs` — image bank from Pexels (point 11)
 - `tools/assign-article-images.mjs` — per-article image assignment (point 12)
+- `tools/publish-staging.mjs` — move from staging to content/articles/ (point 14)
 - `tools/deploy-and-verify.mjs` — push, wait, verify live (point 16)
 - `tools/dashboard.mjs` — operational dashboard CLI (point 21)
 - `tools/xlsx-to-pipeline.mjs` — keyword research xlsx → pipeline.json (point 3)
 
 **Producer changes (v1.8.0):**
 
-- Write to `content/articles/` directly (no staging directory)
-- Embed `hero_image` in frontmatter
-- Embed body images at predictable positions
-- Emit `<ProductLink slug="..."/>` syntax (Phase 3 migration completion)
-- Hub-distributed homepage article selection
+- Embed `hero_image` in frontmatter from pipeline.json
+- Embed body images at predictable positions in markdown (4 fixed positions: after intro, after Top Picks, after How to Choose, after FAQ)
+- Hub-distributed homepage article selection (site template change, bundled with v1.8.0)
+
+**Build-validator cleanup:**
+
+- Update stale error messages from `<ProductLink>` references to `product:slug` (the actual format in use)
 
 **Validator changes (from VALIDATORS.md):**
 
@@ -1122,6 +1149,7 @@ Audit existing platform/sites for technical SEO implementations and document fin
 - Image optimization
 - Performance baseline (Core Web Vitals)
 - Cookie consent posture (Consent Mode v2 already confirmed implemented)
+- Affiliate link resolution (rehype-product-links plugin already confirmed)
 
 **Output:** `~/affiliate-platform/TECHNICAL-SEO.md`
 
@@ -1158,7 +1186,7 @@ Algorithmic, opinionated platform default, no manual curation.
 - Audit IndexNow wiring and actual firing
 - Audit GSC verification, sitemap submission status, indexed page count
 - Audit Bing Webmaster Tools verification, sitemap submission status
-- Run `tools/verify-bindings.mjs --all` once tool exists to catch any wrong-wiring issues across the portfolio
+- Run `tools/verify-bindings.mjs --all` once tool exists to catch any wrong-wiring issues
 - Audit for template inheritance bugs (FSG content appearing in MLT/OHT)
 
 ### 10.2 FSG-specific
