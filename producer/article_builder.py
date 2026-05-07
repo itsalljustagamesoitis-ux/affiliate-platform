@@ -237,15 +237,9 @@ def build_products_brief(product_keys: list, products: dict, amazon_tag: str) ->
         if not p:
             continue
         asin = p.get("amazon_asin", "")
-        amazon_url = (
-            f"https://www.amazon.com/dp/{asin}?tag={amazon_tag}"
-            if asin and asin not in ("VERIFY", "NOT_ON_AMAZON")
-            else ""
-        )
         lines.append(
-            f"- **{p['name']}** (key: {key})\n"
+            f"- **{p['name']}** (product-slug: `{key}`)\n"
             f"  Brand: {p.get('brand', '')} | Price band: {p.get('price_band', '')} | ASIN: {asin}\n"
-            f"  Amazon link: {amazon_url}\n"
             f"  Pros: {'; '.join(p.get('default_pros', []))}\n"
             f"  Cons: {'; '.join(p.get('default_cons', []))}\n"
             f"  Writer notes: {p.get('notes_for_writers', '')}"
@@ -349,20 +343,22 @@ and once in the second half (before the FAQ or in a closing paragraph).
 Use varied phrasing — don't repeat the same anchor text.
 {sibling_block}
 AFFILIATE LINKS:
-When mentioning a product by name, link to its Amazon URL using the product name as anchor text.
-Format: [Product Name](https://www.amazon.com/dp/ASIN?tag={amazon_tag})
+When mentioning a product by name, link using the product-slug from the product list above.
+Format: [Product Name](product:product-slug)
+Example: [Shun Classic 7-Inch Santoku](product:shun-classic-santoku-7)
+Use the exact product-slug value shown in backticks in the product list. Never use raw Amazon URLs.
 
 H3 PRODUCT HEADING FORMAT (REQUIRED):
 H3 product section headings must be plain text product names only. DO NOT make the H3 a hyperlink.
 Correct: `### Shun Classic 7-Inch Santoku`
 Wrong: `### [Shun Classic 7-Inch Santoku](url)`
 Wrong: `### Shun Classic 7-Inch Santoku (Best Overall)`
-The first mention of the product name IN THE BODY TEXT of the section should link to Amazon — not the heading itself.
+The first mention of the product name IN THE BODY TEXT of the section should use the product:slug link — not the heading itself.
 
 PRODUCT SECTION CLOSER (REQUIRED — every product H3):
 Each product H3 section MUST end with this exact line (the full phrase is the hyperlink):
-[Check current price on Amazon.](https://www.amazon.com/dp/ASIN?tag={amazon_tag})
-Replace ASIN with the product's ASIN. This line is mandatory on EVERY product section, no exceptions.
+[Check current price on Amazon.](product:product-slug)
+Replace product-slug with the product's slug from the list above. This line is mandatory on EVERY product section, no exceptions.
 
 INTRO LENGTH (HARD LIMIT):
 Write exactly 2 intro paragraphs. Target 80–95 words total. Hard ceiling: 105 words — if your draft exceeds 105 words, cut the longest sentences until you're under. Two short paragraphs only. Do NOT write a third paragraph. Do NOT add transitional bridge sentences between the intro and the first H2.

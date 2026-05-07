@@ -19,12 +19,16 @@ PROMPTS_DIR = PLATFORM_ROOT / "prompts"
 _PROMPT_MAP = {
     "roundup":     "article-roundup.v1.md",
     "buyer_guide": "article-buyer-guide.v1.md",
+    "comparison":  "article-buyer-guide.v1.md",
+    "review":      "article-buyer-guide.v1.md",
 }
 
 # Platform-level product_count limits (not site-overridable per CATALOG-BEHAVIOUR.md)
 _PRODUCT_COUNT = {
     "roundup":     {"min": 6, "max": 8},
     "buyer_guide": {"min": 3, "max": 5},
+    "comparison":  {"min": 2, "max": 5},
+    "review":      {"min": 1, "max": 3},
 }
 
 
@@ -36,6 +40,10 @@ def _normalise_type(article_type: str) -> str:
         "buyer_guide":"buyer_guide",
         "Buyer Guide":"buyer_guide",
         "buyer guide":"buyer_guide",
+        "comparison": "comparison",
+        "Comparison": "comparison",
+        "review":     "review",
+        "Review":     "review",
     }
     return mapping.get(article_type, article_type.lower().replace(" ", "_"))
 
