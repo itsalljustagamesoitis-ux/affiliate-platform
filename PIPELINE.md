@@ -83,7 +83,13 @@ Every domain registered through Cloudflare's registrar. DNS managed natively by 
 
 ### 1.8 AMAZON_TAG source of truth
 
-The Amazon Associates tracking ID lives in `wrangler.toml [vars] AMAZON_TAG` as the source of truth. The same value is set in the Cloudflare Pages dashboard as a Secret on both Production and Preview environments. Verification at deploy time confirms both values agree.
+The Amazon Associates tracking ID lives in `site.config.yaml` under `affiliate.amazon_tracking_id` as the primary source of truth. The Astro layout reads this value at build time and renders it into affiliate links via the rehype-product-links plugin.
+
+Optionally, AMAZON_TAG may also be set as a Cloudflare Pages encrypted Secret on Production and Preview environments as an override mechanism. When present, the Cloudflare env var takes precedence over site.config.yaml. When absent, site.config.yaml is used.
+
+Per-site tracking ID format: `<site-slug-truncated-to-fit-amazon-limit>-20`. Amazon Associates enforces a 20-character maximum for tracking IDs, so longer slugs are truncated (e.g. `four-season-gardener` becomes `fourseasong-20`, `my-little-tablespoon` becomes `mylittletbsp-20`).
+
+Verification: `tools/verify-bindings.mjs` checks the live rendered HTML on each site, confirming the actual tracking ID in deployed affiliate links matches portfolio.yaml expectations. This catches both source-of-truth issues and Cloudflare env var override mismatches.
 
 ### 1.9 No backlinks, social, or PR strategy
 
