@@ -30,5 +30,8 @@
   },
   "peerDependencies": {
     "astro": "^6.1.10"
+  },
+  "devDependencies": {
+    "xlsx": "^0.18.5"
   }
 }
