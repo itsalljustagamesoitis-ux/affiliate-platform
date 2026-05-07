@@ -507,6 +507,8 @@ def generate_article(
     body = _enforce_faq_sentence_limit(body)
     body = _enforce_ai_tell_bans(body)
     body = _strip_spurious_commas(body)
+    hub = article.get("hub_slug", article.get("hub", ""))
+    body = inject_body_images(body, article.get("body_images"), hub)
     title, description = generate_title_and_desc(article, body, client)
     return body, title, description, product_keys
 
@@ -856,36 +858,70 @@ def _fix_punctuation(text: str) -> str:
 
 
 def _strip_spurious_commas(body: str) -> str:
-    """Remove comma-only lines that are NOT immediately after an image markdown line.
-
-    The prompt spec places a bare comma separator after each in-body image:
-        ![alt](url)
-        (blank)
-        ,
-    That pattern is intentional and must be preserved.
-
-    The model over-applies the pattern — also inserting comma lines after
-    'Check current price on Amazon.' links and between H2 sections. Those
-    are artifacts and are stripped here.
-    """
+    """Remove all comma-only lines — they are model artifacts now that image injection is post-process."""
     lines = body.split("\n")
-    out = []
-    for i, line in enumerate(lines):
-        if line.strip() in (",", ", "):
-            # Check if an image line appears within 2 lines above (allowing one blank line)
-            prev1 = lines[i - 1].strip() if i >= 1 else ""
-            prev2 = lines[i - 2].strip() if i >= 2 else ""
-            after_image = prev1.startswith("![") or prev2.startswith("![")
-            if after_image:
-                out.append(line)  # spec-driven: keep
-            else:
-                pass  # artifact: drop
-        else:
-            out.append(line)
+    out = [line for line in lines if line.strip() not in (",", ", ")]
     result = "\n".join(out)
-    # Collapse any triple-blank lines left by removals
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result
+
+
+def inject_body_images(body: str, body_images, hub: str) -> str:
+    """Strip model-written images and inject provided body_images at 4 structural positions.
+
+    Positions (in order, skipped if anchor not found):
+      1. Before first ## heading (end of intro)
+      2. Before ## How to Choose / ## Buying Guide (end of Top Picks)
+      3. Before ## Frequently Asked Questions (end of buying guide)
+      4. Before closing JSON-LD script block or end of body (end of FAQ)
+
+    If body_images is None or empty, still strips model-written images and returns.
+    """
+    # Strip any model-written image markdown
+    body = re.sub(r'!\[[^\]]*\]\([^)]*\)', '', body)
+    body = re.sub(r'\n{3,}', '\n\n', body)
+
+    if not body_images:
+        return body
+
+    images = list(body_images)  # consume in order
+
+    def _img_md(path: str, hub_slug: str) -> str:
+        return f'\n\n![{hub_slug} product image]({path})\n'
+
+    def _insert_before(text: str, pattern: str, img_path: str) -> tuple[str, bool]:
+        m = re.search(pattern, text, re.MULTILINE)
+        if not m:
+            return text, False
+        pos = m.start()
+        block = _img_md(img_path, hub)
+        return text[:pos] + block + '\n' + text[pos:], True
+
+    # Position 1: before first ##
+    if images:
+        body, inserted = _insert_before(body, r'^##\s', images[0])
+        if inserted:
+            images.pop(0)
+
+    # Position 2: before How to Choose / Buying Guide
+    if images:
+        body, inserted = _insert_before(body, r'^##\s+(How to Choose|Buying Guide)', images[0])
+        if inserted:
+            images.pop(0)
+
+    # Position 3: before FAQ
+    if images:
+        body, inserted = _insert_before(body, r'^##\s+Frequently Asked Questions', images[0])
+        if inserted:
+            images.pop(0)
+
+    # Position 4: before closing JSON-LD or end
+    if images:
+        body, inserted = _insert_before(body, r'<script type="application/ld\+json">', images[0])
+        if not inserted:
+            body = body.rstrip() + _img_md(images[0], hub) + '\n'
+
+    return re.sub(r'\n{3,}', '\n\n', body)
 _AI_TELL_PHRASES = [
     "in this article",
     "in this guide",

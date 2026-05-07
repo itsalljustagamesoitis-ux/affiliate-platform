@@ -61,13 +61,6 @@ def _validate_style_policy(sp: dict) -> list[str]:
         errors.append("style_policy.dollar_figures.allowed")
     if "buying_guide_heading" not in sp or "style" not in sp.get("buying_guide_heading", {}):
         errors.append("style_policy.buying_guide_heading.style")
-    if "in_body_images" not in sp:
-        errors.append("style_policy.in_body_images")
-    else:
-        if "policy" not in sp["in_body_images"]:
-            errors.append("style_policy.in_body_images.policy")
-        if "fixed_count" not in sp["in_body_images"]:
-            errors.append("style_policy.in_body_images.fixed_count")
     return errors
 
 
@@ -85,7 +78,6 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
       article_type: str (normalised)
       buying_guide_heading: str
       dollar_figures_allowed: bool
-      in_body_images: dict
 
     Exits with code 2 if style_policy is absent or malformed.
     """
@@ -115,7 +107,6 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
     wc = sp["word_count"]
     bgh = sp["buying_guide_heading"]["style"]
     dollar_allowed = sp["dollar_figures"]["allowed"]
-    ibp = sp["in_body_images"]
 
     # Build the {{STYLE_POLICY}} replacement block
     style_policy_block = (
@@ -125,10 +116,7 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
         f"dollar_figures:\n"
         f"  allowed: {'true' if dollar_allowed else 'false'}\n"
         f"buying_guide_heading:\n"
-        f"  style: \"{bgh}\"\n"
-        f"in_body_images:\n"
-        f"  policy: \"{ibp['policy']}\"\n"
-        f"  fixed_count: {ibp['fixed_count'] if ibp['fixed_count'] is not None else 'null'}"
+        f"  style: \"{bgh}\""
     )
 
     # Build persona YAML block
@@ -149,7 +137,6 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
         "article_type": norm_type,
         "buying_guide_heading": bgh,
         "dollar_figures_allowed": dollar_allowed,
-        "in_body_images": ibp,
     }
 
     return text, metadata

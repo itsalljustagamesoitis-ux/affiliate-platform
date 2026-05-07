@@ -81,7 +81,7 @@ The layout renders components before and after the article body. This order is f
 [body]    ## What to Look For in {category_noun}
 [body]      ### Subsection × 3–5
 [body]    ## Top Picks
-[body]      ### Product Name × N (prose reviews, hub images, comma separators)
+[body]      ### Product Name × N (prose reviews)
 [body]    ## {STYLE_POLICY.buying_guide_heading.style}
 [body]      ### Subsection × 3–5
 [body]    ## Frequently Asked Questions
@@ -232,24 +232,6 @@ These follow from Section 2 but are stated here for completeness:
 
 Do not open every product section with the product name in the first sentence — vary the entry point across sections.
 
-In-body image placement is governed by `STYLE_POLICY.in_body_images.policy` (injected via `{{STYLE_POLICY}}`):
-
-**`per_product`:** After each product section's prose, place one in-body image followed by a comma separator on its own line. Every product H3 gets exactly one image.
-
-**`fixed_count`:** Place exactly `STYLE_POLICY.in_body_images.fixed_count` images total, distributed evenly across product sections in order. For example, with 5 images and 4 products: products 1–4 get one image each and product 1 gets a second image (or use editorial judgment to distribute naturally). Comma separator applies to every placed image.
-
-**`none`:** No in-body images in the article body. Omit all image markdown and comma separators from product sections. The hero image (frontmatter) and component images are still rendered by the layout — this policy only suppresses images added within product section prose.
-
-Regardless of policy, always use the comma separator format when an image is placed:
-
-```markdown
-![descriptive alt text referencing the product category](/images/articles/{hub_slug}-{N}.jpg)
-
-,
-```
-
-Images are selected from the site's image bank (`public/images/articles/`). Use hub-matched images — the `{hub_slug}` prefix identifies the correct set. Do not repeat an image number already used in the article (hero or prior sections).
-
 ### Buying guide (`## {STYLE_POLICY.buying_guide_heading.style}`)
 
 3–5 H3 subsections. Each subsection 2–3 paragraphs. Total section: 500–700 words (hard floor: if your draft comes in under 500 words, add a sentence to the thinnest subsection — do not pad, add a genuinely useful point). Subsections cover the purchase-decision variables specific to this product category — the factors that determine which pick is right for a given buyer's situation. This section is decision-oriented where "What to Look For" was criteria-oriented; they are complementary, not redundant. At least one subsection must include a contextual link to the hub page using a site-relative path (different anchor text from the intro and "What to Look For" hub links). Generic advice that applies to any product category is not appropriate.
@@ -377,9 +359,6 @@ dollar_figures:
   allowed: {boolean}
 buying_guide_heading:
   style: "{How to Choose | Buying Guide}"
-in_body_images:
-  policy: "{per_product | fixed_count | none}"
-  fixed_count: {integer | null}
 ```
 
 If `{{STYLE_POLICY}}` is absent or malformed, the generating script must halt before calling the model with exit code 2. No silent defaults.
@@ -391,7 +370,6 @@ If `{{STYLE_POLICY}}` is absent or malformed, the generating script must halt be
 | `word_count.min` / `word_count.max` | Section 5 length contract |
 | `dollar_figures.allowed` | Section 4 dollar ban rule |
 | `buying_guide_heading.style` | H2 heading for the buying guide section |
-| `in_body_images.policy` + `fixed_count` | Image placement within product H3 sections (Section 5) |
 
 ---
 
