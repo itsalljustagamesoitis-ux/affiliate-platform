@@ -127,7 +127,8 @@ export async function verifyTagInLiveHtml(domain, expectedTag) {
  * @param {string} token
  * @returns {Promise<CheckResult[]>}
  */
-export async function runChecks(site, allGa4Ids, token) {
+export async function runChecks(site, allGa4Ids, token, opts = {}) {
+  const { skipLiveHtml = false } = opts
   const results = []
 
   const check = (id, name, status, details) => results.push({ id, name, status, details })
@@ -180,7 +181,9 @@ export async function runChecks(site, allGa4Ids, token) {
 
   // 4. AMAZON_TAG production — secrets have type "secret_text" and empty value
   const prodBinding = envVars.production.AMAZON_TAG
-  if (!prodBinding) {
+  if (skipLiveHtml) {
+    check(4, 'AMAZON_TAG Production', 'skip', 'live HTML check skipped (run with --full)')
+  } else if (!prodBinding) {
     // Not configured as env var — may fall back to site.config.yaml. Verify via live HTML.
     const liveResult = await verifyTagInLiveHtml(site.domain, site.tracking_id)
     if (liveResult.found) {
