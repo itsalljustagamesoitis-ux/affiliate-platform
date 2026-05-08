@@ -573,9 +573,9 @@ Mission:
 
 1. Log into Amazon Associates dashboard
 2. Create a new tracking ID: `<site-slug>-20`
-3. Configure in two places:
-   - `wrangler.toml` `[vars] AMAZON_TAG = "<tracking-id>"` (source of truth)
-   - Cloudflare Pages dashboard → Environment variables → Production AND Preview as `AMAZON_TAG = "<tracking-id>"`
+3. Configure the tracking ID:
+   - Primary source of truth: `site.config.yaml` under `affiliate.amazon_tracking_id` (see §1.8). The build reads this value by default.
+   - Optional override: Cloudflare Pages dashboard → Environment variables → Production AND Preview as `AMAZON_TAG = "<tracking-id>"`. When present, the Cloudflare env var takes precedence over site.config.yaml.
 
 **Hard pause if:** Amazon Associates rejects the tracking ID application.
 
@@ -584,14 +584,14 @@ Mission:
 **Verification:**
 
 - Tracking ID exists in Amazon Associates dashboard
-- wrangler.toml [vars] matches Amazon Associates ID
-- Cloudflare Pages env vars (Production + Preview) match
+- `site.config.yaml` `affiliate.amazon_tracking_id` matches Amazon Associates ID
+- If Cloudflare env var is set: Production AND Preview match site.config.yaml value
 - Live affiliate link contains correct `?tag=<tracking-id>` after rehype plugin resolution
 
 **Failure modes:**
 
 - Tracking ID copy-pasted from another site
-- wrangler.toml and Cloudflare env var mismatch
+- Cloudflare env var set but mismatches site.config.yaml value
 - Tracking ID hardcoded in platform code
 
 ---
@@ -678,25 +678,35 @@ Escalations batched for human review at end of lookup pass.
 
 ### Point 12: Assign images per article
 
-**What it does:** Walk pipeline.json, assign 5 image references per article from the topical pool.
+**What it does:** Walk pipeline.json, assign image references per article from the topical pool.
 
-**Selection algorithm:** Random within hub. Each article gets 1 hero + 4 body images randomly selected from its hub's image pool.
+**Default:** 1 hero + 4 body images per article (5 total). Body images injected at 4 fixed structural positions (after intro H2, after Top Picks H2, after How to Choose H2, after FAQ H2).
+
+**Per-site override:** `site.config.yaml` under `style_policy.in_body_images`. Permitted modes:
+- `policy: 'fixed_count', fixed_count: N` — exact body image count per article
+- `policy: 'per_product'` — one image per product mention in body
+- `policy: 'none'` — no body images (hero only)
+
+Sites pick a policy at initialisation and stick with it; changing policy mid-life requires regenerating affected articles.
+
+**Selection algorithm:** Random within hub. Hero and body images selected from the hub's image pool.
 
 **What it produces:**
 
 - pipeline.json article entries with populated `hero_image:` and `body_images: [...]`
 
-**Tools:** `tools/assign-article-images.mjs` — needs to be built.
+**Tools:** `tools/assign-article-images.mjs`
 
 **Verification:**
 
-- Every article has hero_image and body_images populated
+- Every article has hero_image and body_images populated per site policy
 - All referenced images exist in image bank
 
 **Failure modes:**
 
 - Image bank too small for article count
 - Image references broken
+- Policy changed after initial article generation without regeneration pass
 
 ---
 
@@ -816,8 +826,8 @@ This catches the OHT-style "wires connected to wrong endpoints" failures. Eight 
 1. Cloudflare project name = site slug
 2. Cloudflare project's GitHub repo = expected repo (`itsalljustagamesoitis-ux/<site-slug>`)
 3. Cloudflare project's custom domain = site domain
-4. AMAZON_TAG in Cloudflare Production env = AMAZON_TAG in wrangler.toml
-5. AMAZON_TAG in Cloudflare Preview env = same value
+4. AMAZON_TAG in Cloudflare Production env = `affiliate.amazon_tracking_id` in site.config.yaml (if env var is set)
+5. AMAZON_TAG in Cloudflare Preview env = same value (if env var is set)
 6. GA4 measurement ID unique across portfolio (cross-check against portfolio.yaml)
 7. IndexNow key file at site root matches BWT registration
 8. DNS for site domain points at correct Cloudflare Pages project
