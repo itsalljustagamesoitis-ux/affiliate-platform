@@ -1087,6 +1087,24 @@ Must return 0 before production. Currently:
 
 ## 10. Known Gaps & Technical Debt
 
+### HANDOVER.md refresh status
+
+**Partially refreshed 2026-05-08.** Only the following were updated on that date:
+- Platform HEAD, FSG/MLT/OHT HEADs, submodule pointers
+- Tools directory listing (added assign-article-images, source-images-pexels, verify-bindings, lib/)
+
+**Not updated** (still reflects May 4 state):
+- Validator section (build-validator.mjs, validate-asins.mjs)
+- Producer state (producer scripts, pipeline schema, cluster→hub migration)
+- Per-site operational notes
+- Section 9 conventions and decisions
+- Section 11 new site playbook
+- Appendix file index
+
+A full content audit pass is a session of its own. Do it before handing off to a new collaborator; skip it otherwise.
+
+
+
 ### OHT pre-launch blockers
 
 1. **53 VERIFY entries in products.yaml** (hardest blocker)
