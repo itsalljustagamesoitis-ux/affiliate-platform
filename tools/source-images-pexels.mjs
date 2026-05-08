@@ -11,9 +11,6 @@
  * Point 11 of the launch-site ritual (PIPELINE.md).
  *
  * Reads PEXELS_API_KEY from environment (or <site>/config/credentials.env as fallback).
- * Pipeline formats supported:
- *   - Array (legacy FSG format): each item has hub_slug field
- *   - Object (xlsx-to-pipeline output): { version, articles: [{ hub }] }
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync, createWriteStream } from 'fs'
@@ -103,27 +100,18 @@ if (!existsSync(pipelinePath)) {
 
 /**
  * Loads pipeline.json and returns a normalised array of articles.
- * Handles both array format (legacy) and object format { articles: [] }.
  * @param {string} path
  * @returns {Array<{ hub: string, category: string }>}
  */
 function loadPipeline(path) {
   const raw = JSON.parse(readFileSync(path, 'utf-8'))
-  if (Array.isArray(raw)) {
-    // Legacy array format (FSG): hub_slug + category_label
-    return raw.map(a => ({
-      hub:      a.hub_slug ?? a.cluster ?? '',
-      category: a.category_label ?? a.category ?? '',
-    }))
+  if (!raw.articles || !Array.isArray(raw.articles)) {
+    throw new Error('Invalid pipeline.json — expected envelope format { version, articles: [...] }')
   }
-  if (raw.articles && Array.isArray(raw.articles)) {
-    // New object format (xlsx-to-pipeline output): hub + category
-    return raw.articles.map(a => ({
-      hub:      a.hub ?? '',
-      category: a.category ?? '',
-    }))
-  }
-  throw new Error('Unrecognised pipeline.json format — expected array or { articles: [] }')
+  return raw.articles.map(a => ({
+    hub:      a.hub ?? '',
+    category: a.category ?? '',
+  }))
 }
 
 const articles = loadPipeline(pipelinePath)
