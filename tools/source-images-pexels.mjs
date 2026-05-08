@@ -2,6 +2,9 @@
 /**
  * source-images-pexels.mjs — Download topical images from Pexels, organised by hub.
  *
+ * Downloads jpg images from Pexels and converts to webp (quality 85) during
+ * the download step. Output files are named <hub>-N.webp.
+ *
  * Usage:
  *   node tools/source-images-pexels.mjs --site <slug>
  *   node tools/source-images-pexels.mjs --site <slug> --per-hub 20
@@ -13,11 +16,14 @@
  * Reads PEXELS_API_KEY from environment (or <site>/config/credentials.env as fallback).
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, createWriteStream } from 'fs'
-import { join, basename } from 'path'
+import { existsSync, readFileSync, mkdirSync } from 'fs'
+import { writeFile } from 'fs/promises'
+import { join } from 'path'
 import { homedir } from 'os'
-import { pipeline } from 'stream/promises'
+import sharp from 'sharp'
 import { loadPortfolio } from './lib/portfolio.mjs'
+
+const WEBP_QUALITY = 85
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
 
@@ -187,7 +193,12 @@ if (!jsonMode) {
 if (dryRun) {
   for (const hub of hubs) {
     const query = buildQuery(hub, nicheKeyword)
-    if (!jsonMode) console.log(`  ${c.cyan('[HUB]')} ${hub} (query: "${query}")`)
+    if (!jsonMode) {
+      console.log(`  ${c.cyan('[HUB]')} ${hub} (query: "${query}")`)
+      for (let i = 1; i <= perHub; i++) {
+        console.log(`    ${c.dim(`→ ${hub}-${i}.webp`)}`)
+      }
+    }
   }
   if (!jsonMode) console.log()
   if (jsonMode) {
@@ -225,9 +236,10 @@ async function searchPexels(query, count) {
 }
 
 /**
- * Downloads a single image to destPath. Retries once on failure.
+ * Downloads a single image, converts to webp, and writes to destPath.
+ * Retries once on failure.
  * @param {string} url
- * @param {string} destPath
+ * @param {string} destPath  — must end in .webp
  * @returns {Promise<boolean>} true on success
  */
 async function downloadImage(url, destPath) {
@@ -235,8 +247,9 @@ async function downloadImage(url, destPath) {
     try {
       const res = await fetch(url)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const out = createWriteStream(destPath)
-      await pipeline(res.body, out)
+      const arrayBuf = await res.arrayBuffer()
+      const webpBuf = await sharp(Buffer.from(arrayBuf)).webp({ quality: WEBP_QUALITY }).toBuffer()
+      await writeFile(destPath, webpBuf)
       return true
     } catch (err) {
       if (attempt === 2) return false
@@ -271,7 +284,7 @@ for (const hub of hubs) {
 
   for (let i = 0; i < photos.length; i++) {
     const { url, width, height } = photos[i]
-    const filename = `${hub}-${i + 1}.jpg`
+    const filename = `${hub}-${i + 1}.webp`
     const destPath = join(imagesDir, filename)
 
     // Skip if too small (must be at least 1200x630)
