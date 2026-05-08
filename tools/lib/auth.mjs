@@ -1,31 +1,46 @@
 /**
- * Reads the Cloudflare oauth_token from the wrangler config file.
+ * Resolves the Cloudflare API token.
  *
- * TODO: migrate to dedicated CLOUDFLARE_API_TOKEN env var
+ * Resolution order:
+ *   1. CLOUDFLARE_API_TOKEN env var (already exported in shell)
+ *   2. .env.local in the platform root (CLOUDFLARE_API_TOKEN=<value>)
+ *   3. wrangler oauth_token from ~/Library/Preferences/.wrangler/config/default.toml
  */
 
-import { readFileSync } from 'fs'
+import { readFileSync, existsSync } from 'fs'
 import { homedir } from 'os'
-import { join } from 'path'
+import { join, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
+const PLATFORM_ROOT  = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
+const ENV_LOCAL      = join(PLATFORM_ROOT, '.env.local')
 const WRANGLER_CONFIG = join(homedir(), 'Library/Preferences/.wrangler/config/default.toml')
 
 /**
- * Returns the oauth_token string from the wrangler default.toml.
- * Throws if the file is missing or the token field is absent.
+ * Returns the Cloudflare API token.
+ * Throws if no token can be resolved from any source.
  * @returns {string}
  */
 export function getCloudflareToken() {
+  // 1. Shell env var
   if (process.env.CLOUDFLARE_API_TOKEN) {
     return process.env.CLOUDFLARE_API_TOKEN
   }
-  let raw
-  try {
-    raw = readFileSync(WRANGLER_CONFIG, 'utf-8')
-  } catch {
-    throw new Error(`Cannot read wrangler config at ${WRANGLER_CONFIG}`)
+
+  // 2. .env.local in platform root
+  if (existsSync(ENV_LOCAL)) {
+    const match = readFileSync(ENV_LOCAL, 'utf-8').match(/^CLOUDFLARE_API_TOKEN=(.+)$/m)
+    if (match) return match[1].trim()
   }
-  const match = raw.match(/oauth_token\s*=\s*"([^"]+)"/)
-  if (!match) throw new Error(`oauth_token not found in ${WRANGLER_CONFIG}`)
-  return match[1]
+
+  // 3. Wrangler OAuth token (expires — prefer .env.local for long-lived use)
+  try {
+    const raw = readFileSync(WRANGLER_CONFIG, 'utf-8')
+    const match = raw.match(/oauth_token\s*=\s*"([^"]+)"/)
+    if (match) return match[1]
+  } catch { /* fall through */ }
+
+  throw new Error(
+    'Cloudflare API token not found. Set CLOUDFLARE_API_TOKEN env var or add it to .env.local'
+  )
 }
