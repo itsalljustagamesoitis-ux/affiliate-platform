@@ -436,7 +436,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 
 **Brand colors: Claude Code derives from niche understanding.** You override if you don't like it.
 
-**5 standardized color slots:** primary, accent, text, neutral_bg, footer_dark.
+**5 standardized visual slots** in `site.config.yaml` under `visual:`: 3 colors (`primary_color`, `accent_color`, `background_color`) and 2 typography fields (`font_headings`, `font_body`).
 
 **Logo: Claude Code generates.** Header SVG (color on light) and footer SVG (white on dark). Favicon derived from logo mark.
 
@@ -445,13 +445,13 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - `public/images/brand/logo-header.svg`
 - `public/images/brand/logo-footer.svg`
 - `public/favicon.ico` and `public/favicon.svg`
-- 5 color hex values committed to `config/site.config.yaml`
+- 5 visual slot values committed to `site.config.yaml` (repo root)
 
 **Verification:**
 
 - Both logo SVG files render correctly at 240x40 viewport
 - Favicon displays in browser tab
-- 5 brand color slots populated (no `{{TOKEN}}` remaining)
+- 5 visual slots populated (no `{{TOKEN}}` remaining)
 - No FSG/MLT/OHT identifiers in logo or color values
 
 **Failure modes:**
@@ -471,7 +471,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 **What it produces:**
 
 - Astro config pointing at the right domain
-- `config/site.config.yaml` with site name, domain, brand colors, hubs, categories, GA4 placeholder
+- `site.config.yaml` (repo root) with site name, domain, brand colors, hubs, categories, GA4 placeholder
 - `config/navigation.yaml` matching hub structure
 - `config/personas/<persona-slug>.yaml` (from point 5)
 - `producer/<site-slug>-producer-v2.py` thin shell calling platform producer
@@ -484,7 +484,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - `affiliate-platform/` submodule pinned to current platform commit
 - `data/pipeline.json` populated (from point 3)
 - `content/products/products.yaml` empty
-- `content/articles/` empty
+- `content/articles/` empty (at shell creation; populated after Point 14 publish)
 - `staging/` empty (producer's output destination)
 - `.gitignore`, `package.json`, `tsconfig.json`
 
@@ -508,7 +508,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - Producer test fixtures match site hubs
 - Submodule pin is current
 - wrangler.toml name matches site slug
-- 5 brand color slots populated
+- 5 visual slots populated (`primary_color`, `accent_color`, `background_color`, `font_headings`, `font_body`)
 - No `{{PLACEHOLDER_TOKEN}}` text remaining anywhere
 
 **Failure modes:**
@@ -762,7 +762,7 @@ Runs unattended for 1.5-3 hours.
 - All articles in content/articles/ are publishable
 - Hard fail count = 0
 - Soft fail count surfaced and accepted
-- staging/ and staging/failed/ are empty after publish
+- After a publish run completes, `staging/` and `staging/failed/` contain only files from the current pending batch (failed regenerations or unapproved drafts). Across the lifecycle of a live site, these directories accumulate artifacts of in-flight work — they are not asserted empty as a steady state.
 
 **Failure modes:**
 
@@ -861,7 +861,7 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 
 **Site side:**
 
-1. Add measurement ID to `config/site.config.yaml` under `analytics.ga4_id`
+1. Add measurement ID to `site.config.yaml` (repo root) under `analytics.ga4_measurement_id`
 2. Astro Layout reads config, injects script
 3. Push triggers deploy with GA4 active
 
@@ -980,6 +980,9 @@ sites:
     status: live
     launched: <date>
 ```
+
+Optional fields:
+- `notes`: per-site operational notes (e.g., known deploy quirks, manual workarounds, anything an operator should know before touching the site)
 
 **Dashboard implementation phases (locked):**
 
@@ -1203,7 +1206,7 @@ Algorithmic, opinionated platform default, no manual curation.
 
 ### 10.3 MLT-specific
 
-- Producer architecture: still on old single-site producer pattern, not v2 platform-shell pattern
+- Producer architecture: migrated to platform-shell pattern (`mlt-producer.py` delegates to `affiliate-platform/producer/producer_main.py`)
 - IndexNow wiring verification
 
 ### 10.4 OHT-specific
