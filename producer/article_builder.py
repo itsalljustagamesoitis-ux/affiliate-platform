@@ -660,7 +660,7 @@ def build_review_txt(
 DESC: {description}
 
 ---
-Article ID {article['id']} | {article['type']} | Cluster: {article['cluster']}
+Article ID {article['id']} | {article['type']} | Hub: {article['hub']}
 Hub: {article.get('hub_label', '')} ({article.get('hub_url', '')}) | KD: {article.get('kd', 0)} | Vol: {article.get('volume', 0)}
 Products: {products_line}
 ---

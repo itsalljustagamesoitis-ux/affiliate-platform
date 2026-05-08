@@ -18,7 +18,6 @@ Flags:
   --slug      Produce single article by slug
   --count     Number of articles to produce
   --type      Filter by type: Roundup, Review, Comparison, Informational, Buyer Guide
-  --cluster   Filter by cluster slug
   --hub       Filter by hub slug
   --dry-run   Plan without generating (no LLM calls, no file writes)
   --force     Regenerate even if already staged
@@ -96,8 +95,6 @@ def select_articles(pipeline: list, args) -> list:
 
     if args.type:
         pending = [a for a in pending if a["type"].lower() == args.type.lower()]
-    if args.cluster:
-        pending = [a for a in pending if a["cluster"] == args.cluster]
     if args.hub:
         pending = [a for a in pending if a.get("hub") == args.hub]
 
@@ -184,7 +181,7 @@ def run(args, site_root: Path):
             errors += 1
             continue
 
-        eeat = get_eeat_for_cluster(vault, article["cluster"])
+        eeat = get_eeat_for_cluster(vault, article["hub"])
         products = get_hub_products(all_products, article["hub"])
 
         # Attach published siblings for internal linking
@@ -298,7 +295,6 @@ def main():
         "--type",
         help="Filter by type: Roundup, Review, Comparison, Informational, Buyer Guide",
     )
-    parser.add_argument("--cluster", help="Filter by cluster slug")
     parser.add_argument("--hub", help="Filter by hub slug")
     parser.add_argument(
         "--dry-run", action="store_true", help="Plan without generating (no LLM calls)"
