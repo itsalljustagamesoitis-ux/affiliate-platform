@@ -24,6 +24,8 @@
     "registries"
   ],
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
+    "cheerio": "^1.2.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
     "sharp": "^0.34.2",
