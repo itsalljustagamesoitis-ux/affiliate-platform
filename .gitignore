@@ -2,3 +2,6 @@ node_modules/
 .DS_Store
 .env.local
 .env*.local
+
+# initialise-site state files (per-site, ephemeral)
+sites/*.state.json
