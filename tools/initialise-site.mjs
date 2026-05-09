@@ -106,15 +106,22 @@ function atomicWriteJson(filePath, data) {
   renameSync(tmp, filePath)
 }
 
+function statePath(slug) {
+  return dryRun
+    ? join('/tmp', `initialise-site-dryrun-${slug}.state.json`)
+    : join(SITES_DIR, `${slug}.state.json`)
+}
+
 function readState(slug) {
-  const p = join(SITES_DIR, `${slug}.state.json`)
+  if (dryRun) return null  // dry-runs always start fresh; no resumption from prior dry-run state
+  const p = statePath(slug)
   if (!existsSync(p)) return null
   try { return JSON.parse(readFileSync(p, 'utf-8')) } catch { return null }
 }
 
 function writeState(slug, state) {
-  mkdirSync(SITES_DIR, { recursive: true })
-  atomicWriteJson(join(SITES_DIR, `${slug}.state.json`), state)
+  if (!dryRun) mkdirSync(SITES_DIR, { recursive: true })
+  atomicWriteJson(statePath(slug), state)
 }
 
 function isBinary(filePath) {
@@ -485,7 +492,7 @@ async function phase1(spec, slug, state) {
     console.log(c.dim('  Running xlsx-to-pipeline.mjs…'))
     try {
       const tool = join(PLATFORM_ROOT, 'tools', 'xlsx-to-pipeline.mjs')
-      execCmd(`node ${tool} --xlsx ${spec.keyword_source.xlsx_path} --site ${slug}`)
+      execCmd(`node ${tool} --input ${spec.keyword_source.xlsx_path} --output ${join(dataDir, 'pipeline.json')}`)
       console.log(c.green('  ✓ Pipeline populated from xlsx'))
     } catch (err) {
       console.log(c.yellow(`  ⚠ xlsx-to-pipeline failed: ${err.message}`))
