@@ -154,16 +154,20 @@ function validateSpec(raw) {
     if (!test(val)) errors.push(`  ${path}: ${msg}`)
   }
 
-  check('slug',                 v => v && /^[a-z][a-z0-9-]+$/.test(v),             'required, must match /^[a-z][a-z0-9-]+$/')
-  check('domain',               v => v && !v.includes('://') && v.includes('.'),    'required, no protocol prefix, must have TLD')
-  check('niche',                v => typeof v === 'string' && v.length > 0,         'required string')
-  check('amazon_associates_id', v => typeof v === 'string' && v.endsWith('-20'),    'required, must end in -20')
-  check('ga4_measurement_id',   v => typeof v === 'string' && v.startsWith('G-'),   'required, must start with G-')
-  check('persona.slug',         v => v && /^[a-z][a-z0-9-]*$/.test(v),             'required, lowercase kebab')
-  check('persona.display_name', v => typeof v === 'string' && v.length > 0,         'required string')
-  check('persona.bio',          v => typeof v === 'string' && v.length > 0,         'required string')
-  check('persona.photo_source', v => v && existsSync(v),                            'required, file must exist at path')
-  check('persona.about_photo_source', v => v && existsSync(v),                      'required, file must exist at path')
+  check('slug',                      v => v && /^[a-z][a-z0-9-]+$/.test(v),             'required, must match /^[a-z][a-z0-9-]+$/')
+  check('domain',                    v => v && !v.includes('://') && v.includes('.'),    'required, no protocol prefix, must have TLD')
+  check('brand_name',                v => typeof v === 'string' && v.length > 0,         'required string')
+  check('tagline',                   v => typeof v === 'string' && v.length > 0,         'required string')
+  check('niche',                     v => typeof v === 'string' && v.length > 0,         'required string')
+  check('amazon_associates_id',      v => typeof v === 'string' && v.endsWith('-20'),    'required, must end in -20')
+  check('ga4_measurement_id',        v => typeof v === 'string' && v.startsWith('G-'),   'required, must start with G-')
+  check('persona.slug',              v => v && /^[a-z][a-z0-9-]*$/.test(v),             'required, lowercase kebab')
+  check('persona.display_name',      v => typeof v === 'string' && v.length > 0,         'required string')
+  check('persona.bio',               v => typeof v === 'string' && v.length > 0,         'required string')
+  check('persona.location',          v => typeof v === 'string' && v.length > 0,         'required string')
+  check('persona.voice_notes',       v => typeof v === 'string' && v.length > 0,         'required string')
+  check('persona.photo_source',      v => v && existsSync(v),                            'required, file must exist at path')
+  check('persona.about_photo_source', v => v && existsSync(v),                           'required, file must exist at path')
 
   for (const f of ['visual.primary_color', 'visual.accent_color', 'visual.background_color']) {
     check(f, v => v && /^#[0-9A-Fa-f]{6}$/.test(v), 'required, must be #RRGGBB hex')
@@ -231,14 +235,16 @@ async function cfReq(method, token, path, body) {
 function buildSiteConfig(spec) {
   return {
     site: {
-      slug: spec.slug,
-      domain: spec.domain,
+      slug:        spec.slug,
+      domain:      spec.domain,
+      brand_name:  spec.brand_name,
+      tagline:     spec.tagline,
       description: spec.description ?? spec.niche,
-      niche: spec.niche,
+      niche:       spec.niche,
     },
     affiliate: { amazon_tracking_id: spec.amazon_associates_id },
     analytics: { ga4_measurement_id: spec.ga4_measurement_id },
-    persona:   { config_path: `${spec.persona.slug}.yaml` },
+    persona:   { config_path: `config/personas/${spec.persona.slug}.yaml` },
     visual: {
       primary_color:    spec.visual.primary_color,
       accent_color:     spec.visual.accent_color,
@@ -247,6 +253,7 @@ function buildSiteConfig(spec) {
       font_body:        spec.visual.font_body,
       slots: 5,
     },
+    images: { base_url: '/images' },
   }
 }
 
@@ -261,10 +268,20 @@ function buildNavigationYaml(spec) {
 }
 
 function buildPersonaYaml(spec) {
+  const firstName = spec.persona.display_name.split(' ')[0]
   return {
-    slug:         spec.persona.slug,
-    display_name: spec.persona.display_name,
-    bio:          spec.persona.bio,
+    slug:            spec.persona.slug,
+    name_formal:     spec.persona.display_name,
+    name_used:       firstName,
+    display_name:    spec.persona.display_name,
+    bio:             spec.persona.bio,
+    bio_short:       spec.persona.bio,
+    location:        spec.persona.location,
+    location_detail: spec.persona.location_detail ?? spec.persona.location,
+    background:      spec.persona.background ?? '',
+    voice_notes:     spec.persona.voice_notes,
+    photo_byline:    `/images/brand/${spec.persona.slug}-byline.jpg`,
+    photo_about:     `/images/brand/${spec.persona.slug}-about.jpg`,
     photos: {
       byline: `${spec.persona.slug}-byline.jpg`,
       about:  `${spec.persona.slug}-about.jpg`,
@@ -382,6 +399,7 @@ async function phase1(spec, slug, state) {
     '{{PERSONA_SLUG}}':          spec.persona.slug,
     '{{PERSONA_DISPLAY_NAME}}':  spec.persona.display_name,
     '{{PERSONA_BIO}}':           spec.persona.bio,
+    '{{PERSONA_LOCATION}}':      spec.persona.location,
     '{{PRIMARY_COLOR}}':         spec.visual.primary_color,
     '{{ACCENT_COLOR}}':          spec.visual.accent_color,
     '{{BACKGROUND_COLOR}}':      spec.visual.background_color,
@@ -391,6 +409,7 @@ async function phase1(spec, slug, state) {
     '{{NODE_VERSION}}':          '22',
   }
 
+  // P1.2a: replace tokens in file contents
   let replacedFiles = 0
   for (const filePath of walkFiles(dir)) {
     if (isBinary(filePath)) continue
@@ -399,6 +418,19 @@ async function phase1(spec, slug, state) {
     let updated = content
     for (const [token, value] of Object.entries(TOKENS)) updated = updated.replaceAll(token, value)
     if (updated !== content) { writeFileSync(filePath, updated, 'utf-8'); replacedFiles++ }
+  }
+
+  // P1.2b: rename files whose names contain token patterns
+  let renamedFiles = 0
+  for (const filePath of walkFiles(dir)) {
+    const base = filePath.split('/').pop()
+    let newBase = base
+    for (const [token, value] of Object.entries(TOKENS)) newBase = newBase.replaceAll(token, value)
+    if (newBase !== base) {
+      const dir_ = filePath.slice(0, filePath.lastIndexOf('/'))
+      renameSync(filePath, `${dir_}/${newBase}`)
+      renamedFiles++
+    }
   }
 
   // Scan for leftover tokens
@@ -416,7 +448,7 @@ async function phase1(spec, slug, state) {
     leftover.forEach(l => console.error(c.red(l)))
     process.exit(1)
   }
-  console.log(c.green(`  ✓ Token replacement (${replacedFiles} files updated)`))
+  console.log(c.green(`  ✓ Token replacement (${replacedFiles} files updated, ${renamedFiles} files renamed)`))
 
   // P1.3: generate dynamic config files
   const configDir = join(dir, 'config')
