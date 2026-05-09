@@ -1,5 +1,4 @@
 version: 1
-
 sites:
   - slug: four-season-gardener
     domain: fourseasongardener.com
@@ -9,8 +8,7 @@ sites:
     cloudflare_project: four-season-gardener
     github_repo: itsalljustagamesoitis-ux/four-season-gardener
     status: live
-    launched: 2026-04-30
-
+    launched: 2026-04-30T00:00:00.000Z
   - slug: my-little-tablespoon
     domain: mylittletablespoon.com
     persona: emily
@@ -19,8 +17,7 @@ sites:
     cloudflare_project: my-little-tablespoon
     github_repo: itsalljustagamesoitis-ux/my-little-tablespoon
     status: live
-    launched: 2026-04-30
-
+    launched: 2026-04-30T00:00:00.000Z
   - slug: one-happy-table
     domain: onehappytable.com
     persona: sarah
@@ -29,5 +26,14 @@ sites:
     cloudflare_project: one-happy-table
     github_repo: itsalljustagamesoitis-ux/one-happy-table
     status: live
-    launched: 2026-05-07
-    notes: "Cloudflare project is Direct Upload — needs recreation for auto-deploy (see backlog)"
+    launched: 2026-05-07T00:00:00.000Z
+    notes: Cloudflare project is Direct Upload — needs recreation for auto-deploy (see backlog)
+  - slug: the-coffee-dispatch
+    domain: thecoffeedispatch.com
+    persona: chris
+    tracking_id: thecoffeedis-20
+    ga4_id: G-F7L62M9HP2
+    cloudflare_project: the-coffee-dispatch
+    github_repo: itsalljustagamesoitis-ux/the-coffee-dispatch
+    status: pre_launch
+    launched: null
