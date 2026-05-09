@@ -611,6 +611,7 @@ async function phase3(spec, slug, state) {
       source: { type: 'github', config: { owner, repo_name: slug, production_branch: 'main', deployments_enabled: true } },
     }
     const envBody = {
+      build_config: { build_command: 'npm run build', destination_dir: 'dist' },
       deployment_configs: {
         production: { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
         preview:    { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
@@ -673,17 +674,21 @@ async function phase3(spec, slug, state) {
     console.log(c.green(`  ✓ Custom domain attached: ${spec.domain}`))
   }
 
-  // P3.4: Set AMAZON_TAG on production + preview (resolves AMAZON_TAG Preview backlog item)
+  // P3.4: Set build_config + AMAZON_TAG on production + preview
   const envRes = await cfReq('PATCH', cfToken, `/pages/projects/${slug}`, {
+    build_config: {
+      build_command:   'npm run build',
+      destination_dir: 'dist',
+    },
     deployment_configs: {
       production: { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
       preview:    { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
     },
   })
   if (!envRes.success) {
-    console.log(c.yellow(`  ⚠ Env var config failed: ${JSON.stringify(envRes.errors)}`))
+    console.log(c.yellow(`  ⚠ Project config failed: ${JSON.stringify(envRes.errors)}`))
   } else {
-    console.log(c.green(`  ✓ AMAZON_TAG set for production + preview`))
+    console.log(c.green(`  ✓ Build config + AMAZON_TAG set for production + preview`))
   }
 
   state.phase3 = { githubRepoUrl: repoUrl, cfProjectName: slug }
