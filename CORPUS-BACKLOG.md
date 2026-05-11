@@ -20,3 +20,9 @@ All failures are corpus debt from articles generated before the v1.0.3+ roundup 
 ## Decision
 
 Corpus remediation deferred until after OHT launch validates the calibrated system end-to-end.
+
+## Platform Structural Bugs
+
+Issues with the platform generator/validator architecture — distinct from corpus debt on existing articles.
+
+1. **P01 — inject_body_images vs B11 validator mismatch (High, all sites).** `inject_body_images` places images at H2-level structural anchors (before the next `##` heading). `validate-buyer-guide.mjs` B11 counts images inside H3 product sections. These are incompatible — all sites with `in_body_images: fixed_count: 5` fail B11 silently on every article generated. Validator is advisory not blocking, so articles ship. TCD switched to `policy: none` as workaround (product H3 sections correctly contain zero images). Real fix: pick one truth and align the other side. Options: (a) fix injector to place images inside H3 product sections, (b) change validator to count H2-anchor images, (c) canonicalize `policy: none` as platform default and remove `fixed_count`.

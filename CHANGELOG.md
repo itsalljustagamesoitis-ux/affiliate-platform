@@ -8,6 +8,41 @@ FSG buyer_guide corpus (22 articles) carries the same dollar-figure A03 violatio
 
 OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yaml-only remediation, no Phase 2 needed). Fill sheet at `one-happy-table/VERIFY-ASIN-FILL.csv`. Note: `grep -c "amazon_asin: VERIFY"` returns 53 because it counts the comment on line 3 of products.yaml; actual VERIFY product count is 52. Total catalog entries = 54 (52 VERIFY + 2 confirmed ASINs). The fill sheet targets the 52 VERIFY entries and remains accurate; regenerate only if new VERIFY products are added.
 
+### Site 4 launch — The Coffee Dispatch (May 9–10)
+- TCD bootstrapped via initialise-site.mjs end-to-end (first site to use the tool). Live at thecoffeedispatch.com.
+- 300 articles seeded from xlsx, products sourced via Rainforest API (1,340 products in catalog), images sourced via Pexels (152 webp).
+- All products have real default_pros/default_cons generated via Haiku (~$0.96, 45min runtime).
+
+### Initialise-site backlog surfaced during TCD launch
+- Phase 3 PATCH must include `build_config` with `build_command` and `destination_dir` — without this, CF Pages skips the build entirely. Already partially fixed in commit c59635d; verify intact for site 5.
+- Phase 3 PATCH must use `type: secret_text` for env vars (not just `value`); CF runtime won't inject plain_text vars into builds.
+- Phase 3 must set BING_SITE_VERIFICATION env var (placeholder okay for pre_launch sites) — astro.config.mjs throws without it.
+- `buildSiteConfig()` must add `style_policy` block with sensible defaults (word_count, dollar_figures, in_body_images, buying_guide_heading).
+- `buildPersonaYaml()` must add `bio_full` field (fallback from `bio` if not in spec).
+- Spec schema: optionally accept `persona.bio_full`.
+- Template `public/images/brand/` must include placeholder logo-header.svg, logo-footer.svg with {{BRAND_NAME}} token.
+- Template `public/` must include placeholder favicon.svg + favicon.ico.
+- astro.config.mjs: relax BING guard to warn-not-throw when pre_launch.
+- `verify-site-shell.mjs`: add `--skip-portfolio-check` flag for validating sites before Phase 5 registration.
+- Phase 1: create `config/credentials.env` stub with placeholders for RAINFOREST_KEY, ANTHROPIC_API_KEY, PEXELS_API_KEY plus "fill these before sourcing" instruction at end of init output.
+- Template `producer/article_builder.py` is inert dead code (predates platform integration); either remove from template or document as intentional.
+
+### Producer / sourcing backlog surfaced during TCD article generation
+- `producer/data_loader.py` (platform): must handle pipeline.json wrapper dict format `{version, site, articles: [...]}` — currently returns the raw dict causing `AttributeError` in `get_pending_articles()`.
+- `producer/data_loader.py` (platform): must normalize Rainforest product fields (title→name, asin→amazon_asin) so `article_builder.build_products_brief` doesn't KeyError.
+- `producer/data_loader.py` (platform): must deduplicate product lists; LLM bleed-through happens when same product key appears twice in an article's products list ("This entry in the brief appears as a duplicate...").
+- `producer/data_loader.py` (platform): must populate `default_pros`/`default_cons` (or article_builder must handle their absence) — F09 validator fails on Rainforest products without these fields.
+- Buying Guide word count: validator B15 says min 475, platform prompt says 500; LLM commonly underruns to 400–440. Either fix the prompt to reliably hit 500+, or align validator and prompt.
+- `inject_body_images` places images at H2-level anchors (before next ##), but `validate-buyer-guide.mjs` B11 counts images inside H3 product sections. They are fundamentally incompatible. All four sites (FSG/MLT/OHT/TCD) fail B11 when `in_body_images: fixed_count: 5` is set. Decision needed: fix injector to target H3 sections, change validator to count H2 anchors, or canonicalize `policy: none` as platform default and remove `fixed_count` option.
+- `source-products-per-article.mjs`: was bypassed for TCD bulk run because of Amazon rate-limit risk at 300-article scale. Sites used custom Rainforest scripts (`data/source-hubs.py`, `data/resolve-verifies.py`, `data/generate-pros-cons.py`). Decision needed: fix `source-products` to handle bulk runs (rate-limit recovery, --resume) or canonicalize Rainforest as a platform tool (`tools/source-products-rainforest.mjs`).
+- `data/eeat-vault.json`: currently fabricated ad-hoc per site. Should be spec'd as part of site bootstrap (initialise-site Phase 1 creates a stub with placeholder fields, user fills in real or realistic experiences).
+- `generate-pros-cons.py`: site-local one-shot. Lift to platform as `tools/generate-product-pros-cons.mjs` for any site bootstrapping from Rainforest.
+
+### TCD launch deferred decisions
+- Pipeline article id 103 (cv1-coffee-maker): ambiguous keyword. Not garbage but terse. Currently in pipeline as a normal article. Could be Wilfa CV1, Moccamaster CV1, Café CV1 — keyword research didn't disambiguate. Article will be generated against whatever the LLM interprets it as.
+- TCD submodule pin (`bc8c7a5`) is 3 commits behind platform main (`e658a9d`). Not breaking, but worth bumping during next site update.
+- TCD's `affiliate-platform` submodule has pre-existing uncommitted changes to `scripts/build-validator.mjs` and `scripts/validate-asins.mjs` from before this session. Source unknown.
+
 ## [1.7.10] — 2026-05-06
 
 ### Validator calibration — empirical 200-article run (buyer_guide)
