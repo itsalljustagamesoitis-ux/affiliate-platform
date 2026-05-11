@@ -527,6 +527,26 @@ async function phase1(spec, slug, state) {
     console.log(c.green('  ✓ pipeline.json (empty — populate later)'))
   }
 
+  // P1.3c: eeat-vault stub for persona authority signals
+  const eeatStub = {
+    persona:          spec.persona.slug,
+    last_updated:     new Date().toISOString().slice(0, 10),
+    background_details: {
+      experience_years:  '',
+      current_setup:     '',
+      relevant_history:  '',
+    },
+    product_experiences: [],
+    failures:            [],
+    strong_opinions:     [],
+    voice_samples:       [],
+  }
+  writeFileSync(
+    join(dataDir, 'eeat-vault.json'),
+    JSON.stringify(eeatStub, null, 2),
+    'utf-8'
+  )
+
   const articlesDir = join(dir, 'content', 'articles')
   const productsDir = join(dir, 'content', 'products')
   mkdirSync(articlesDir, { recursive: true })
@@ -546,6 +566,7 @@ async function phase1(spec, slug, state) {
   state.completedPhases = [...new Set([...(state.completedPhases ?? []), 1])]
   writeState(slug, state)
   console.log(c.yellow('  ⚠ Fill config/credentials.env with RAINFOREST_KEY, ANTHROPIC_API_KEY, PEXELS_API_KEY before running source-products or producer'))
+  console.log(c.yellow('  ⚠ Fill data/eeat-vault.json with persona authority signals (experiences, failures, opinions) before running producer'))
   console.log(c.green('  ✓ Phase 1 complete'))
 }
 

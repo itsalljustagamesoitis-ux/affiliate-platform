@@ -46,6 +46,21 @@ OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yam
 ### Round 1 — Template fixes (May 11)
 Resolved 9 items from the initialise-site backlog above. See commit 6099ec3.
 
+### Round 3 — Rainforest sourcing canonical (May 11)
+Lifted TCD's site-local Rainforest scripts to platform tools. Rainforest is now the
+canonical product sourcing approach. Amazon-scrape tool deprecated.
+
+- ✓ `tools/source-products-rainforest.py` (new): bulk product sourcing via Rainforest API. Ported from TCD's `data/source-hubs.py`. Supports `--site`, `--limit`, `--resume`, `--dry-run`.
+- ✓ `tools/generate-product-pros-cons.py` (new): LLM-generated `default_pros`/`default_cons` per product via Haiku (~$0.80-1.00 for 1,300 products). Ported from TCD's `data/generate-pros-cons.py`.
+- ✓ `tools/resolve-verify-asins.py` (new): secondary pass for VERIFY-prefixed product entries. Ported from TCD's `data/resolve-verifies.py` (TCD-specific batch data stripped).
+- ✓ `tools/source-products-per-article.mjs`: deprecated with banner and runtime warning. Retained for small jobs (< 30 articles) and smoke testing.
+- ✓ `tools/initialise-site.mjs` Phase 1: now creates `data/eeat-vault.json` stub for persona authority signals; reminder added alongside credentials.env prompt.
+- ✓ `PIPELINE.md` Point 10: updated to reflect Rainforest as canonical workflow with cost table (~$3-7 for a 300-article site), resume instructions, and deprecated Amazon-scrape note.
+
+TCD's `data/rename-verify-keys.py` was a one-time fixup, not lifted. Platform
+`data_loader.py` field normalization prevents the issue recurring. TCD's site-local
+scripts remain for reference; future sites use the platform tools.
+
 ### Round 2 — Platform producer fixes (May 11)
 Lifted site-level patterns to the platform layer. New sites no longer need site-local overrides for these.
 

@@ -18,6 +18,19 @@
  *       2 = tool error (auth, missing files, etc.)
  */
 
+/**
+ * DEPRECATED — May 2026
+ *
+ * This tool uses Amazon scraping which rate-limits at scale (TCD's
+ * 300-article bulk run hit blocks within ~30 articles). Use the
+ * Rainforest-based tool for production:
+ *   python3 tools/source-products-rainforest.py --site <slug>
+ *
+ * This tool remains functional for small jobs (< 30 articles) and
+ * smoke testing. It will be removed in a future cleanup unless
+ * usage justifies keeping it.
+ */
+
 import { readFileSync, writeFileSync, existsSync, renameSync } from 'fs'
 import { join } from 'path'
 import { homedir } from 'os'
@@ -358,6 +371,8 @@ async function processArticle(article, { client, model, siteDir, site, products,
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  console.warn('\x1b[33m⚠ DEPRECATED: source-products-per-article uses Amazon scraping which rate-limits at scale. Use tools/source-products-rainforest.py for production.\x1b[0m')
+
   if (!slug) exitWith(2, '--site <slug> is required')
 
   // Pre-flight 1a: Resolve site
