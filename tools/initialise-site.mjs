@@ -261,6 +261,12 @@ function buildSiteConfig(spec) {
       slots: 5,
     },
     images: { base_url: '/images' },
+    style_policy: {
+      word_count:            { min: 2000, max: 3500 },
+      dollar_figures:        { allowed: true },
+      buying_guide_heading:  { style: 'Buying Guide' },
+      in_body_images:        { policy: 'none', fixed_count: null },
+    },
   }
 }
 
@@ -283,6 +289,7 @@ function buildPersonaYaml(spec) {
     display_name:    spec.persona.display_name,
     bio:             spec.persona.bio,
     bio_short:       spec.persona.bio,
+    bio_full:        spec.persona.bio_full ?? spec.persona.bio,
     location:        spec.persona.location,
     location_detail: spec.persona.location_detail ?? spec.persona.location,
     background:      spec.persona.background ?? '',
@@ -471,6 +478,22 @@ async function phase1(spec, slug, state) {
   atomicWriteYaml(join(personasDir, `${spec.persona.slug}.yaml`), buildPersonaYaml(spec))
   console.log(c.green(`  ✓ config/personas/${spec.persona.slug}.yaml`))
 
+  // P1.3b: credentials stub (gitignored in new site — must be written explicitly, not via template copy)
+  const credentialsContent = [
+    '# API keys for content sourcing — fill these before running source-products',
+    '# or producer. This file is gitignored — never commit real keys.',
+    '#',
+    '# Where to get keys:',
+    '#   PEXELS_API_KEY:    https://www.pexels.com/api/',
+    '#   RAINFOREST_KEY:    https://www.rainforestapi.com/ (if using Rainforest for product sourcing)',
+    '#   ANTHROPIC_API_KEY: https://console.anthropic.com/',
+    '',
+    'PEXELS_API_KEY=',
+    'RAINFOREST_KEY=',
+    'ANTHROPIC_API_KEY=',
+  ].join('\n') + '\n'
+  writeFileSync(join(configDir, 'credentials.env'), credentialsContent, 'utf-8')
+
   // P1.4: persona photos
   const brandDir = join(dir, 'public', 'images', 'brand')
   mkdirSync(brandDir, { recursive: true })
@@ -522,6 +545,7 @@ async function phase1(spec, slug, state) {
   state.indexNowKey = indexNowKey
   state.completedPhases = [...new Set([...(state.completedPhases ?? []), 1])]
   writeState(slug, state)
+  console.log(c.yellow('  ⚠ Fill config/credentials.env with RAINFOREST_KEY, ANTHROPIC_API_KEY, PEXELS_API_KEY before running source-products or producer'))
   console.log(c.green('  ✓ Phase 1 complete'))
 }
 
@@ -613,8 +637,14 @@ async function phase3(spec, slug, state) {
     const envBody = {
       build_config: { build_command: 'npm run build', destination_dir: 'dist' },
       deployment_configs: {
-        production: { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
-        preview:    { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
+        production: { env_vars: {
+          AMAZON_TAG:            { type: 'secret_text', value: spec.amazon_associates_id },
+          BING_SITE_VERIFICATION: { type: 'secret_text', value: 'PLACEHOLDER_REPLACE_BEFORE_LAUNCH' },
+        }},
+        preview: { env_vars: {
+          AMAZON_TAG:            { type: 'secret_text', value: spec.amazon_associates_id },
+          BING_SITE_VERIFICATION: { type: 'secret_text', value: 'PLACEHOLDER_REPLACE_BEFORE_LAUNCH' },
+        }},
       },
     }
     console.log(c.dim(`  [dry-run] gh repo create ${owner}/${slug} --${vis} --source=${dir} --remote=origin`))
@@ -681,14 +711,20 @@ async function phase3(spec, slug, state) {
       destination_dir: 'dist',
     },
     deployment_configs: {
-      production: { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
-      preview:    { env_vars: { AMAZON_TAG: { value: spec.amazon_associates_id } } },
+      production: { env_vars: {
+        AMAZON_TAG:            { type: 'secret_text', value: spec.amazon_associates_id },
+        BING_SITE_VERIFICATION: { type: 'secret_text', value: 'PLACEHOLDER_REPLACE_BEFORE_LAUNCH' },
+      }},
+      preview: { env_vars: {
+        AMAZON_TAG:            { type: 'secret_text', value: spec.amazon_associates_id },
+        BING_SITE_VERIFICATION: { type: 'secret_text', value: 'PLACEHOLDER_REPLACE_BEFORE_LAUNCH' },
+      }},
     },
   })
   if (!envRes.success) {
     console.log(c.yellow(`  ⚠ Project config failed: ${JSON.stringify(envRes.errors)}`))
   } else {
-    console.log(c.green(`  ✓ Build config + AMAZON_TAG set for production + preview`))
+    console.log(c.green(`  ✓ Build config + AMAZON_TAG + BING_SITE_VERIFICATION set for production + preview`))
   }
 
   state.phase3 = { githubRepoUrl: repoUrl, cfProjectName: slug }

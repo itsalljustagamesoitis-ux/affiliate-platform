@@ -20,10 +20,16 @@ if (!process.env.GOOGLE_SITE_VERIFICATION) {
   // DNS TXT verification is equally valid — warn only, never throw
   console.warn('\x1b[33m⚠ GOOGLE_SITE_VERIFICATION not set — GSC meta tag will not render (fine if using DNS verification)\x1b[0m')
 }
-if (!process.env.BING_SITE_VERIFICATION) {
-  const msg = '⚠ BING_SITE_VERIFICATION not set — Bing meta tag will not render'
-  if (isCloudflareProduction) throw new Error(msg)
-  else console.warn('\x1b[33m' + msg + '\x1b[0m')
+const bingVal = process.env.BING_SITE_VERIFICATION
+const isPlaceholder = bingVal && bingVal.includes('PLACEHOLDER')
+const isBingMissing = !bingVal
+const bingMsg = '⚠ BING_SITE_VERIFICATION not set — Bing meta tag will not render'
+if (isBingMissing && isCloudflareProduction) {
+  throw new Error(bingMsg)
+} else if (isPlaceholder) {
+  console.warn('\x1b[33m⚠ BING_SITE_VERIFICATION is placeholder — replace before launch\x1b[0m')
+} else if (isBingMissing) {
+  console.warn('\x1b[33m' + bingMsg + '\x1b[0m')
 }
 
 export default defineConfig({
