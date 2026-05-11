@@ -31,6 +31,14 @@ _PRODUCT_COUNT = {
     "review":      {"min": 1, "max": 3},
 }
 
+_BUYING_GUIDE_REMINDER = (
+    "\n\n**WORD COUNT CHECK — BUYING GUIDE SECTION:** "
+    "Before finalizing, count the words in your ## Buying Guide section. "
+    "It must total 500–700 words across all H3 subsections. "
+    "If it falls below 500, add one additional specific, decision-relevant sentence "
+    "to the thinnest subsection — a genuine point, not padding."
+)
+
 
 def _normalise_type(article_type: str) -> str:
     """Map raw pipeline type strings to prompt keys."""
@@ -129,6 +137,9 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
     text = text.replace("{{STYLE_POLICY}}", style_policy_block)
     # Single-brace heading style used in body component order sections
     text = text.replace("{STYLE_POLICY.buying_guide_heading.style}", bgh)
+
+    if norm_type == "buyer_guide":
+        text += _BUYING_GUIDE_REMINDER
 
     metadata = {
         "product_count": pc,

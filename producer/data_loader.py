@@ -14,7 +14,17 @@ from typing import Optional
 
 def load_pipeline(site_root: Path) -> list:
     with open(site_root / "data/pipeline.json") as f:
-        return json.load(f)
+        data = json.load(f)
+    articles = data.get("articles", []) if isinstance(data, dict) else data
+    # Deduplicate product lists in place — source tools occasionally assign same key twice
+    for a in articles:
+        if isinstance(a.get("products"), list):
+            seen = []
+            for p in a["products"]:
+                if p not in seen:
+                    seen.append(p)
+            a["products"] = seen
+    return articles
 
 
 def load_products(site_root: Path) -> dict:
@@ -26,6 +36,24 @@ def load_products(site_root: Path) -> dict:
         p["key"] = key
         if isinstance(p.get("last_verified"), date):
             p["last_verified"] = p["last_verified"].isoformat()
+        # Rainforest-sourced products use 'title'; platform builder expects 'name'
+        if "name" not in p and "title" in p:
+            p["name"] = p["title"]
+        # Platform builder uses 'amazon_asin'; Rainforest uses 'asin'
+        if "amazon_asin" not in p and "asin" in p:
+            p["amazon_asin"] = p["asin"]
+        # build_frontmatter reads default_pros/cons to populate article_specific_pros/cons;
+        # some sources don't provide them.
+        if "default_pros" not in p:
+            brand = p.get("brand") or ""
+            hub = p.get("hub") or ""
+            hub_label = hub.replace("-", " ") if hub else "product"
+            p["default_pros"] = [
+                f"Well-reviewed {hub_label} option" if hub_label else "Highly rated",
+                f"From {brand}" if brand else "Strong customer ratings",
+            ]
+        if "default_cons" not in p:
+            p["default_cons"] = ["Verify specifications match your needs before purchasing"]
         products[key] = p
     return products
 
@@ -54,7 +82,7 @@ def load_site_config(site_root: Path) -> dict:
 
 
 def get_pending_articles(pipeline: list) -> list:
-    return [a for a in pipeline if not a.get("published", False)]
+    return [a for a in pipeline if not a.get("published", False) and a.get("status") != "skip"]
 
 
 def enrich_article(article: dict, nav: dict) -> dict:
@@ -104,8 +132,19 @@ def save_pipeline(pipeline: list, site_root: Path) -> None:
     path = site_root / "data/pipeline.json"
     tmp = path.with_suffix(".json.tmp")
     bak = path.with_suffix(".json.bak")
+    # Preserve the wrapper dict (version, site, etc.) when saving
+    try:
+        with open(path) as f:
+            existing = json.load(f)
+    except Exception:
+        existing = {}
+    if isinstance(existing, dict):
+        existing["articles"] = pipeline
+        data = existing
+    else:
+        data = pipeline
     with open(tmp, "w") as f:
-        json.dump(pipeline, f, indent=2)
+        json.dump(data, f, indent=2)
     if path.exists():
         shutil.copy2(path, bak)
     os.replace(tmp, path)

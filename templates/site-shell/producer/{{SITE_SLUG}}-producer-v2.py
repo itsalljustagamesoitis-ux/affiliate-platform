@@ -27,10 +27,9 @@ if not PLATFORM_PRODUCER.exists():
     )
     sys.exit(1)
 
-# Pre-import site overrides so Python caches them before producer_main loads.
+# Pre-import site data_loader so Python caches it before producer_main loads.
 sys.path.insert(0, str(SITE_PRODUCER))
 import data_loader   # noqa: F401
-import prompt_loader  # noqa: F401
 
 sys.path.insert(0, str(PLATFORM_PRODUCER))
 

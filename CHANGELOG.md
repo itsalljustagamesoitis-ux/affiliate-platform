@@ -43,6 +43,22 @@ OHT VERIFY ASIN audit completed — 52 VERIFY products, 0 articles affected (yam
 - TCD submodule pin (`bc8c7a5`) is 3 commits behind platform main (`e658a9d`). Not breaking, but worth bumping during next site update.
 - TCD's `affiliate-platform` submodule has pre-existing uncommitted changes to `scripts/build-validator.mjs` and `scripts/validate-asins.mjs` from before this session. Source unknown.
 
+### Round 1 — Template fixes (May 11)
+Resolved 9 items from the initialise-site backlog above. See commit 6099ec3.
+
+### Round 2 — Platform producer fixes (May 11)
+Lifted site-level patterns to the platform layer. New sites no longer need site-local overrides for these.
+
+- ✓ `producer/data_loader.py` (platform): handles pipeline.json wrapper dict `{version, site, articles: [...]}` — no longer returns raw dict.
+- ✓ `producer/data_loader.py` (platform): deduplicates product lists in `load_pipeline` — source tools occasionally assign same key twice.
+- ✓ `producer/data_loader.py` (platform): normalizes Rainforest fields (`title→name`, `asin→amazon_asin`) in `load_products`.
+- ✓ `producer/data_loader.py` (platform): injects placeholder `default_pros`/`default_cons` for products that lack them.
+- ✓ `producer/data_loader.py` (platform): `get_pending_articles` now filters `status == "skip"` articles.
+- ✓ `producer/data_loader.py` (platform): `save_pipeline` preserves the wrapper dict on write.
+- ✓ `producer/prompt_loader.py` (platform): appends B15 Buying Guide word count reminder to buyer_guide prompts. Was previously a site-level wrapper on TCD only — now universal.
+- Removed redundant template `producer/prompt_loader.py` wrapper (platform applies the reminder directly).
+- Existing site overrides at FSG/MLT/OHT/TCD shadow the platform versions harmlessly. Cleanup of redundant site overrides deferred to a later session.
+
 ## [1.7.10] — 2026-05-06
 
 ### Validator calibration — empirical 200-article run (buyer_guide)
