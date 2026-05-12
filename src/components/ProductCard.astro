@@ -91,7 +91,7 @@ const isAmazon = product.affiliate_url?.includes('amazon.com')
           target="_blank"
           data-product={product.name}
         >
-          {isAmazon ? 'Check Price on Amazon' : 'Check Price'}
+          {isAmazon ? `See ${product.name.length > 40 ? product.name.slice(0, 37) + '…' : product.name} on Amazon` : 'Check Price'}
         </a>
       )}
     </div>

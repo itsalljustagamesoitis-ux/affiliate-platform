@@ -10,6 +10,7 @@ import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
 import Breadcrumb from '../components/Breadcrumb.astro'
 import SchemaMarkup from '../components/SchemaMarkup.astro'
+import FAQ from '../components/FAQ.astro'
 
 interface Props {
   article: CollectionEntry<'articles'>
@@ -128,6 +129,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
         )}
       </div>
     )}
+
+    {data.faq?.length && <FAQ items={data.faq} />}
 
     <AuthorBio />
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />

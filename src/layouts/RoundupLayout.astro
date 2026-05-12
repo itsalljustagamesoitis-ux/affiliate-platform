@@ -12,6 +12,7 @@ import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
 import Breadcrumb from '../components/Breadcrumb.astro'
 import SchemaMarkup from '../components/SchemaMarkup.astro'
+import FAQ from '../components/FAQ.astro'
 
 interface Props {
   article: CollectionEntry<'articles'>
@@ -84,6 +85,8 @@ const quickPickProducts = resolvedProducts.map(p => p.product)
         <ProductCard product={product} rank={rank} />
       ))}
     </div>
+
+    {data.faq?.length && <FAQ items={data.faq} />}
 
     <AuthorBio />
 

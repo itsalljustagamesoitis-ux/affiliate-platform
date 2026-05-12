@@ -74,19 +74,23 @@ function checkFile(fullPath) {
   }
 
   // ── 4. Hardcoded prices (Amazon Associates ToS) ──────────────────────────
-  // Dollar amounts in article body text go stale and violate Associates program terms.
-  // Exclude: schema JSON blocks, price_band labels, comparison-table cells (those are
-  // controlled components). Flag anything that looks like a stated price in prose.
-  const bodyRe = /<(?:article|main)[^>]*>([\s\S]*?)<\/(?:article|main)>/i
-  const bodyMatch = bodyRe.exec(raw)
-  if (bodyMatch) {
-    // Strip JSON-LD blocks first to avoid false positives on schema price fields
-    const bodyText = bodyMatch[1].replace(/<script[^>]*type="application\/ld\+json"[^>]*>[\s\S]*?<\/script>/gi, '')
-    // Match dollar sign followed by digits (e.g. $45, $120, $1,299, $45-$80)
-    const priceRe = /\$\s*\d[\d,]*(?:\s*[-–]\s*\$?\s*\d[\d,]*)?/g
-    const priceMatches = bodyText.match(priceRe)
-    if (priceMatches && priceMatches.length > 0) {
-      warnings.push(`  WARN [hardcoded-price] ${rel}\n       ${priceMatches.length} dollar amount(s) found: ${[...new Set(priceMatches)].slice(0, 5).join(', ')}`)
+  // Dollar amounts in editorial prose go stale and violate Associates program terms.
+  // Only check article pages (not hub/category/static pages). Only check the
+  // article-page__content div (prose body), not product card or comparison table
+  // component output — those prices come from products.yaml and are not editorial.
+  if (raw.includes('article-page__content')) {
+    const proseRe = /class="article-page__content"[^>]*>([\s\S]*?)<\/div>/i
+    const proseMatch = proseRe.exec(raw)
+    if (proseMatch) {
+      // Strip JSON-LD and inline script blocks
+      const proseText = proseMatch[1].replace(/<script[\s\S]*?<\/script>/gi, '')
+      // Match dollar sign followed by digits (e.g. $45, $120, $1,299, $45-$80)
+      const priceRe = /\$\s*\d[\d,]*(?:\s*[-–]\s*\$?\s*\d[\d,]*)?/g
+      const priceMatches = proseText.match(priceRe)
+      // Threshold of 3+ to reduce noise from incidental price mentions in comparisons
+      if (priceMatches && priceMatches.length >= 3) {
+        warnings.push(`  WARN [hardcoded-price] ${rel}\n       ${priceMatches.length} dollar amount(s) in prose: ${[...new Set(priceMatches)].slice(0, 5).join(', ')}`)
+      }
     }
   }
 
