@@ -68,8 +68,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
         </div>
         {data.winner_reason && <p class="verdict-box__reason">{data.winner_reason}</p>}
         {winner.affiliate_url && (
-          <a href={winner.affiliate_url} class="btn btn--primary" rel="nofollow sponsored" target="_blank">
-            Check Price →
+          <a href={winner.affiliate_url} class={winner.affiliate_url.includes('amazon.com') ? 'btn btn--amazon' : 'btn btn--primary'} rel="nofollow sponsored" target="_blank">
+            {winner.affiliate_url.includes('amazon.com') ? `See ${winner.name.length > 40 ? winner.name.slice(0, 37) + '…' : winner.name} on Amazon` : 'Check Price →'}
           </a>
         )}
         {loser && loser.affiliate_url && (
@@ -89,8 +89,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
             {imgA && <img src={imgA} alt={productA.name} width="200" height="150" loading="lazy" />}
             <strong>{productA.brand} {productA.name}</strong>
             {productA.affiliate_url && (
-              <a href={productA.affiliate_url} class="btn btn--primary btn--sm" rel="nofollow sponsored" target="_blank">
-                Check Price
+              <a href={productA.affiliate_url} class={productA.affiliate_url.includes('amazon.com') ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'} rel="nofollow sponsored" target="_blank">
+                {productA.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
               </a>
             )}
           </div>
@@ -102,8 +102,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
             {imgB && <img src={imgB} alt={productB.name} width="200" height="150" loading="lazy" />}
             <strong>{productB.brand} {productB.name}</strong>
             {productB.affiliate_url && (
-              <a href={productB.affiliate_url} class="btn btn--primary btn--sm" rel="nofollow sponsored" target="_blank">
-                Check Price
+              <a href={productB.affiliate_url} class={productB.affiliate_url.includes('amazon.com') ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'} rel="nofollow sponsored" target="_blank">
+                {productB.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
               </a>
             )}
           </div>
@@ -123,8 +123,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
         <strong class="verdict-box__name">{winner.brand} {winner.name}</strong>
         {data.winner_reason && <p class="verdict-box__reason">{data.winner_reason}</p>}
         {winner.affiliate_url && (
-          <a href={winner.affiliate_url} class="btn btn--primary" rel="nofollow sponsored" target="_blank">
-            Check Price →
+          <a href={winner.affiliate_url} class={winner.affiliate_url.includes('amazon.com') ? 'btn btn--amazon' : 'btn btn--primary'} rel="nofollow sponsored" target="_blank">
+            {winner.affiliate_url.includes('amazon.com') ? `See ${winner.name.length > 40 ? winner.name.slice(0, 37) + '…' : winner.name} on Amazon` : 'Check Price →'}
           </a>
         )}
       </div>

@@ -76,8 +76,8 @@ const imageUrl = primary?.image ? (primary.image?.startsWith('http') || primary.
               <strong>{productDisplayName(primary)}</strong>
               <p style="font-size:0.875rem;color:var(--color-text-muted);margin:0.25rem 0 0.75rem;">{primary.pros[0]}</p>
               {primary.affiliate_url && (
-                <a href={primary.affiliate_url} class="btn btn--primary" rel="nofollow sponsored" target="_blank">
-                  Check Price
+                <a href={primary.affiliate_url} class={primary.affiliate_url.includes('amazon.com') ? 'btn btn--amazon' : 'btn btn--primary'} rel="nofollow sponsored" target="_blank">
+                  {primary.affiliate_url.includes('amazon.com') ? `See ${primary.name.length > 40 ? primary.name.slice(0, 37) + '…' : primary.name} on Amazon` : 'Check Price'}
                 </a>
               )}
             </div>
