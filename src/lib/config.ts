@@ -250,7 +250,8 @@ export function resolveProduct(
 }
 
 /** Return a display name that never repeats the brand prefix. */
-export function productDisplayName(product: { brand: string; name: string }): string {
+export function productDisplayName(product: { brand: string | null; name: string }): string {
+  if (!product.brand) return product.name
   return product.name.toLowerCase().startsWith(product.brand.toLowerCase())
     ? product.name
     : `${product.brand} ${product.name}`
