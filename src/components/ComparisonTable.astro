@@ -51,11 +51,11 @@ const priceBandLabel: Record<string, string> = {
             {p.affiliate_url ? (
               <a
                 href={p.affiliate_url}
-                class="btn btn--outline"
+                class={p.affiliate_url.includes('amazon.com') ? 'btn btn--amazon btn--sm' : 'btn btn--outline'}
                 rel="nofollow sponsored"
                 target="_blank"
               >
-                Check Price
+                {p.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
               </a>
             ) : '—'}
           </td>

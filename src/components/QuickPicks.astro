@@ -50,12 +50,12 @@ if (picks.length === 0) return
           {p.affiliate_url && (
             <a
               href={p.affiliate_url}
-              class="btn btn--primary btn--sm"
+              class={p.affiliate_url.includes('amazon.com') ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'}
               rel="nofollow sponsored"
               target="_blank"
               data-product={productDisplayName(p)}
             >
-              Check Price
+              {p.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
             </a>
           )}
         </div>
