@@ -80,8 +80,10 @@ export interface PersonaConfig {
 }
 
 export interface ProductRecord {
-  name: string
-  brand: string
+  name?: string | null
+  title?: string | null
+  brand?: string | null
+  asin?: string | null
   amazon_asin?: string | null
   awin_advertiser_id?: number | null
   awin_product_url?: string | null
@@ -192,7 +194,8 @@ export function buildAffiliateUrl(
   const product = db[productId]
   if (!product) return null
 
-  const { awin_advertiser_id, awin_product_url, amazon_asin } = product
+  const { awin_advertiser_id, awin_product_url } = product
+  const amazon_asin = product.amazon_asin ?? product.asin ?? null
   const { awin_publisher_id, awin_clickref_pattern } = cfg.affiliate
   // AMAZON_TAG env var overrides site.config.yaml — set per-clone in Cloudflare Pages
   const amazon_tracking_id = import.meta.env.AMAZON_TAG ?? cfg.affiliate.amazon_tracking_id
@@ -204,7 +207,7 @@ export function buildAffiliateUrl(
     return `https://www.awin1.com/cread.php?awinmid=${awin_advertiser_id}&awinaffid=${awin_publisher_id}&clickref=${encodeURIComponent(clickref)}&ued=${encodeURIComponent(awin_product_url)}`
   }
 
-  if (amazon_asin && amazon_asin !== 'NOT_ON_AMAZON') {
+  if (amazon_asin && amazon_asin !== 'NOT_ON_AMAZON' && amazon_asin !== 'NOT_FOUND' && amazon_asin !== 'VERIFY') {
     return `https://www.amazon.com/dp/${amazon_asin}?tag=${amazon_tracking_id}`
   }
 
@@ -236,10 +239,13 @@ export function resolveProduct(
     return null
   }
 
+  const name = product.name ?? product.title ?? ref.id
+  const brand = product.brand ?? null
+  const asin = product.amazon_asin ?? product.asin ?? null
   return {
     id: ref.id,
-    name: product.name,
-    brand: product.brand,
+    name,
+    brand,
     image: product.default_image,
     price_band: product.price_band,
     pros: ref.article_specific_pros ?? product.default_pros,
@@ -250,9 +256,10 @@ export function resolveProduct(
 }
 
 /** Return a display name that never repeats the brand prefix. */
-export function productDisplayName(product: { brand: string | null; name: string }): string {
-  if (!product.brand) return product.name
-  return product.name.toLowerCase().startsWith(product.brand.toLowerCase())
-    ? product.name
-    : `${product.brand} ${product.name}`
+export function productDisplayName(product: { brand: string | null; name: string | null }): string {
+  const name = product.name ?? ''
+  if (!product.brand) return name
+  return name.toLowerCase().startsWith(product.brand.toLowerCase())
+    ? name
+    : `${product.brand} ${name}`
 }
