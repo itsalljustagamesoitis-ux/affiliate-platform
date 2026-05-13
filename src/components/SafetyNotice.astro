@@ -1,6 +1,6 @@
 ---
 interface Props {
-  topics: Array<'heating' | 'power-equipment' | 'electrical' | 'chemical'>
+  topics: Array<'heating' | 'power-equipment' | 'electrical' | 'chemical' | 'blades' | 'high-heat' | 'cookware-coatings'>
 }
 
 const { topics } = Astro.props
@@ -10,6 +10,9 @@ const notices: Record<string, string> = {
   'power-equipment': 'Wear eye protection and hearing protection when operating power equipment. Keep bystanders and pets clear of the work area. Read the manufacturer\'s safety manual before first use and follow all lockout/tagout procedures before servicing.',
   electrical: 'Verify the IP weatherproofing rating before installing any electrical fixture outdoors. Hardwired installations must be performed by a licensed electrician. Keep all connections and junction boxes away from standing water.',
   chemical: 'Read the full product label before applying any chemical repellent or pest control product. Keep children and pets away from treated areas until the product has fully dried. Dispose of empty containers according to local regulations.',
+  blades: 'Always use a cut-resistant glove on your non-knife hand when using mandolines, slicers, or sharp cutting surfaces. Keep knives sharp — a dull blade requires more force and is more likely to slip. Store knives in a block, magnetic strip, or blade guard, never loose in a drawer.',
+  'high-heat': 'Use oven mitts or silicone pads when handling cookware from the oven or stovetop. Never leave oil or fat in a pan unattended over high heat — grease fires require a lid or baking soda, never water. Let cast iron and stainless cool before submerging in water to prevent warping.',
+  'cookware-coatings': 'Avoid metal utensils on nonstick and ceramic surfaces — scratches degrade the coating and reduce effective life. Never preheat an empty nonstick pan over high heat. Discard nonstick cookware when the coating is visibly scratched or flaking.',
 }
 ---
 
