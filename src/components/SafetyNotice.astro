@@ -1,6 +1,6 @@
 ---
 interface Props {
-  topics: Array<'heating' | 'power-equipment' | 'electrical' | 'chemical' | 'blades' | 'high-heat' | 'cookware-coatings'>
+  topics: Array<'heating' | 'power-equipment' | 'electrical' | 'chemical' | 'blades' | 'high-heat' | 'cookware-coatings' | 'espresso-pressure' | 'electric-grinder' | 'moka-pot-heat'>
 }
 
 const { topics } = Astro.props
@@ -13,6 +13,9 @@ const notices: Record<string, string> = {
   blades: 'Always use a cut-resistant glove on your non-knife hand when using mandolines, slicers, or sharp cutting surfaces. Keep knives sharp — a dull blade requires more force and is more likely to slip. Store knives in a block, magnetic strip, or blade guard, never loose in a drawer.',
   'high-heat': 'Use oven mitts or silicone pads when handling cookware from the oven or stovetop. Never leave oil or fat in a pan unattended over high heat — grease fires require a lid or baking soda, never water. Let cast iron and stainless cool before submerging in water to prevent warping.',
   'cookware-coatings': 'Avoid metal utensils on nonstick and ceramic surfaces — scratches degrade the coating and reduce effective life. Never preheat an empty nonstick pan over high heat. Discard nonstick cookware when the coating is visibly scratched or flaking.',
+  'espresso-pressure': 'Espresso machines operate at 9 bars of pressure. Never open the portafilter while the machine is pressurised — wait for the pump to stop completely and release steam naturally. Descale and clean the group head regularly to prevent pressure buildup that can damage seals or cause sudden discharge.',
+  'electric-grinder': 'Unplug your burr grinder before adjusting the burr gap or clearing a jam — never reach into the grinding chamber with your fingers. Keep water and liquids away from the motor housing. Burrs are extremely sharp; use a brush or grinder cleaning tablet, not your hands, to clear retained grounds.',
+  'moka-pot-heat': 'Never leave a moka pot unattended on the heat source. If the safety valve starts venting steam, reduce heat immediately and keep your face clear of the valve. Use a heat-resistant pad or oven mitt to handle a hot moka pot — the metal body and handle conduct heat rapidly and will cause burns.',
 }
 ---
 
