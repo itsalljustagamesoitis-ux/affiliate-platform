@@ -76,7 +76,7 @@ const quickPickProducts = resolvedProducts.map(p => p.product)
       <QuickPicks products={quickPickProducts} />
     )}
 
-    {resolvedProducts.length >= 3 && (
+    {resolvedProducts.length >= 2 && (
       <ComparisonTable products={quickPickProducts} />
     )}
 

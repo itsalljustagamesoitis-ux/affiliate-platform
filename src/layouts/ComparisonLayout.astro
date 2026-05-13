@@ -136,7 +136,7 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
 
     {data.faq?.length && <FAQ items={data.faq} />}
 
-    {winner && <BottomLineCTA product={winner} />}
+    {(winner ?? productA) && <BottomLineCTA product={(winner ?? productA)!} />}
 
     <AuthorBio />
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />

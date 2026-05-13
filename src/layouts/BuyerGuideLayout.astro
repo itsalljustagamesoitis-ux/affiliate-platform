@@ -62,7 +62,7 @@ const resolvedProducts = data.products
 
     {resolvedProducts.length > 0 && <QuickPicks products={resolvedProducts} />}
 
-    {resolvedProducts.length >= 3 && <ComparisonTable products={resolvedProducts} />}
+    {resolvedProducts.length >= 2 && <ComparisonTable products={resolvedProducts} />}
 
     <div class="article-page__content"><slot /></div>
 
