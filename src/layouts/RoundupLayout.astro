@@ -7,6 +7,8 @@ import AffiliateDisclosure from '../components/AffiliateDisclosure.astro'
 import QuickPicks from '../components/QuickPicks.astro'
 import ProductCard from '../components/ProductCard.astro'
 import ComparisonTable from '../components/ComparisonTable.astro'
+import BottomLineCTA from '../components/BottomLineCTA.astro'
+import SafetyNotice from '../components/SafetyNotice.astro'
 import AuthorBio from '../components/AuthorBio.astro'
 import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
@@ -68,6 +70,8 @@ const quickPickProducts = resolvedProducts.map(p => p.product)
       data-pagefind-meta="image[src], image_alt[alt]"
     />
 
+    {data.safety_topics?.length && <SafetyNotice topics={data.safety_topics} />}
+
     {quickPickProducts.length > 0 && (
       <QuickPicks products={quickPickProducts} />
     )}
@@ -87,6 +91,8 @@ const quickPickProducts = resolvedProducts.map(p => p.product)
     </div>
 
     {data.faq?.length && <FAQ items={data.faq} />}
+
+    {quickPickProducts[0] && <BottomLineCTA product={quickPickProducts[0]} />}
 
     <AuthorBio />
 

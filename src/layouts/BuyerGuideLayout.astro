@@ -6,6 +6,9 @@ import Byline from '../components/Byline.astro'
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro'
 import QuickPicks from '../components/QuickPicks.astro'
 import ProductCard from '../components/ProductCard.astro'
+import ComparisonTable from '../components/ComparisonTable.astro'
+import BottomLineCTA from '../components/BottomLineCTA.astro'
+import SafetyNotice from '../components/SafetyNotice.astro'
 import AuthorBio from '../components/AuthorBio.astro'
 import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
@@ -55,7 +58,11 @@ const resolvedProducts = data.products
 
     <img src={heroUrl} alt={data.hero_image_alt ?? data.title} class="article-page__hero" width="900" height="500" fetchpriority="high" decoding="async" data-pagefind-meta="image[src], image_alt[alt]" />
 
+    {data.safety_topics?.length && <SafetyNotice topics={data.safety_topics} />}
+
     {resolvedProducts.length > 0 && <QuickPicks products={resolvedProducts} />}
+
+    {resolvedProducts.length >= 3 && <ComparisonTable products={resolvedProducts} />}
 
     <div class="article-page__content"><slot /></div>
 
@@ -67,6 +74,8 @@ const resolvedProducts = data.products
     )}
 
     {data.faq?.length && <FAQ items={data.faq} />}
+
+    {resolvedProducts[0] && <BottomLineCTA product={resolvedProducts[0]} />}
 
     <AuthorBio />
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />

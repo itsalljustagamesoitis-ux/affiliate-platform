@@ -5,6 +5,8 @@ import BaseLayout from './BaseLayout.astro'
 import Byline from '../components/Byline.astro'
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro'
 import ProsConsBox from '../components/ProsConsBox.astro'
+import BottomLineCTA from '../components/BottomLineCTA.astro'
+import SafetyNotice from '../components/SafetyNotice.astro'
 import AuthorBio from '../components/AuthorBio.astro'
 import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
@@ -53,6 +55,8 @@ const imageUrl = primary?.image ? (primary.image?.startsWith('http') || primary.
 
     {data.disclosure_required && <AffiliateDisclosure />}
 
+    {data.safety_topics?.length && <SafetyNotice topics={data.safety_topics} />}
+
     <img
       src={heroUrl}
       alt={data.hero_image_alt ?? data.title}
@@ -99,6 +103,8 @@ const imageUrl = primary?.image ? (primary.image?.startsWith('http') || primary.
     )}
 
     {data.faq?.length && <FAQ items={data.faq} />}
+
+    {primary && <BottomLineCTA product={primary} />}
 
     <AuthorBio />
 

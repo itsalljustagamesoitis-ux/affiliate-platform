@@ -5,6 +5,8 @@ import BaseLayout from './BaseLayout.astro'
 import Byline from '../components/Byline.astro'
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro'
 import ProsConsBox from '../components/ProsConsBox.astro'
+import BottomLineCTA from '../components/BottomLineCTA.astro'
+import SafetyNotice from '../components/SafetyNotice.astro'
 import AuthorBio from '../components/AuthorBio.astro'
 import PrevNext from '../components/PrevNext.astro'
 import RelatedArticles from '../components/RelatedArticles.astro'
@@ -80,6 +82,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
       </div>
     )}
 
+    {data.safety_topics?.length && <SafetyNotice topics={data.safety_topics} />}
+
     <!-- Side-by-side product hero -->
     {(productA || productB) && (
       <div class="comparison-hero">
@@ -131,6 +135,8 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
     )}
 
     {data.faq?.length && <FAQ items={data.faq} />}
+
+    {winner && <BottomLineCTA product={winner} />}
 
     <AuthorBio />
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />
