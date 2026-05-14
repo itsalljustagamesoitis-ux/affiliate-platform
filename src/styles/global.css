@@ -1,17 +1,16 @@
 /* ── Design tokens (set from config in BaseLayout) ───────────────────────── */
+/* Site-specific vars (--color-primary, --color-accent, --color-background,  */
+/* --font-headings, --font-body) are injected by BaseLayout as an inline      */
+/* <style> tag. Do NOT define them here — the bundled CSS loads after the     */
+/* inline tag and would override every site back to FSG defaults.             */
 :root {
-  --color-primary: #2D5016;
-  --color-accent: #C19A4B;
-  --color-bg: #FDFBF7;
   --color-text: #1a1a1a;
   --color-text-muted: #555;
   --color-border: #e0ddd7;
   --color-surface: #fff;
   --color-surface-alt: #f5f3ef;
-  --color-success: #2D5016;
+  --color-success: #2a7a2a;
   --color-danger: #b91c1c;
-  --font-headings: 'Lora', Georgia, serif;
-  --font-body: 'Source Sans 3', 'Helvetica Neue', sans-serif;
   --max-width: 780px;
   --max-width-wide: 1100px;
   --radius: 6px;
@@ -33,7 +32,7 @@
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
   font-family: var(--font-body);
-  background: var(--color-bg);
+  background: var(--color-background);
   color: var(--color-text);
   line-height: 1.7;
   -webkit-font-smoothing: antialiased;
