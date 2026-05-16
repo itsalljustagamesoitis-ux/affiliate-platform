@@ -56,6 +56,7 @@ const nav = getNav()
 </header>
 
 <script>
+  // ── Mobile hamburger toggle ───────────────────────────────────────────────
   const toggle = document.getElementById('nav-toggle') as HTMLButtonElement
   const nav = document.getElementById('main-nav')
   toggle?.addEventListener('click', () => {
@@ -72,6 +73,124 @@ const nav = getNav()
       })
     }
   })
+
+  // ── Overflow "More" dropdown (desktop) ───────────────────────────────────
+  // Progressively collapses nav items that don't fit into a "More" button.
+  // Runs only on desktop (>900px). Server-rendered HTML shows all items by
+  // default, so there's no FOUC and it works without JS for accessibility.
+  function initOverflowNav() {
+    if (window.innerWidth <= 900) return
+
+    const navEl = document.getElementById('main-nav')
+    if (!navEl) return
+
+    // Collect original items (exclude the More item if already injected)
+    const items = [...navEl.querySelectorAll<HTMLElement>(':scope > .site-nav__item:not(.site-nav__more)')]
+    if (items.length === 0) return
+
+    // Create the "More" list item (hidden until needed)
+    let moreItem = navEl.querySelector<HTMLElement>('.site-nav__more')
+    if (!moreItem) {
+      moreItem = document.createElement('li')
+      moreItem.className = 'site-nav__item site-nav__more has-dropdown'
+      moreItem.style.display = 'none'
+      moreItem.innerHTML = `
+        <button class="site-nav__link site-nav__more-btn" aria-expanded="false" aria-haspopup="true">
+          More
+          <svg class="site-nav__chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
+            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <ul class="site-nav__dropdown site-nav__more-list"></ul>
+      `
+      navEl.appendChild(moreItem)
+
+      // Toggle More dropdown on click
+      const moreBtn = moreItem.querySelector('.site-nav__more-btn') as HTMLButtonElement
+      const moreList = moreItem.querySelector('.site-nav__more-list') as HTMLElement
+      moreBtn?.addEventListener('click', (e) => {
+        e.stopPropagation()
+        const open = moreBtn.getAttribute('aria-expanded') === 'true'
+        moreBtn.setAttribute('aria-expanded', String(!open))
+        moreList.style.display = open ? '' : 'block'
+      })
+    }
+
+    const moreList = moreItem.querySelector<HTMLElement>('.site-nav__more-list')!
+    const moreBtn = moreItem.querySelector<HTMLButtonElement>('.site-nav__more-btn')!
+
+    function remeasure() {
+      if (window.innerWidth <= 900) {
+        // Mobile: restore all items, hide More button
+        items.forEach(item => { item.style.display = '' })
+        moreItem!.style.display = 'none'
+        return
+      }
+
+      // Show everything to measure natural widths
+      items.forEach(item => { item.style.display = '' })
+      moreItem!.style.display = 'none'
+
+      const containerWidth = navEl!.getBoundingClientRect().width
+      // Reserve ~90px for the "More" button when we know overflow will happen
+      const MORE_WIDTH = 90
+
+      let usedWidth = 0
+      let overflowStart = -1
+
+      for (let i = 0; i < items.length; i++) {
+        const itemWidth = items[i].getBoundingClientRect().width
+        // On potential last item, check if adding More button would overflow
+        const wouldNeedMore = i < items.length - 1
+        const needed = itemWidth + (wouldNeedMore && overflowStart === -1 ? MORE_WIDTH : 0)
+        if (usedWidth + needed > containerWidth) {
+          overflowStart = i
+          items[i].style.display = 'none'
+        } else {
+          usedWidth += itemWidth
+        }
+      }
+
+      if (overflowStart > -1) {
+        // Hide overflow items and populate the More dropdown
+        moreList.innerHTML = ''
+        for (let i = overflowStart; i < items.length; i++) {
+          items[i].style.display = 'none'
+          const link = items[i].querySelector<HTMLAnchorElement>('.site-nav__link')
+          if (!link) continue
+          const li = document.createElement('li')
+          const a = document.createElement('a')
+          a.href = link.getAttribute('href') ?? '#'
+          // Extract text only (strip chevron SVG text)
+          a.textContent = [...link.childNodes]
+            .filter(n => n.nodeType === Node.TEXT_NODE)
+            .map(n => n.textContent?.trim())
+            .filter(Boolean)
+            .join('')
+          li.appendChild(a)
+          moreList.appendChild(li)
+        }
+        moreItem!.style.display = ''
+        moreBtn.setAttribute('aria-expanded', 'false')
+        moreList.style.display = ''
+      }
+    }
+
+    remeasure()
+
+    let resizeTimer: ReturnType<typeof setTimeout>
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(remeasure, 100)
+    })
+  }
+
+  // Run after layout is stable
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initOverflowNav)
+  } else {
+    initOverflowNav()
+  }
 </script>
 
 <style>
@@ -156,4 +275,12 @@ const nav = getNav()
   @media (min-width: 901px) {
     .nav-toggle { display: none; }
   }
+
+  /* "More" overflow button — desktop only */
+  .site-nav__more-btn {
+    background: none; border: none; cursor: pointer;
+    font-family: inherit; font-weight: 600; font-size: 0.875rem;
+  }
+  .site-nav__more-btn:hover { color: var(--color-primary); }
+  .site-nav__more .site-nav__dropdown { left: auto; right: 0; }
 </style>

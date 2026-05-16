@@ -50,7 +50,7 @@ from data_loader import (
 )
 from article_builder import (
     generate_article, build_frontmatter, build_review_txt,
-    _ensure_products_in_catalog, _run_validator,
+    _ensure_products_in_catalog, _run_validator, check_output_shape,
 )
 from prompt_loader import load_prompt
 
@@ -199,6 +199,20 @@ def run(args, site_root: Path):
                 site_config, site_root, system_text, metadata,
             )
             word_count = len(body.split())
+
+            # Pre-write shape check — catches refusal content and grossly malformed output
+            # before any file I/O. Halts the producer on failure so the root cause is
+            # investigated rather than silently writing bad content to staging/failed/.
+            shape_ok, shape_failures = check_output_shape(body, article["type"], product_keys)
+            if not shape_ok:
+                print(f"\n  SHAPE CHECK FAILED for '{slug}':")
+                for msg in shape_failures:
+                    print(f"    ✗ {msg}")
+                if args.force:
+                    print("  --force: bypassing shape check and continuing.")
+                else:
+                    print(f"\n  Producer halted. Investigate root cause or use --force to bypass.")
+                    sys.exit(3)
 
             frontmatter = build_frontmatter(
                 article, product_keys, products, title, description, site_config

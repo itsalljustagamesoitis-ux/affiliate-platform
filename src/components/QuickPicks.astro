@@ -47,15 +47,15 @@ if (picks.length === 0) return
           )}
           <h3 class="quick-pick__name">{productDisplayName(p)}</h3>
           {p.pros[0] && <p class="quick-pick__reason">{p.pros[0]}</p>}
-          {p.affiliate_url && (
+          {p.affiliate_link && (
             <a
-              href={p.affiliate_url}
-              class={p.affiliate_url.includes('amazon.com') ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'}
-              rel="nofollow sponsored"
+              href={p.affiliate_link.url}
+              class={p.affiliate_link.type === 'amazon' ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'}
+              rel={p.affiliate_link.type === 'amazon' ? 'nofollow sponsored' : 'nofollow'}
               target="_blank"
               data-product={productDisplayName(p)}
             >
-              {p.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
+              {p.affiliate_link.type === 'amazon' ? 'Buy on Amazon' : `Check availability at ${p.brand ?? 'retailer'}`}
             </a>
           )}
         </div>

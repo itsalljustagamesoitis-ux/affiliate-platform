@@ -97,6 +97,31 @@ def _ensure_products_in_catalog(article: dict, products: dict, site_root: Path) 
             f"(name, brand, pros, cons) before the next build."
         )
 
+    # Attempt Rainforest enrichment on newly added entries if key is available.
+    # Idempotent — existing entries are skipped. Gracefully degrades if no key.
+    try:
+        from lib.image_sourcer import enrich_product, load_rainforest_key
+        rf_key = load_rainforest_key(site_root)
+        if rf_key:
+            enriched_any = False
+            for slug in missing:
+                if slug not in raw:
+                    continue
+                updated, meta = enrich_product(slug, raw[slug], site_root, rf_key)
+                if meta["brand_updated"] or meta["image_updated"]:
+                    raw[slug] = updated
+                    enriched_any = True
+                    parts_log = []
+                    if meta["brand_updated"]:
+                        parts_log.append(f"brand={updated.get('brand')!r}")
+                    if meta["image_updated"]:
+                        parts_log.append(f"image={meta['image_source']}")
+                    print(f"  ENRICHED: {slug} — {', '.join(parts_log)}")
+                for err in meta.get("errors", []):
+                    print(f"  WARN ({slug}): {err}")
+    except Exception as _enrich_err:
+        print(f"  WARNING: enrichment skipped — {_enrich_err}")
+
     tmp = products_path.with_suffix(".yaml.tmp")
     bak = products_path.with_suffix(".yaml.bak")
     with open(tmp, "w") as f:
@@ -202,6 +227,82 @@ def _run_validator(article_type: str, md_path: Path, site_root: Path) -> tuple:
     print(f"  VALIDATOR: {validator_path.name} PASS")
     print(output[-500:] if output.strip() else "")
     return True, output
+
+
+# ---------------------------------------------------------------------------
+# Pre-write output shape check (Item 6 — producer-side refusal guard)
+# ---------------------------------------------------------------------------
+
+_REFUSAL_PATTERNS = [
+    re.compile(r'\bi need to pause\b', re.IGNORECASE),
+    re.compile(r'\bas an ai\b', re.IGNORECASE),
+    re.compile(r"\bi can'?t write\b", re.IGNORECASE),
+    re.compile(r"\bi cannot write\b", re.IGNORECASE),
+    re.compile(r"\bi'?m unable to\b", re.IGNORECASE),
+    re.compile(r"\bi am unable to\b", re.IGNORECASE),
+    re.compile(r'\bas a language model\b', re.IGNORECASE),
+    re.compile(r'\bas an llm\b', re.IGNORECASE),
+]
+
+_COMMERCIAL_TYPES = frozenset({"buyer_guide", "roundup", "comparison"})
+
+_MIN_WORDS_BY_TYPE: dict[str, int] = {
+    "buyer_guide": 1500,
+    "roundup": 1500,
+    "comparison": 1500,
+    "review": 800,
+    "informational": 800,
+}
+
+
+def check_output_shape(
+    body: str, article_type: str, product_keys: list
+) -> tuple[bool, list[str]]:
+    """
+    Fast pre-write check on raw generated body text.
+    Returns (passed: bool, failures: list[str]).
+
+    Four checks:
+      1. No AI refusal phrases (word-boundary matched — same patterns as build-validator Check 6)
+      2. Minimum word count by article type
+      3. At least one H2 heading (structural sanity)
+      4. Commercial types (buyer_guide/roundup/comparison) must have product references
+    """
+    failures = []
+    norm_type = article_type.lower().replace(" ", "_")
+
+    # Check 1: Refusal patterns
+    for pattern in _REFUSAL_PATTERNS:
+        m = pattern.search(body)
+        if m:
+            failures.append(
+                f"refusal-pattern: matched \"{m.group()}\" — model refused rather than wrote"
+            )
+            break
+
+    # Check 2: Minimum word count
+    word_count = len(body.split())
+    min_words = _MIN_WORDS_BY_TYPE.get(norm_type, 800)
+    if word_count < min_words:
+        failures.append(
+            f"word-count: {word_count} words — below minimum {min_words} for type '{article_type}'"
+        )
+
+    # Check 3: At least one H2 heading
+    if not re.search(r'^## \S', body, re.MULTILINE):
+        failures.append("missing-h2: no H2 heading found — article body has no section structure")
+
+    # Check 4: Commercial types must reference products
+    if norm_type in _COMMERCIAL_TYPES:
+        has_product_keys = bool(product_keys)
+        has_product_link = bool(re.search(r'\(product:[a-z0-9-]+\)', body))
+        if not has_product_keys and not has_product_link:
+            failures.append(
+                f"no-products: '{article_type}' has no product_keys and no (product:slug) links"
+                " — article will render with no CTAs"
+            )
+
+    return (len(failures) == 0, failures)
 
 
 # ---------------------------------------------------------------------------

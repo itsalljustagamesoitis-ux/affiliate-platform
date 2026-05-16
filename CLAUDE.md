@@ -10,7 +10,7 @@ Canonical behaviour guard for all Claude Code sessions in this monorepo. Site-le
 ~/
 ├── affiliate-platform/          ← @platform/core — edit here for cross-site changes
 │   ├── src/layouts/             5 Astro layouts (Base, BuyerGuide, Comparison, Review, Roundup)
-│   ├── src/components/          16 Astro components
+│   ├── src/components/          17 Astro components (NotFoundPage added Day 7)
 │   ├── src/lib/config.ts        Site config loader (reads site.config.yaml via process.cwd())
 │   ├── src/styles/global.css    Shared stylesheet
 │   ├── scripts/
@@ -108,9 +108,9 @@ Must return `0` before any production deploy. Non-zero → stop. Resolve ASINs o
 npm run build
 ```
 
-This runs: `astro build && npx pagefind --site dist && node scripts/build-validator.mjs`
+This runs: `validate-products.mjs → astro build → build-info.mjs → pagefind → build-validator.mjs`
 
-Do not call `astro build` directly. It skips pagefind and the validator.
+Do not call `astro build` directly. It skips build-info, pagefind, and the validator.
 
 ### Build passes when
 
@@ -128,9 +128,10 @@ Do not call `astro build` directly. It skips pagefind and the validator.
 6. Review and approve; move to `staging/approved/`
 7. `python3 producer/publish.py --all`
 8. `npm run build` → no FAIL lines
-9. Push to main (Cloudflare Pages auto-deploys)
-10. Confirm deployment URL responds 200
-11. IndexNow runs automatically as postbuild on CF; run manually otherwise
+9. `npm run deploy` → builds, deploys via wrangler, runs verify-deploy.mjs (all 8 checks must pass)
+10. IndexNow runs automatically as postbuild on CF; run manually otherwise if deploying via wrangler
+
+**Deploy command:** `npm run deploy` — builds, calls `wrangler pages deploy dist --project-name=<name>`, then runs `verify-deploy.mjs` against production. Step 9 replaces the old "push to main + confirm 200" manual check. `wrangler login` must have been run in the session.
 
 **Check for step 4:** Has the agent read the staging files, not just confirmed they exist? Reviewing means: word count ≥ 2,000, persona voice present, correct products referenced by name, hub link present.
 
@@ -271,3 +272,74 @@ No two sites may target articles with identical `target_keyword` values. If two 
 grep "target_keyword:" */content/articles/*.md | awk -F': ' '{print $2}' | sort | uniq -d
 ```
 Output must be empty.
+
+---
+
+## 7. CTA Density Target
+
+### Accurate current state (measured 2026-05-16, Day 5 validator)
+
+| Metric | Value |
+|--------|-------|
+| Validator WARN floor | 1.5 CTAs / 1000 words |
+| Portfolio median (measured) | ~1.7–2.0 CTAs / 1000 words |
+| Aspirational target | 2.5 CTAs / 1000 words |
+
+**How the template generates CTAs:** `CTAs rendered = product_count + 1` (one CTA per product card + one bottom-CTA-box for the best-overall pick). This is correct template behavior — not a bug.
+
+**Why the portfolio can't hit 2.5/1000 today:** Articles average 3–5 products referenced at 3,000–4,000 words = 1.0–1.7/1000. To reach 2.5/1000, articles would need 7–9 product references — more than doubling the current average. This is an editorial pipeline configuration decision, not a template fix.
+
+**What the Day 5 validator baseline showed:**
+- 431 articles across 6 sites are below the 1.5/1000 WARN floor
+- All 431 are commercial types (buyer_guide / roundup / comparison) — zero informational false positives
+- The validator WARN threshold at 1.5 is correctly calibrated; it fires on genuine CTA deserts, not the median
+
+**Earlier density reports superseded:** Any portfolio snapshot reporting "≥2.5 CTA density" predates the Day 5 validator measurement and should be treated as aspirational, not descriptive. The Day 5 validator measurement is authoritative.
+
+### Backlog item (parked, not urgent)
+
+**"Pursue 2.5/1000 density target via producer reconfiguration?"**
+
+Trade-offs:
+- To hit 2.5/1000 at 3,500 words, producer must recommend 8+ products per article
+- More product recommendations may dilute editorial quality and reader trust
+- Reviewer sites typically perform better with 5–7 highly curated picks vs 8–10 exhaustive lists
+- Revenue impact of closing the 1.5→2.5 gap is unknown without click/conversion data
+
+Revisit when: a site's monetization analysis suggests CTA density is leaving meaningful revenue on the table. Do not pursue as a default — the 1.5 floor is the correct standing operating target.
+
+---
+
+## 8. Component Inventory and Audit Status (v2.0.0)
+
+All components live in `affiliate-platform/src/components/`. No site may have a local copy. The `src/` check is: `ls {site}/src/` must return only `content`, `content.config.ts`, `pages`.
+
+| Component | Lines | Config source | Day 3 audited | Day 7 audited | Notes |
+|-----------|-------|---------------|---------------|---------------|-------|
+| AffiliateDisclosure.astro | — | — | ✓ | — | Static text |
+| AuthorBio.astro | 24 | getSiteConfig, getPersona | — | ✓ | Persona photo + bio; reads `persona.name`, `persona.bio`, `persona.role` |
+| BottomLineCTA.astro | — | resolveProduct | ✓ | ✓ | rel="nofollow sponsored" for Amazon, rel="nofollow" for retailer — confirmed correct Day 7 |
+| Breadcrumb.astro | 33 | getSiteConfig | — | ✓ | Uses site.domain; structurally clean |
+| Byline.astro | 38 | getPersona | — | ✓ | Persona name + date; reads persona.name |
+| ComparisonTable.astro | — | — | ✓ | — | Day 3 |
+| EmailCapture.astro | 78 | getSiteConfig | — | ✓ | No hardcoded values; reads site config for brand copy |
+| FAQ.astro | 32 | — | — | ✓ | Pure content component; no config deps |
+| Footer.astro | 51 | getSiteConfig, getNav | — | ✓ | Reads brand_name, tagline, nav.categories; clean |
+| Header.astro | — | getSiteConfig, getNav | ✓ | ✓ | Day 7: added overflow "More" dropdown for narrow desktop viewports |
+| NotFoundPage.astro | — | getSiteConfig | — | ✓ | NEW Day 7 — canonical 404; each site's 404.astro delegates to this |
+| PrevNext.astro | 31 | — | — | ✓ | No config deps; purely data-driven |
+| Price.astro | 29 | — | — | ✓ | Formatting only; no site deps |
+| ProductCard.astro | — | resolveProduct | ✓ | — | Day 3 |
+| ProductLink.astro | 36 | resolveProduct | — | ✓ | Inline product link; uses resolveProduct |
+| ProsConsBox.astro | — | — | ✓ | — | Day 3 |
+| QuickPicks.astro | — | resolveProduct | ✓ | — | Day 3 |
+| RelatedArticles.astro | 59 | getSiteConfig | — | ✓ | Reads site config; no hardcoded values |
+| SafetyNotice.astro | — | — | ✓ | — | Day 3 |
+| SchemaMarkup.astro | 85 | getSiteConfig, getPersona, resolveProduct | — | ✓ | Reads site.domain, brand_name — no hardcoding |
+| TrustBlock.astro | 43 | getSiteConfig, getPersona | — | ✓ | Reads persona data for trust signals |
+
+**Drift check (Day 7, 2026-05-17):** Zero site-local component copies found. Zero src/ violations. No backup directories exist (per cleanup discipline). Platform is clean.
+
+**Item 1 finding:** BottomLineCTA rel fix was already applied during Day 3 consolidation. The bug described in the Day 7 brief did not exist in the canonical version. Confirmed in dist/ output: Amazon → `rel="nofollow sponsored"`, retailer → `rel="nofollow"`.
+
+**Item 2 finding:** Doubled-brand baseline: 0 WARNs across all 6 sites' built dist/. Regex `/(\b[\w-]{2,}\b)\s+\1\b/i` catches single-word repetitions (Lodge Lodge, KitchenAid KitchenAid) but misses multi-word brand repetitions (EGO Power EGO Power). No such multi-word patterns exist in any current products.yaml. One TCD product ("miele-descaling-tablets") has "Ovens" twice in a comma-separated list — the comma separator correctly prevents the regex from matching. Regex is calibrated correctly for the current catalog; no changes made.

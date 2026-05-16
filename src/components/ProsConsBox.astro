@@ -5,7 +5,7 @@ interface Props {
   productName?: string
 }
 
-const { pros, cons, productName } = Astro.props
+const { pros = [], cons = [], productName } = Astro.props
 ---
 
 <div class="pros-cons-box">

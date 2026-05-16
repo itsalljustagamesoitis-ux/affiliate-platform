@@ -87,6 +87,7 @@ export interface ProductRecord {
   amazon_asin?: string | null
   awin_advertiser_id?: number | null
   awin_product_url?: string | null
+  buy_url?: string | null
   default_image: string
   category: string
   price_band: 'budget' | 'mid' | 'premium'
@@ -113,6 +114,11 @@ export interface NavCategory {
 
 export interface NavConfig {
   categories: NavCategory[]
+}
+
+export interface AffiliateLink {
+  url: string
+  type: 'amazon' | 'retailer'
 }
 
 // ── Loaders (run at build time) ───────────────────────────────────────────────
@@ -185,10 +191,10 @@ export function getCategorySlug(categoryLabel: string): string {
 
 // ── Affiliate URL generation (build-time only) ────────────────────────────────
 
-export function buildAffiliateUrl(
+export function buildAffiliateLink(
   productId: string,
   articleSlug: string,
-): string | null {
+): AffiliateLink | null {
   const db = getProducts()
   const cfg = getSiteConfig()
   const product = db[productId]
@@ -202,16 +208,31 @@ export function buildAffiliateUrl(
 
   if (awin_advertiser_id && awin_product_url) {
     const clickref = `${awin_clickref_pattern}-${articleSlug}`
-    const url = new URL(awin_product_url)
-    url.searchParams.set('awc', `${awin_advertiser_id}_${Date.now()}`)
-    return `https://www.awin1.com/cread.php?awinmid=${awin_advertiser_id}&awinaffid=${awin_publisher_id}&clickref=${encodeURIComponent(clickref)}&ued=${encodeURIComponent(awin_product_url)}`
+    const url = `https://www.awin1.com/cread.php?awinmid=${awin_advertiser_id}&awinaffid=${awin_publisher_id}&clickref=${encodeURIComponent(clickref)}&ued=${encodeURIComponent(awin_product_url)}`
+    return { url, type: 'amazon' }
   }
 
-  if (amazon_asin && amazon_asin !== 'NOT_ON_AMAZON' && amazon_asin !== 'NOT_FOUND' && amazon_asin !== 'VERIFY') {
-    return `https://www.amazon.com/dp/${amazon_asin}?tag=${amazon_tracking_id}`
+  if (amazon_asin && !['NOT_ON_AMAZON', 'NOT_FOUND', 'VERIFY'].includes(amazon_asin)) {
+    return {
+      url: `https://www.amazon.com/dp/${amazon_asin}?tag=${amazon_tracking_id}`,
+      type: 'amazon',
+    }
+  }
+
+  if (product.buy_url) {
+    return { url: product.buy_url, type: 'retailer' }
   }
 
   return null
+}
+
+/** @deprecated Use buildAffiliateLink — returns string for backward compatibility */
+export function buildAffiliateUrl(
+  productId: string,
+  articleSlug: string,
+): string | null {
+  const link = buildAffiliateLink(productId, articleSlug)
+  return link?.url ?? null
 }
 
 // ── Resolve product for an article product ref ────────────────────────────────
@@ -225,6 +246,7 @@ export interface ResolvedProduct {
   pros: string[]
   cons: string[]
   affiliate_url: string | null
+  affiliate_link: AffiliateLink | null
   role?: string
 }
 
@@ -241,7 +263,7 @@ export function resolveProduct(
 
   const name = product.name ?? product.title ?? ref.id
   const brand = product.brand ?? null
-  const asin = product.amazon_asin ?? product.asin ?? null
+  const affiliateLink = buildAffiliateLink(ref.id, articleSlug)
   return {
     id: ref.id,
     name,
@@ -250,7 +272,8 @@ export function resolveProduct(
     price_band: product.price_band,
     pros: ref.article_specific_pros ?? product.default_pros,
     cons: ref.article_specific_cons ?? product.default_cons,
-    affiliate_url: buildAffiliateUrl(ref.id, articleSlug),
+    affiliate_url: affiliateLink?.url ?? null,
+    affiliate_link: affiliateLink,
     role: ref.role,
   }
 }

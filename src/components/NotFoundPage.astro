@@ -1,0 +1,32 @@
+---
+/**
+ * Canonical 404 page component — used by all sites.
+ * Each site's src/pages/404.astro imports this and renders it directly.
+ * Site-specific text (brand name, niche links) comes from site.config.yaml via getSiteConfig().
+ */
+import BaseLayout from '../layouts/BaseLayout.astro'
+import { getSiteConfig } from '../lib/config'
+const cfg = getSiteConfig()
+
+const emoji = cfg.site.not_found_emoji ?? '🔍'
+const browseHref = cfg.site.not_found_browse_href ?? '/reviews/'
+const browseLinkLabel = cfg.site.not_found_browse_label ?? 'Browse all reviews'
+---
+
+<BaseLayout
+  title={`Page Not Found — ${cfg.site.brand_name}`}
+  description="The page you're looking for doesn't exist."
+  noindex={true}
+>
+  <div class="container" style="padding: 6rem 1.5rem; text-align: center; max-width: 560px;">
+    <p style="font-size: 4rem; margin: 0;">{emoji}</p>
+    <h1 style="margin-top: 1rem;">Page not found</h1>
+    <p style="color: var(--color-text-muted); margin: 1rem 0 2rem;">
+      That page doesn't exist — it may have moved or been removed.
+    </p>
+    <a href="/" class="btn btn--primary">Back to home</a>
+    <p style="margin-top: 2rem;">
+      <a href={browseHref} style="color: var(--color-text-muted); font-size: 0.9rem;">{browseLinkLabel} →</a>
+    </p>
+  </div>
+</BaseLayout>

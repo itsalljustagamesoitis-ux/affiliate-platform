@@ -5,6 +5,7 @@ import BaseLayout from './BaseLayout.astro'
 import Byline from '../components/Byline.astro'
 import AffiliateDisclosure from '../components/AffiliateDisclosure.astro'
 import ProsConsBox from '../components/ProsConsBox.astro'
+import ProductCard from '../components/ProductCard.astro'
 import BottomLineCTA from '../components/BottomLineCTA.astro'
 import SafetyNotice from '../components/SafetyNotice.astro'
 import AuthorBio from '../components/AuthorBio.astro'
@@ -34,6 +35,9 @@ const imgB = productB?.image ? (productB.image?.startsWith('http') || productB.i
 
 const winner = data.winner === 'product_a' ? productA : data.winner === 'product_b' ? productB : null
 const loser  = data.winner === 'product_a' ? productB : data.winner === 'product_b' ? productA : null
+const resolvedProducts = (data.products ?? [])
+  .map(ref => resolveProduct(ref, data.slug))
+  .filter(Boolean) as NonNullable<ReturnType<typeof resolveProduct>>[]
 ---
 
 <BaseLayout
@@ -117,8 +121,12 @@ const loser  = data.winner === 'product_a' ? productB : data.winner === 'product
 
     <div class="article-page__content"><slot /></div>
 
-    {productA && <ProsConsBox pros={productA.pros} cons={productA.cons} productName={productDisplayName(productA)} />}
-    {productB && <ProsConsBox pros={productB.pros} cons={productB.cons} productName={productDisplayName(productB)} />}
+    {resolvedProducts.length > 0 && (
+      <aside class="article-page__picks">
+        <h2>Detailed Reviews</h2>
+        {resolvedProducts.map(product => <ProductCard product={product} showRole />)}
+      </aside>
+    )}
 
     <!-- Bottom verdict — repeat after all the detail, capture the decided buyer -->
     {winner && (

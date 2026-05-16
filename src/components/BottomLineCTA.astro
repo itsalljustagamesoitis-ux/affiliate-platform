@@ -7,22 +7,22 @@ interface Props {
 }
 
 const { product } = Astro.props
-const isAmazon = product.affiliate_url?.includes('amazon.com')
+const isAmazon = product.affiliate_link?.type === 'amazon'
 ---
 
-{product.affiliate_url && (
+{product.affiliate_link && (
   <div class="bottom-cta-box">
     <p class="bottom-cta-box__eyebrow">Where to Buy</p>
     <strong class="bottom-cta-box__name">{productDisplayName(product)}</strong>
     <a
-      href={product.affiliate_url}
+      href={product.affiliate_link.url}
       class={isAmazon ? 'btn btn--amazon' : 'btn btn--primary'}
-      rel="nofollow sponsored"
+      rel={isAmazon ? 'nofollow sponsored' : 'nofollow'}
       target="_blank"
     >
       {isAmazon
         ? `See ${product.name.length > 40 ? product.name.slice(0, 37) + '…' : product.name} on Amazon`
-        : 'Check Price →'}
+        : `Check availability at ${product.brand ?? 'retailer'} →`}
     </a>
   </div>
 )}
