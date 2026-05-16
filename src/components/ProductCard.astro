@@ -30,7 +30,7 @@ const imageUrl = !product.image
     ? product.image
     : `${cfg.images.base_url}/${product.image}`
 
-const isAmazon = product.affiliate_url?.includes('amazon.com')
+const isAmazon = product.affiliate_link?.type === 'amazon'
 ---
 
 <div class="product-card" id={`product-${product.id}`}>
@@ -40,8 +40,8 @@ const isAmazon = product.affiliate_url?.includes('amazon.com')
   {rank && <div class="product-card__rank">#{rank}</div>}
 
   <div class="product-card__inner">
-    <div class="product-card__image">
-      {imageUrl && (
+    {imageUrl && (
+      <div class="product-card__image">
         <img
           src={imageUrl}
           alt={product.name}
@@ -50,13 +50,17 @@ const isAmazon = product.affiliate_url?.includes('amazon.com')
           loading="lazy"
           decoding="async"
         />
-      )}
-    </div>
+      </div>
+    )}
 
     <div class="product-card__body">
       <h3 class="product-card__name">
-        {product.affiliate_url ? (
-          <a href={product.affiliate_url} rel="nofollow sponsored" target="_blank">
+        {product.affiliate_link ? (
+          <a
+            href={product.affiliate_link.url}
+            rel={product.affiliate_link.type === 'amazon' ? 'nofollow sponsored' : 'nofollow'}
+            target="_blank"
+          >
             {product.name}
           </a>
         ) : (
@@ -83,15 +87,17 @@ const isAmazon = product.affiliate_url?.includes('amazon.com')
         )}
       </div>
 
-      {product.affiliate_url && (
+      {product.affiliate_link && (
         <a
-          href={product.affiliate_url}
+          href={product.affiliate_link.url}
           class={isAmazon ? 'btn btn--amazon' : 'btn btn--primary'}
-          rel="nofollow sponsored"
+          rel={isAmazon ? 'nofollow sponsored' : 'nofollow'}
           target="_blank"
           data-product={product.name}
         >
-          {isAmazon ? `See ${product.name.length > 40 ? product.name.slice(0, 37) + '…' : product.name} on Amazon` : 'Check Price'}
+          {isAmazon
+            ? `See ${product.name.length > 40 ? product.name.slice(0, 37) + '…' : product.name} on Amazon`
+            : `Check availability at ${product.brand ?? 'retailer'}`}
         </a>
       )}
     </div>
