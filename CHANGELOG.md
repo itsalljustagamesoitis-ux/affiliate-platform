@@ -1,5 +1,28 @@
 # @platform/core — Changelog
 
+## [2.0.2] — 2026-05-17 — Header flexbox: real root cause (CSS layout, not JS)
+
+**Root cause (confirmed via browser dev tools at 1091px viewport):**
+- `.site-header__nav` had default `min-width: auto`. In flexbox, `auto` resolves to the
+  element's min-content width, which is ~1300px on strengthmill (9 nav items × ~100-150px each
+  with `white-space: nowrap`). `flex: 1 1 0%` cannot shrink the nav below this floor.
+- `.site-header__logo` had default `flex: 0 1 auto` (flex-shrink: 1). Because the nav was
+  unshrinkable, the logo absorbed the negative space and collapsed to 0px width.
+- The JS overlay (v2.0.1) measured `navEl.parentElement.getBoundingClientRect().width`, but
+  with the logo at 0px the nav consumed nearly all available space, so its measured width ≥
+  sum(itemWidths) and overflow never fired.
+
+**Fix (2 lines):**
+- `Header.astro`: `.site-header__nav { flex: 1; min-width: 0; ... }` — nav can shrink below
+  content width; JS overflow detection now has a valid bounded container to measure against.
+- `global.css`: `.site-header__logo { flex: 0 0 auto; ... }` — logo holds its natural 230×40
+  footprint regardless of nav pressure.
+- Skipped `overflow: hidden` on `.site-header__inner` — would clip `position:absolute` dropdowns.
+
+**Deployed:** All 6 sites. CSS confirmed in production bundles on all 6 domains.
+
+---
+
 ## [2.0.1] — 2026-05-17 — Nav overflow fix + logo rendering cleanup
 
 ### Nav overflow (Item 1)
