@@ -126,7 +126,7 @@ main { padding-top: 64px; }
   display: flex; align-items: center; justify-content: space-between;
   height: 64px;
 }
-.site-header__logo { text-decoration: none; display: flex; align-items: center; }
+.site-header__logo { flex: 0 0 auto; text-decoration: none; display: flex; align-items: center; }
 .site-header__logo-img { display: block; height: 36px; width: auto; }
 .site-nav { display: flex; align-items: center; gap: 1.5rem; list-style: none; padding: 0; margin: 0; }
 .site-nav a { text-decoration: none; font-weight: 600; font-size: 0.9rem; color: var(--color-text); transition: color 0.15s; }
