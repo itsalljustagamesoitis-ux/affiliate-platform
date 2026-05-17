@@ -1,5 +1,40 @@
 # @platform/core — Changelog
 
+## [2.0.3] — 2026-05-17 — Nav JS: fix overflow population + submenu open-by-default
+
+**Bug 1 — submenu population mismatch (root cause):**
+`overflowStart` was overwritten on every overflow item in the measurement loop, not just
+the first. After the loop it held the index of the LAST hidden item (8, Flooring & Storage).
+The populate loop iterated `for i = overflowStart; i < items.length`, so only item 8 reached
+the submenu. Items hidden earlier (4: Benches & Cables, 6: Conditioning, 7: Recovery) were
+hidden from inline display with no accessible path.
+
+Fix: two-pass approach:
+1. Measure all item widths while visible → check total vs navWidth
+2. If overflow, find sequential cutoff = first item that doesn't fit within `navWidth − 90px`
+3. Items 0…cutoff-1 stay visible; items cutoff…end are all hidden AND all added to submenu
+
+Using a clean L→R sequential cutoff (not non-contiguous per-item greedy) for predictable UX.
+
+**Bug 2 — submenu open by default (root cause):**
+`moreList.style.display = ''` cleared the inline style at end of remeasure, leaving CSS in
+control. The generic `.site-nav__item:hover .site-nav__dropdown { display: block }` rule then
+fired on hover, making the submenu appear to be always open when hovering the More button area.
+
+Fix: switched from `style.display` to `classList.toggle('is-open')`. Added two CSS rules:
+```css
+.site-nav__more .site-nav__more-list { display: none; }          /* overrides hover rule */
+.site-nav__more .site-nav__more-list.is-open { display: block; }  /* click-opened state */
+```
+
+**Additional:** Escape key closes submenu and returns focus to More button (both button and
+submenu listen). Document click handler updated to `classList.remove('is-open')` on outside click.
+
+**Deployed:** All 6 sites. Verified: `is-open` classList, `reduce` (totalWidth), no `overflowStart`,
+no `moreList.style.display`, CSS `.is-open` rule — all confirmed in production HTML.
+
+---
+
 ## [2.0.2] — 2026-05-17 — Header flexbox: real root cause (CSS layout, not JS)
 
 **Root cause (confirmed via browser dev tools at 1091px viewport):**
