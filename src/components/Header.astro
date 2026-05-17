@@ -7,9 +7,15 @@ const nav = getNav()
 
 <header class="site-header">
   <div class="container--wide site-header__inner">
-    <a href="/" class="site-header__logo" aria-label={cfg.site.brand_name}>
-      <img src={cfg.visual.logo_paths?.header_svg ?? '/images/brand/logo-header.svg'} alt={cfg.site.brand_name} class="site-header__logo-img" width="218" height="40" />
-    </a>
+    {cfg.visual.logo_paths?.header_svg ? (
+      <a href="/" class="site-header__logo" aria-label={cfg.site.brand_name}>
+        <img src={cfg.visual.logo_paths.header_svg} alt={cfg.site.brand_name} class="site-header__logo-img" />
+      </a>
+    ) : (
+      <a href="/" class="site-header__wordmark">
+        {cfg.site.brand_name}
+      </a>
+    )}
 
     <nav aria-label="Main navigation" class="site-header__nav">
       <ul class="site-nav" id="main-nav">
@@ -131,7 +137,9 @@ const nav = getNav()
       items.forEach(item => { item.style.display = '' })
       moreItem!.style.display = 'none'
 
-      const containerWidth = navEl!.getBoundingClientRect().width
+      // Measure the parent nav element (.site-header__nav, flex: 1) not the UL itself.
+      // The UL grows to fit its content, so measuring it would always equal sum(itemWidths).
+      const containerWidth = navEl!.parentElement!.getBoundingClientRect().width
       // Reserve ~90px for the "More" button when we know overflow will happen
       const MORE_WIDTH = 90
 
@@ -275,6 +283,14 @@ const nav = getNav()
   @media (min-width: 901px) {
     .nav-toggle { display: none; }
   }
+
+  /* Text wordmark fallback (sites without a logo SVG) */
+  .site-header__wordmark {
+    font-weight: 700; font-size: 1.125rem;
+    color: var(--color-text); text-decoration: none;
+    white-space: nowrap;
+  }
+  .site-header__wordmark:hover { color: var(--color-primary); }
 
   /* "More" overflow button — desktop only */
   .site-nav__more-btn {
