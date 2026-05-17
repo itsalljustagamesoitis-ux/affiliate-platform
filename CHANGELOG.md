@@ -1,5 +1,37 @@
 # @platform/core — Changelog
 
+## [2.0.1] — 2026-05-17 — Nav overflow fix + logo rendering cleanup
+
+### Nav overflow (Item 1)
+**Root cause:** `remeasure()` measured `navEl.getBoundingClientRect().width` where `navEl` is
+`<ul id="main-nav">` — a flex container that grows to fit its content. So `containerWidth`
+always equalled the sum of all item widths, the overflow check (`usedWidth + needed > containerWidth`)
+never fired, and all items rendered regardless of viewport width.
+
+**Fix:** One line — measure `navEl.parentElement.getBoundingClientRect().width` (`.site-header__nav`,
+which has `flex: 1` and is bounded by the header layout). Now the function correctly identifies
+when items exceed available space and collapses them into the "More" dropdown.
+
+**Affected:** All 6 sites, but most visible on strengthmill.com (9 nav categories with long labels
+vs FSG/MLT/OHT's 5–6 shorter labels).
+
+### Logo rendering (Item 2)
+**Pre-investigation finding:** All 6 sites have `visual.logo_paths.header_svg` configured and
+`/images/brand/logo-header.svg` files present. The logo was already rendering in HTML after the
+v2.0.0 deploy. No site-level config changes required.
+
+**Code cleanup:**
+- Replaced hardcoded fallback path (`?? '/images/brand/logo-header.svg'`) with conditional
+  rendering: `cfg.visual.logo_paths?.header_svg` → `<img>`, else → `<a class="site-header__wordmark">`
+- Removed hardcoded `width="218" height="40"` from img tag; CSS in global.css controls sizing
+- Added `.site-header__wordmark` CSS class for text fallback sites
+
+### Deployed
+All 6 sites: strengthmill ✓, fourseasongardener ✓, mylittletablespoon ✓, onehappytable ✓,
+thecoffeedispatch ✓, bearcreekbarbecue ✓ — all 8 verify-deploy checks pass.
+
+---
+
 ## [2.0.0] — 2026-05-17 — Day 7: Platform sprint close
 
 Day 7 closes the major platform sprint. All 7 items resolved. Honest read at the end.
