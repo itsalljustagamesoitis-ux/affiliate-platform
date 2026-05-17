@@ -71,30 +71,34 @@ const nav = getNav()
     nav?.classList.toggle('is-open', !open)
   })
 
-  // Close dropdown when clicking outside
+  // Close regular category dropdowns and More submenu when clicking outside
   document.addEventListener('click', (e) => {
     if (!(e.target as Element).closest('.has-dropdown')) {
-      document.querySelectorAll('.site-nav__dropdown').forEach(d => {
-        (d as HTMLElement).style.display = ''
+      document.querySelectorAll<HTMLElement>('.site-nav__dropdown').forEach(d => {
+        d.style.display = ''
+      })
+    }
+    if (!(e.target as Element).closest('.site-nav__more')) {
+      document.querySelectorAll<HTMLElement>('.site-nav__more-list').forEach(list => {
+        list.classList.remove('is-open')
+      })
+      document.querySelectorAll<HTMLButtonElement>('.site-nav__more-btn').forEach(btn => {
+        btn.setAttribute('aria-expanded', 'false')
       })
     }
   })
 
   // ── Overflow "More" dropdown (desktop) ───────────────────────────────────
-  // Progressively collapses nav items that don't fit into a "More" button.
-  // Runs only on desktop (>900px). Server-rendered HTML shows all items by
-  // default, so there's no FOUC and it works without JS for accessibility.
   function initOverflowNav() {
     if (window.innerWidth <= 900) return
 
     const navEl = document.getElementById('main-nav')
     if (!navEl) return
 
-    // Collect original items (exclude the More item if already injected)
     const items = [...navEl.querySelectorAll<HTMLElement>(':scope > .site-nav__item:not(.site-nav__more)')]
     if (items.length === 0) return
 
-    // Create the "More" list item (hidden until needed)
+    // Create the "More" list item once
     let moreItem = navEl.querySelector<HTMLElement>('.site-nav__more')
     if (!moreItem) {
       moreItem = document.createElement('li')
@@ -110,78 +114,86 @@ const nav = getNav()
         <ul class="site-nav__dropdown site-nav__more-list"></ul>
       `
       navEl.appendChild(moreItem)
-
-      // Toggle More dropdown on click
-      const moreBtn = moreItem.querySelector('.site-nav__more-btn') as HTMLButtonElement
-      const moreList = moreItem.querySelector('.site-nav__more-list') as HTMLElement
-      moreBtn?.addEventListener('click', (e) => {
-        e.stopPropagation()
-        const open = moreBtn.getAttribute('aria-expanded') === 'true'
-        moreBtn.setAttribute('aria-expanded', String(!open))
-        moreList.style.display = open ? '' : 'block'
-      })
     }
 
     const moreList = moreItem.querySelector<HTMLElement>('.site-nav__more-list')!
     const moreBtn = moreItem.querySelector<HTMLButtonElement>('.site-nav__more-btn')!
 
+    // Toggle More submenu on click (click-only; CSS hover is suppressed for .site-nav__more-list)
+    moreBtn.addEventListener('click', (e) => {
+      e.stopPropagation()
+      const isOpen = moreBtn.getAttribute('aria-expanded') === 'true'
+      moreBtn.setAttribute('aria-expanded', String(!isOpen))
+      moreList.classList.toggle('is-open', !isOpen)
+    })
+
+    // Escape closes submenu, returns focus to button
+    ;[moreBtn, moreList].forEach(el => {
+      el.addEventListener('keydown', (e) => {
+        if ((e as KeyboardEvent).key === 'Escape') {
+          moreList.classList.remove('is-open')
+          moreBtn.setAttribute('aria-expanded', 'false')
+          moreBtn.focus()
+        }
+      })
+    })
+
     function remeasure() {
       if (window.innerWidth <= 900) {
-        // Mobile: restore all items, hide More button
         items.forEach(item => { item.style.display = '' })
         moreItem!.style.display = 'none'
         return
       }
 
-      // Show everything to measure natural widths
+      // Show all items, hide More button to measure natural widths
       items.forEach(item => { item.style.display = '' })
       moreItem!.style.display = 'none'
 
-      // Measure the parent nav element (.site-header__nav, flex: 1) not the UL itself.
-      // The UL grows to fit its content, so measuring it would always equal sum(itemWidths).
-      const containerWidth = navEl!.parentElement!.getBoundingClientRect().width
-      // Reserve ~90px for the "More" button when we know overflow will happen
-      const MORE_WIDTH = 90
+      const navWidth = navEl!.parentElement!.getBoundingClientRect().width
+      const MORE_BTN_WIDTH = 90
 
-      let usedWidth = 0
-      let overflowStart = -1
+      // Measure item widths while all are visible (forces synchronous layout)
+      const itemWidths = items.map(item => item.getBoundingClientRect().width)
+      const totalWidth = itemWidths.reduce((a, b) => a + b, 0)
+
+      if (totalWidth <= navWidth) return  // everything fits, nothing to do
+
+      // Find the cutoff: first item that doesn't fit once we reserve MORE_BTN_WIDTH.
+      // Using a simple L→R sequential cutoff (items 0…cutoff-1 stay inline,
+      // items cutoff…end all go to More) for predictable, contiguous grouping.
+      const budget = navWidth - MORE_BTN_WIDTH
+      let used = 0
+      let cutoff = items.length
 
       for (let i = 0; i < items.length; i++) {
-        const itemWidth = items[i].getBoundingClientRect().width
-        // On potential last item, check if adding More button would overflow
-        const wouldNeedMore = i < items.length - 1
-        const needed = itemWidth + (wouldNeedMore && overflowStart === -1 ? MORE_WIDTH : 0)
-        if (usedWidth + needed > containerWidth) {
-          overflowStart = i
-          items[i].style.display = 'none'
-        } else {
-          usedWidth += itemWidth
+        if (used + itemWidths[i] > budget) {
+          cutoff = i
+          break
         }
+        used += itemWidths[i]
       }
 
-      if (overflowStart > -1) {
-        // Hide overflow items and populate the More dropdown
-        moreList.innerHTML = ''
-        for (let i = overflowStart; i < items.length; i++) {
-          items[i].style.display = 'none'
-          const link = items[i].querySelector<HTMLAnchorElement>('.site-nav__link')
-          if (!link) continue
-          const li = document.createElement('li')
-          const a = document.createElement('a')
-          a.href = link.getAttribute('href') ?? '#'
-          // Extract text only (strip chevron SVG text)
-          a.textContent = [...link.childNodes]
-            .filter(n => n.nodeType === Node.TEXT_NODE)
-            .map(n => n.textContent?.trim())
-            .filter(Boolean)
-            .join('')
-          li.appendChild(a)
-          moreList.appendChild(li)
-        }
-        moreItem!.style.display = ''
-        moreBtn.setAttribute('aria-expanded', 'false')
-        moreList.style.display = ''
+      // Atomically apply: visible items stay, overflow items go to More submenu
+      moreList.innerHTML = ''
+      for (let i = cutoff; i < items.length; i++) {
+        items[i].style.display = 'none'
+        const link = items[i].querySelector<HTMLAnchorElement>('.site-nav__link')
+        if (!link) continue
+        const li = document.createElement('li')
+        const a = document.createElement('a')
+        a.href = link.getAttribute('href') ?? '#'
+        a.textContent = [...link.childNodes]
+          .filter(n => n.nodeType === Node.TEXT_NODE)
+          .map(n => n.textContent?.trim())
+          .filter(Boolean)
+          .join('')
+        li.appendChild(a)
+        moreList.appendChild(li)
       }
+
+      moreItem!.style.display = ''
+      moreBtn.setAttribute('aria-expanded', 'false')
+      moreList.classList.remove('is-open')  // closed by default — click to open
     }
 
     remeasure()
@@ -193,7 +205,6 @@ const nav = getNav()
     })
   }
 
-  // Run after layout is stable
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initOverflowNav)
   } else {
@@ -299,4 +310,9 @@ const nav = getNav()
   }
   .site-nav__more-btn:hover { color: var(--color-primary); }
   .site-nav__more .site-nav__dropdown { left: auto; right: 0; }
+
+  /* More submenu: click-only. Override the generic hover rule so it stays
+     closed until JS adds .is-open via the More button click handler. */
+  .site-nav__more .site-nav__more-list { display: none; }
+  .site-nav__more .site-nav__more-list.is-open { display: block; }
 </style>
