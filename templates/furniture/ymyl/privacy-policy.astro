@@ -1,0 +1,43 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const updatedDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+---
+
+<BaseLayout
+  title={`Privacy Policy — ${cfg.site.brand_name}`}
+  description={`Privacy policy for ${cfg.site.brand_name}.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>Privacy Policy</h1>
+    <p><em>Last updated: {updatedDate}</em></p>
+    <p>This privacy policy describes how {cfg.site.brand_name} ("we", "us", or "our"), operating at {cfg.site.domain}, collects, uses, and protects information when you visit our website.</p>
+
+    <h2>Information we collect</h2>
+    <h3>Analytics</h3>
+    <p>We use Google Analytics 4 to collect anonymised data about how visitors use this site — including pages visited, time on page, and approximate geographic region. This data does not identify individual users. IP addresses are anonymised before storage. You can opt out using the <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer" target="_blank">Google Analytics opt-out browser add-on</a>.</p>
+    <h3>Cookies and tracking</h3>
+    <p>This site uses cookies for analytics and affiliate link tracking. Affiliate partners (including Amazon) may set cookies when you click through to their sites. We do not control the cookies set by third-party sites. You can manage cookie preferences in your browser settings.</p>
+    <h3>Email subscriptions</h3>
+    <p>If you subscribe to our newsletter, we collect your email address. We use this solely to send editorial content. We do not sell or share email addresses with third parties. You can unsubscribe at any time via the link in any email.</p>
+
+    <h2>How we use information</h2>
+    <p>We use analytics data to understand which content is most useful and to improve the site. We do not use personal data for advertising targeting. We do not sell data to third parties.</p>
+
+    <h2>Health information</h2>
+    <p>This site covers hearing health topics. We do not collect or store any personal health information. We do not have access to any health data you enter into third-party sites (including audiologists' portals or hearing aid manufacturer apps) that you may reach via links on this site.</p>
+
+    <h2>Data retention</h2>
+    <p>Analytics data is retained for 14 months, after which it is deleted. Email subscription data is retained until you unsubscribe.</p>
+
+    <h2>Your rights</h2>
+    <p>If you are a California resident, you have rights under the California Consumer Privacy Act (CCPA), including the right to know what personal data we hold, the right to request deletion, and the right to opt out of the sale of personal data (we do not sell personal data). To exercise these rights, contact us using the details below.</p>
+
+    <h2>Third-party links</h2>
+    <p>This site contains links to third-party websites, including Amazon, hearing aid manufacturers, and audiological organisations. We are not responsible for the privacy practices of those sites. We encourage you to review their privacy policies before providing any personal information.</p>
+
+    <h2>Contact</h2>
+    <p>For privacy questions, contact us via the <a href="/contact/">contact page</a>.</p>
+  </div>
+</BaseLayout>

@@ -1,0 +1,56 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getPersona, getSiteConfig } from '@platform/core/src/lib/config'
+
+const persona = getPersona()
+const cfg = getSiteConfig()
+---
+
+<BaseLayout
+  title={`About ${persona.name_used} — ${cfg.site.brand_name}`}
+  description={`Meet ${persona.name_formal}, the person behind ${cfg.site.brand_name}. ${persona.bio_short}`}
+>
+  <div class="container" style="padding: 3rem 1.5rem;">
+    <article class="about-page">
+      <div class="about-page__intro">
+        <img
+          src={persona.photo_about}
+          alt={persona.name_formal}
+          class="about-page__photo"
+          width="200"
+          height="200"
+          fetchpriority="high"
+          decoding="async"
+        />
+        <div>
+          <h1>About {persona.name_used}</h1>
+          <p class="about-page__location">📍 {persona.location}</p>
+          <p>{persona.bio_short}</p>
+        </div>
+      </div>
+
+      <div class="about-page__body" set:html={persona.bio_full.replace(/\n\n/g, '</p><p>')} />
+
+      <section class="about-page__disclosure">
+        <h2>About this site</h2>
+        <p>Ten27 publishes editorial content on electric mountain bikes and adventure e-bikes. Coverage is sourced from verified buyer reports, owner community research, and published specifications. First-person testing framing is limited to bikes Dan has personally owned — the Specialized Turbo Levo, the Trek Rail (since sold), and a Bafang BBSHD-converted hardtail he built.</p>
+        <p>Some links on this site are affiliate links. If you buy through one, we earn a small commission at no extra cost to you. This doesn't change what we recommend. See our <a href="/affiliate-disclosure/">full affiliate disclosure</a> for details.</p>
+      </section>
+
+      <section class="about-page__domain-note">
+        <h2>About the ten27cycles.com domain</h2>
+        <p>The ten27cycles.com domain was previously home to Ten27 Cycles, a bicycle shop in Evanston, IL, that operated from 2010 until its closure in 2023. We've adopted the domain to publish editorial content on electric mountain bikes and adventure e-bikes. We are not affiliated with the original shop and do not carry their inventory, honor past purchases, or provide warranty service for bikes sold there. If you're looking for information about the former business, <a href="https://web.archive.org/web/*/ten27cycles.com" rel="noopener noreferrer" target="_blank">the Wayback Machine archive</a> may have cached pages from their operating years.</p>
+      </section>
+    </article>
+  </div>
+</BaseLayout>
+
+<style>
+  .about-page { max-width: 720px; margin: 0 auto; }
+  .about-page__intro { display: flex; gap: 2rem; align-items: flex-start; margin-bottom: 2rem; flex-wrap: wrap; }
+  .about-page__photo { border-radius: 50%; width: 160px; height: 160px; object-fit: cover; flex-shrink: 0; }
+  .about-page__location { font-size: 0.9rem; color: var(--color-text-muted); margin-bottom: 0.75rem; }
+  .about-page__body p { margin-bottom: 1rem; }
+  .about-page__disclosure, .about-page__domain-note { margin-top: 2.5rem; padding-top: 1.5rem; border-top: 1px solid var(--color-border); }
+  .about-page__domain-note { background: #f8fafc; border-radius: 6px; padding: 1.25rem 1.5rem; border: 1px solid var(--color-border); }
+</style>

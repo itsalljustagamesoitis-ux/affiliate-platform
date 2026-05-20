@@ -1,0 +1,33 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig, getPersona } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const persona = getPersona()
+const updatedDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+---
+
+<BaseLayout
+  title={`Disclaimer — ${cfg.site.brand_name}`}
+  description={`Editorial disclaimer for ${cfg.site.brand_name}. Includes medical advice disclaimer.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>Disclaimer</h1>
+    <p><em>Last updated: {updatedDate}</em></p>
+
+    <h2>Medical advice disclaimer</h2>
+    <p><strong>The content on {cfg.site.brand_name} is for informational and educational purposes only. It is not medical advice and is not a substitute for professional medical diagnosis, treatment, or guidance.</strong></p>
+    <p>Hearing health decisions — including whether you have hearing loss, which type of hearing aid is appropriate for your situation, device fitting and programming, and audiological assessment — should be made in consultation with a licensed audiologist or hearing healthcare professional. Do not delay seeking professional advice based on anything you read on this site.</p>
+
+    <h2>Editorial independence</h2>
+    <p>Product recommendations on {cfg.site.brand_name} reflect {persona.name_used}'s editorial opinion, based on owner community research, verified buyer reports, audiological publication sourcing, and manufacturer specifications. We do not accept free products in exchange for positive coverage, and affiliate relationships do not influence editorial conclusions.</p>
+
+    <h2>Product information</h2>
+    <p>Product specifications, prices, and availability change frequently. Hearing aid technology in particular evolves rapidly. We do our best to keep information current but cannot guarantee accuracy at the time of your visit. Always confirm product details with the manufacturer or a licensed hearing care professional before purchasing.</p>
+
+    <h2>Amazon pricing</h2>
+    <p>Product prices and availability shown are accurate as of the date of publication and are subject to change. Any price and availability information displayed on Amazon at the time of purchase will apply to the purchase of this product.</p>
+
+    <h2>External links</h2>
+    <p>We link to third-party websites, including audiological organisations and consumer publications, for your convenience. We are not responsible for the content, accuracy, or practices of those sites.</p>
+  </div>
+</BaseLayout>

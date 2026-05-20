@@ -1,0 +1,41 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const updatedDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+---
+
+<BaseLayout
+  title={`Terms of Use — ${cfg.site.brand_name}`}
+  description={`Terms of use for ${cfg.site.brand_name}.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>Terms of Use</h1>
+    <p><em>Last updated: {updatedDate}</em></p>
+    <p>By using {cfg.site.brand_name} at {cfg.site.domain} ("the site"), you agree to these terms.</p>
+
+    <h2>Editorial content — not medical advice</h2>
+    <p><strong>The content on this site is provided for informational and educational purposes only. Nothing on this site constitutes medical advice, diagnosis, treatment, or a recommendation to take or not take any medical action.</strong> Hearing healthcare decisions should be made in consultation with a licensed audiologist or other qualified hearing healthcare professional. Do not disregard professional medical advice or delay seeking it because of something you have read on this site.</p>
+
+    <h2>Accuracy</h2>
+    <p>We make reasonable efforts to ensure the accuracy of product information, specifications, and editorial content. However, we make no warranties about the completeness, accuracy, reliability, or suitability of the information for any purpose. Product specifications, prices, and regulatory status (including FDA classification) may change after publication. Always verify with the manufacturer before purchasing.</p>
+
+    <h2>Affiliate relationships</h2>
+    <p>This site earns revenue through affiliate links, including as a participant in the Amazon Services LLC Associates Program. See our <a href="/affiliate-disclosure/">affiliate disclosure</a> for full details. Affiliate commissions do not influence our editorial conclusions.</p>
+
+    <h2>Intellectual property</h2>
+    <p>Original editorial content on this site is owned by {cfg.site.brand_name}. Product names, brand names, and trademarks are the property of their respective owners and are used for identification purposes only.</p>
+
+    <h2>Limitation of liability</h2>
+    <p>{cfg.site.brand_name} is not liable for any damages arising from your use of or reliance on the information on this site, including but not limited to decisions made about hearing healthcare based on content on this site.</p>
+
+    <h2>Governing law</h2>
+    <p>These terms are governed by the laws of the United States.</p>
+
+    <h2>Changes</h2>
+    <p>We may update these terms from time to time. Continued use of the site following any changes constitutes acceptance of the new terms.</p>
+
+    <h2>Contact</h2>
+    <p>For questions about these terms, contact us via the <a href="/contact/">contact page</a>.</p>
+  </div>
+</BaseLayout>

@@ -1,0 +1,28 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig, getPersona } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const persona = getPersona()
+---
+
+<BaseLayout
+  title={`Contact — ${cfg.site.brand_name}`}
+  description={`Contact ${cfg.site.brand_name}.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>Contact</h1>
+    <p>Have a question about a product we've covered, a correction to submit, or something you'd like us to research? We'd like to hear from you.</p>
+
+    <h2>Editorial enquiries</h2>
+    <p>For questions about our editorial content, research methodology, or product coverage, email us at <a href={`mailto:hello@${cfg.site.domain}`}>{`hello@${cfg.site.domain}`}</a>.</p>
+
+    <h2>Corrections</h2>
+    <p>If you believe something we've published is factually incorrect — especially regarding product specifications, FDA classification, or clinical evidence — please let us know. We take accuracy seriously, particularly on health-adjacent content, and we will review and correct errors promptly.</p>
+
+    <h2>A note on medical questions</h2>
+    <p>We are not able to provide personalised hearing health advice. For questions about your specific hearing situation, hearing loss diagnosis, or which hearing aid is right for your audiogram, please consult a licensed audiologist or hearing healthcare professional. Resources from the <a href="https://www.audiology.org" rel="noopener noreferrer" target="_blank">American Academy of Audiology</a> can help you find a professional near you.</p>
+
+    <h2>Business enquiries</h2>
+    <p>For business-related enquiries, use the same email address above.</p>
+  </div>
+</BaseLayout>

@@ -1,0 +1,31 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const updatedDate = new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+---
+
+<BaseLayout
+  title={`Affiliate Disclosure — ${cfg.site.brand_name}`}
+  description={`Affiliate relationship disclosure for ${cfg.site.brand_name}.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>Affiliate Disclosure</h1>
+    <p><em>Last updated: {updatedDate}</em></p>
+
+    <h2>Amazon affiliate programme</h2>
+    <p>{cfg.site.brand_name} is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. As an Amazon Associate, we earn from qualifying purchases.</p>
+
+    <h2>Other affiliate relationships</h2>
+    <p>In addition to Amazon, {cfg.site.brand_name} may earn commissions from purchases made through links to other retailers and hearing aid providers. Where an affiliate relationship exists, it is subject to the same editorial independence standards described below.</p>
+
+    <h2>Editorial independence</h2>
+    <p>Affiliate commissions do not influence editorial conclusions. Products are recommended — or not recommended — based on our research into owner-reported performance, verified buyer reports, and audiological sourcing. A product we would not recommend to a family member will not appear as a recommendation on this site, regardless of its commission rate.</p>
+
+    <h2>FTC disclosure</h2>
+    <p>In accordance with the Federal Trade Commission's guidelines concerning the use of endorsements and testimonials in advertising, {cfg.site.brand_name} discloses any material connection between this site and the companies or products recommended. Affiliate links are identified by their destination URLs (Amazon, manufacturer direct, and partner retailer links).</p>
+
+    <h2>Prices and availability</h2>
+    <p>Prices displayed are accurate at the time of publication but are subject to change. Always confirm the current price and availability at the retailer before purchasing.</p>
+  </div>
+</BaseLayout>

@@ -1,0 +1,34 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig, getPersona } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const persona = getPersona()
+---
+
+<BaseLayout
+  title={`How We Research — ${cfg.site.brand_name}`}
+  description={`Our editorial methodology: how ${persona.name_used} researches and evaluates ${cfg.site.niche} products.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>How We Research {cfg.site.niche_label ?? cfg.site.niche} Products</h1>
+    <p>{persona.name_used}'s personal experience navigating hearing healthcare decisions shapes what we look for — but every recommendation on this site is built on research and verified sourcing, not personal product testing.</p>
+
+    <h2>What we evaluate</h2>
+    <p>For each hearing aid or assistive device: technology type (RIC, BTE, ITE, OTC), amplification range and audiogram fit, connectivity features, battery life under real-world use, trial period and return policy, service network and warranty terms, and owner-reported real-world performance versus specification claims.</p>
+
+    <h2>How we source information</h2>
+    <p>We draw on verified owner reviews from multiple independent sources, audiological trade publications and consumer guidance (including resources from ASHA, AAA, and BHI), published clinical and comparative studies where available, manufacturer specifications and documentation, and consensus from hearing aid user communities. Sourcing is noted where it materially affects a recommendation.</p>
+
+    <h2>What we do not do</h2>
+    <p>We do not conduct audiological assessments. We do not claim personal product testing when the basis is research. We do not accept free devices in exchange for coverage. We do not reduce complex hearing health decisions to star ratings.</p>
+
+    <h2>A note on OTC versus prescription hearing aids</h2>
+    <p>Some products covered on this site are FDA-registered over-the-counter (OTC) hearing aids intended for adults with perceived mild-to-moderate hearing loss. Others are prescription devices that require fitting by a licensed audiologist. We aim to clearly distinguish between these categories. If you are unsure which is appropriate for you, consult a hearing healthcare professional before purchasing.</p>
+
+    <h2>Update cadence</h2>
+    <p>The hearing aid market changes quickly — new chipsets, OTC category expansion, and firmware updates affect recommendations. We update articles when new products launch, when specifications change materially, or when owner-community consensus shifts our assessment.</p>
+
+    <h2>Affiliate links</h2>
+    <p>Some links on this site are affiliate links. If you buy something through one, we earn a small commission at no extra cost to you. This never influences what we recommend — see our <a href="/affiliate-disclosure/">full affiliate disclosure</a>.</p>
+  </div>
+</BaseLayout>

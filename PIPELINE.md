@@ -1,4 +1,7 @@
-# PIPELINE.md
+# PIPELINE.md — v1.2
+
+**Version:** v1.2 — updated 2026-05-20. Adds four hardening items from Ten27 Phase 5 UAT.
+See section 12 (v1.2 changelog) for full change log. Previous version: v1.0 (locked against Northwoods Overland launch, 2026-05-18).
 
 The complete operational specification for building, launching, and operating affiliate sites in the portfolio.
 
@@ -19,6 +22,7 @@ This document is the source of truth. Every site follows the same sequence. No s
 9. Homepage strategy
 10. Pending operational fixes for current sites
 11. Document maintenance
+12. v1.2 changelog — Ten27 UAT hardening
 
 ---
 
@@ -286,6 +290,33 @@ Search Amazon for 10 representative product types in the niche. Count clean Amaz
 
 ---
 
+### Point 1.5: Amazon availability assessment
+
+**What it does:** Quantifies what share of the niche's products are actually sold on Amazon before committing to keyword research or catalog sourcing.
+
+**Why it matters:** Niches vary dramatically in Amazon coverage. A site built assuming 80% Amazon availability that turns out to be 40% Amazon will have thin product cards, high NOT_ON_AMAZON rates, and low affiliate revenue. This assessment sets expectations and determines the sourcing strategy before any catalog work begins.
+
+**Method:** Run Rainforest API on 20-30 representative search queries from the niche (not individual ASINs — keyword searches). Count the fraction that return ≥3 qualified Amazon-sold listings.
+
+**Three-tier response framework:**
+
+| Amazon rate | Strategy |
+|---|---|
+| ≥70% Amazon | Launch Amazon-only. Honest editorial framing: "the best [category] you can buy on Amazon." No pre-seeding needed. |
+| 50–70% Amazon | Pre-seed 10–20 priority brand-direct products (via brand affiliate programs or brand.com links) before producer run. These cover the most-searched premium brands that don't sell on Amazon. |
+| <50% Amazon | Pre-seed extensively or explicitly position the site as the "Amazon tier of [niche]." Consider whether the niche is viable without broader affiliate programs. |
+
+**Northwoods Overland example (validated 2026-05-18):** Overlanding sits at ~55–60% Amazon. Premium brands (Prinsu, ARB specialty hardware) are DTC-only. Correct response: source Amazon products for the bulk catalog, retitle brand-specific articles to generic alternatives where the brand has no Amazon presence.
+
+**Output:** Single documented decision — which tier, what sourcing strategy, any pre-seeding list.
+
+**Failure modes:**
+
+- Skipping this step leads to post-generation brand-mismatch audits (fixable but expensive — see brand-mismatch audit Northwoods remediation)
+- Treating NOT_ON_AMAZON as a per-article surprise rather than a niche-level characteristic
+
+---
+
 ### Point 2: Keyword research
 
 **What it does:** Generate the article topic list with full metrics for each keyword.
@@ -534,7 +565,19 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - Cookie policy (or merged into privacy)
 - Terms of use (optional)
 
-**Legal text source:** Claude Code generates from master templates at `~/affiliate-platform/templates/legal/` with token substitution. Templates reviewed once by you.
+**Furniture template families (v1.2):** Furniture pages are generated from vertical-aware templates, not generic find-and-replace from prior sites. Site declares its template family in `site.config.yaml`:
+
+```yaml
+furniture_template_family: ymyl   # or: lifestyle
+```
+
+Available families:
+- `lifestyle` — non-YMYL sites (e-bikes, overlanding, kitchen, gardening, sauna). Standard affiliate framing, research-based methodology.
+- `ymyl` — YMYL sites (hearing aids, medical, health-adjacent). Adds explicit medical advice disclaimer, OTC-vs-prescription guidance, health data privacy note. Use for BetterHearingHub and any future health/financial vertical.
+
+Templates live at `~/affiliate-platform/templates/furniture/<family>/`. Copy the appropriate family into `src/pages/` at Point 7 (site shell), then customise for the site's niche copy.
+
+**Legal text source:** Claude Code generates from templates at `~/affiliate-platform/templates/furniture/` with the appropriate family selected for the vertical.
 
 **Contact form:** FormSpree (existing portfolio pattern — single shared endpoint across portfolio routing to your personal email).
 
@@ -557,11 +600,25 @@ Mission:
 - Affiliate disclosure visible above the fold on article pages
 - Pages render with correct site name (no template inheritance, no placeholder tokens)
 
+**Point 8 close gate — furniture-page validator (v1.2):**
+
+```bash
+node affiliate-platform/scripts/validate-furniture-pages.mjs --site <slug>
+```
+
+Must pass (exit 0) before Point 9. Checks:
+- HARD persona-claim violations in all furniture pages (same FTC-risk patterns as Point 13.5 checks in articles)
+- Previous-vertical vocabulary bleed (configure in `config/furniture-validation.yaml`)
+
+If no `config/furniture-validation.yaml` exists, bleed detection is skipped. For sites where carryover risk exists, author the forbidden vocabulary config before Point 8 close.
+
 **Failure modes:**
 
 - Pages missing entirely (Amazon enforcement risk)
 - Pages have wrong site name in copy (template inheritance)
 - Contact form FormSpree endpoint wrong
+- Persona-claim violations in furniture pages (FTC risk — same severity as article violations)
+- Prior-vertical vocabulary bleed (professional credibility risk)
 
 ---
 
@@ -654,11 +711,25 @@ python3 tools/resolve-verify-asins.py --site <slug>
 - All products have non-placeholder `default_pros` / `default_cons`
   (`grep -c "Well-reviewed\|Strong customer ratings" content/products/products.yaml` → 0)
 
+**Brand-enrichment pass (required after sourcing):**
+
+After Rainforest sourcing completes, every product in products.yaml must have a populated `brand:` field. Null brand entries suppress PASS scores in the brand-match audit, causing false FAILs and triggering unnecessary article regeneration.
+
+```bash
+# Check coverage — must return 0 before proceeding
+node affiliate-platform/scripts/validate-catalog-brand-coverage.mjs --site <slug>
+```
+
+If non-zero: for each null-brand product, look up the manufacturer name and set `brand: <Name>` manually, or re-run Rainforest with a brand-specific query for that product.
+
+**Northwoods Overland lesson:** 60%+ of initial catalog had `brand: null`. DECKED, ARB, and Yakima products existed in the catalog with correct ASINs but unbranded entries, which masked valid brand-match assignments and required a post-launch enrichment pass.
+
 **Failure modes:**
 
 - Picking product variants that don't match article topic
 - High NOT_ON_AMAZON rate in premium-brand niches (judgment: accept or find substitutes)
 - RAINFOREST_KEY not set — tool exits with clear error pointing to credentials.env
+- Skipping brand-enrichment pass → false FAILs in brand-match audit
 
 ---
 
@@ -727,6 +798,44 @@ Sites pick a policy at initialisation and stick with it; changing policy mid-lif
 
 ---
 
+### Point 12.5: Brand-match audit gate
+
+**What it does:** Validates that every article whose headline keyword contains a brand name has at least one assigned product that carries that brand in products.yaml.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-brand-match.mjs --site <slug>
+```
+
+Exits 0 if no FAILs. Exits 1 if any FAILs. Writes `brand-mismatch-audit.md` to the site root.
+
+**Do not proceed to Point 13 (article generation) until this passes.**
+
+**Remediation paths for FAIL articles:**
+
+| Situation | Action |
+|---|---|
+| Brand sells on Amazon, products exist in catalog but unbranded | Enrich `brand:` field in products.yaml (Point 10 brand-enrichment pass) |
+| Brand sells on Amazon, products not yet in catalog | Source via Rainforest using brand name as query; add to catalog; assign to article |
+| Brand has no Amazon presence | Retitle article to remove brand from keyword; assign generic alternatives; regenerate |
+
+**Retitle-to-generic strategy (validated Northwoods 2026-05-18):** When a brand has no Amazon presence (DTC-only, specialty-only), change the article's `keyword` in pipeline.json to a generic variation that covers the same search intent without naming the brand. The URL slug stays unchanged to preserve any links. Regenerate the article with `--force`.
+
+- Example: `prinsu roof rack 4runner` → `platform roof rack 4runner`
+- Example: `sherpa roof rack` → keep — Sherpa products were added as new ASINs
+
+**PARTIAL articles** (exactly 1 brand-matching product): Not blocking — proceed to Point 13 and note in backlog. PARTIALs in a brand cluster are often resolved automatically when FAIL articles in the same cluster are fixed (the regenerated articles draw from the now-enriched catalog).
+
+**Companion validator:**
+
+```bash
+# Also confirms all products have brand populated (prerequisite for accurate audit)
+node affiliate-platform/scripts/validate-catalog-brand-coverage.mjs --site <slug>
+```
+
+---
+
 ### Point 13: Article generation
 
 **What it does:** Producer runs against fully populated pipeline.json (products + images + article configs), generates one .md file per article.
@@ -755,12 +864,72 @@ Runs unattended for 1.5-3 hours.
 - Pass/fail counts surfaced
 - Failure distribution by validator rule surfaced
 
+**Pipeline.json persistence (v1.2 — verified):** Manual edits to `pipeline.json` made while the producer is between runs (skip flags, product corrections, hub taxonomy) persist across restarts. `save_pipeline()` reads the current disk state and merges only status fields (`status`, `staged`, `published`, `fail_count`) from the in-memory pipeline — structural edits (products, keywords, hub) are never overwritten.
+
+**Warning — `generate-pipeline.py` is destructive:** The `data/generate-pipeline.py` script in each site repo regenerates `pipeline.json` from scratch from the launch xlsx. Running it after manual patches are applied will lose all patches. Never run `generate-pipeline.py` after catalog sourcing (Points 10-12) has begun. If regeneration is needed, export manual patches first and reapply.
+
 **Failure modes:**
 
 - Producer skips articles silently
 - Model rate limits / API errors mid-run
 - Persona file missing or empty
 - products.yaml missing for some pipeline products
+- `generate-pipeline.py` run after manual patches applied (data loss)
+
+---
+
+### Point 13.5: Persona-claim audit gate
+
+**What it does:** Scans all staged/published articles for first-person testing and editorial voice violations before deploy.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-persona-claims.mjs --site <slug>
+```
+
+**Two violation tiers:**
+
+| Tier | Patterns | Response |
+|---|---|---|
+| HARD | "I tested", "I've owned", "In my testing", "When I tested this", "after N weeks of testing this" | Fix before deploy. FTC risk. Exit 1. |
+| SOFT | "I'd argue", "I'd move", "I'd recommend", "I'd suggest", "I'd lean", "I'd prefer" | Log to refinement backlog. Not blocking. Exit 0 with count. |
+
+**HARD violations must be fixed before Point 14 (publish).** Acceptable fixes:
+- Remove the claim entirely ("I'd argue the labor cost is justified" → "the labor cost is justified")
+- Replace with sourced framing ("owner reviews report that...")
+- Regenerate the article with `--force` (producer-side Check 6 catches the pattern at generation time)
+
+SOFT violations are lower-urgency but represent editorial voice drift that weakens the persona's credibility. Add to refinement backlog and fix in the next editorial pass.
+
+**Producer-side enforcement:** `check_output_shape()` in `article_builder.py` catches both HARD (Check 5) and SOFT (Check 6) patterns at generation time, causing immediate retry. The standalone audit tool serves as a second-pass sweep across the already-published catalog.
+
+---
+
+### Point 13.6: Image markdown validator gate (v1.2)
+
+**What it does:** Scans all staged articles for image markdown with invalid URLs — specifically the producer bug that emits Python dict literals as image URLs (`![alt]({'alt': 'x', 'path': 'y.webp'})`).
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-image-markdown.mjs --site <slug>
+```
+
+**What it catches:**
+- Dict-literal URLs (the Ten27/Northwoods bug: 919 and 1,155 instances respectively)
+- Unresolved `{{ template syntax }}` in image URLs
+- Whitespace in local image paths
+- Local paths with no valid image extension (.webp, .png, .jpg, .jpeg, .gif, .svg, .avif)
+- Empty URLs
+
+**HARD violation:** Any image with an invalid URL will render as a broken `<img>` tag (literal placeholder text or no image). Exit 1. Must fix before Point 14.
+
+**Fix:** Run `python3 affiliate-platform/scripts/fix-image-markdown.py --site <slug> --dry-run` to preview, then without `--dry-run` to apply.
+
+**Failure modes:**
+- Producer emits dict-literal URLs (older producer versions — check is the fix)
+- Images with missing extensions get flagged — confirm the extension is intentional
 
 ---
 
@@ -986,6 +1155,26 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 - Key file content doesn't match what's submitted to API
 - Producer integration not actually firing (FSG/MLT concern)
 - BWT not registered with key
+
+---
+
+### Point 20.5: Pre-launch UAT — furniture-page re-validation (v1.2)
+
+**What it does:** Re-runs the furniture-page validator before the site goes live, catching any drift between Point 8 (furniture creation) and the launch date.
+
+Furniture pages can drift: editorial passes, config changes, and template updates may accidentally re-introduce persona claims or vocabulary bleed between Point 8 and Point 21.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-furniture-pages.mjs --site <slug> --verbose
+```
+
+Must pass (exit 0). If violations found:
+- HARD persona-claim violation: fix and redeploy. Do not launch.
+- Vocabulary bleed: fix and redeploy. Do not launch.
+
+**This catches the Ten27 UAT Blocker 2 and Blocker 3 class of issues** — furniture-page violations that were introduced or persisted between scaffolding and launch.
 
 ---
 
@@ -1258,6 +1447,52 @@ When new lessons emerge:
 
 - Update relevant section
 - Note the change in CHANGELOG.md at platform root
+
+---
+
+## 12. v1.2 changelog — Ten27 UAT hardening
+
+**Date:** 2026-05-20  
+**Trigger:** Four gaps surfaced during Ten27 Phase 5 UAT. Fixed before BetterHearingHub launch.
+
+### 12.1 Image markdown validator (Point 13.6)
+
+**Problem:** Producer emitted Python dict literals as image URLs (`![alt]({'alt': 'x', 'path': 'y.webp'})`). Validators checked "image present" but not "image URL valid." 919 instances leaked to Ten27 staging; 1,155 instances were live on Northwoods Overland.
+
+**Fix:**
+- `scripts/validate-image-markdown.mjs` — new validator, runs at Point 13.6 close, exits 1 on invalid image URL
+- `scripts/fix-image-markdown.py` — bulk fixer for dict-literal pattern, handles both single and double-quoted alt values
+- Northwoods Overland backport: 1,159 instances fixed and deployed 2026-05-20
+
+### 12.2 Furniture-page validator (Points 8 and 20.5)
+
+**Problem:** Validators ran on article content only. Furniture pages bypassed validation entirely. Two UAT blockers slipped through: (a) home page contained "Every review on this site is based on real use" — FTC-risk testing claim; (b) disclaimer/privacy policy had overlanding vocabulary from Northwoods Overland template carryover.
+
+**Fix:**
+- `scripts/validate-furniture-pages.mjs` — new validator, checks persona-claim violations and vocabulary bleed in all furniture pages
+- Gate added at Point 8 close (furniture creation) and Point 20.5 (pre-launch UAT)
+- `config/furniture-validation.yaml` per site — configures forbidden vocabulary for bleed detection
+- Live violations found and fixed on Northwoods Overland (`index.astro`) and Ten27 (`index.astro`, `how-we-test.astro`) 2026-05-20
+
+### 12.3 Furniture template families
+
+**Problem:** Furniture pages were generated from generic templates with brand-name substitution. Generic templates carried vocabulary patterns from prior vertical (Northwoods → Ten27 carryover). YMYL verticals need different framing entirely (medical advice disclaimers, sourced-framing methodology).
+
+**Fix:**
+- `templates/furniture/lifestyle/` — cleaned Ten27 furniture pages, for non-YMYL sites (e-bikes, overlanding, sauna)
+- `templates/furniture/ymyl/` — freshly authored for YMYL verticals (hearing aids, health-adjacent). Includes medical advice disclaimer, OTC-vs-prescription guidance, health data privacy note
+- `templates/site-shell/src/pages/` — fixed for testing claims in `how-we-test.astro`, `disclaimer.astro`, `index.astro`
+- Site declares template family via `furniture_template_family:` in `site.config.yaml`
+
+### 12.4 Pipeline.json persistence
+
+**Problem:** Concern that manual pipeline.json patches (skip flags, product corrections) would not survive across producer restarts.
+
+**Finding:** `save_pipeline()` already has correct merge semantics as of v1.1 — reads disk state, only overwrites status fields (`status`, `staged`, `published`, `fail_count`) from memory, preserves all structural edits.
+
+**Remaining risk documented:** `data/generate-pipeline.py` scripts do full overwrites from xlsx — running after manual patches loses all patches. Documented in Point 13 as a warning.
+
+**Added:** 5 unit tests in `producer/tests/test_data_loader.py::TestSavePipelinePersistence` verifying merge correctness across all edge cases.
 
 ---
 

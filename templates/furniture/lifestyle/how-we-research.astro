@@ -1,0 +1,24 @@
+---
+import BaseLayout from '@platform/core/src/layouts/BaseLayout.astro'
+import { getSiteConfig, getPersona } from '@platform/core/src/lib/config'
+const cfg = getSiteConfig()
+const persona = getPersona()
+---
+
+<BaseLayout
+  title={`How We Test — ${cfg.site.brand_name}`}
+  description={`Our testing methodology: how ${persona.name_used} evaluates ${cfg.site.niche} products before recommending them.`}
+>
+  <div class="container" style="padding-top:2rem; padding-bottom:4rem; max-width:720px;">
+    <h1>How We Evaluate E-Bikes and Accessories</h1>
+    <p>Every product on this site is assessed through a combination of specification analysis, owner community research, verified buyer reports, and manufacturer documentation. Dan's background in cycling informs the evaluation framework — understanding what to look for in motor systems, geometry, range under load, and component quality — applied consistently across all products reviewed.</p>
+    <h2>What we evaluate</h2>
+    <p>For e-bikes: motor system type and torque output, real-world range under climbing load (not flat-ground spec sheet figures), total system weight, frame geometry, battery cell quality, warranty coverage, and service network availability. For accessories: compatibility with trail use, durability signals, and whether the product holds up to the actual conditions riders encounter.</p>
+    <h2>How we source product information</h2>
+    <p>For every product covered on this site, we draw on verified buyer reports, owner consensus in cycling communities (r/ebikes, Pinkbike, MTBR, Singletracks), published specifications, and manufacturer documentation. Where sourcing is particularly relevant to a conclusion, it is noted in the article.</p>
+    <h2>What we don't do</h2>
+    <p>We don't claim personal testing without basis — if Dan hasn't personally ridden a bike, we say so and source accordingly. We don't accept free products in exchange for coverage. We don't rank products solely on Amazon ratings or flatten motor system differences into vague "powerful motor" language.</p>
+    <h2>Affiliate links</h2>
+    <p>Some links on this site are affiliate links. If you buy something through one, we earn a small commission at no extra cost to you. This never influences what we recommend — see our <a href="/affiliate-disclosure/">full affiliate disclosure</a>.</p>
+  </div>
+</BaseLayout>
