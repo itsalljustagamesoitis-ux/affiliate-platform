@@ -1,0 +1,298 @@
+# Master cross-vertical forbidden vocabulary
+#
+# Used by scripts/preflight.py check 1 (scaffold-contamination).
+#
+# When preflight runs for site X, it loads all sections EXCEPT the one
+# matching site X's own vertical (detected from site.config.yaml niche field).
+# Any term found in content/articles/ or src/pages/ from a foreign section = FAIL.
+#
+# Vertical detection: preflight matches site niche against the `niche_keywords`
+# list in each section. First match wins. Override with `vertical: <key>` in
+# site.config.yaml to skip auto-detection.
+#
+# Guidelines for term selection:
+#  - Terms must be sufficiently specific to their vertical (not generic English words)
+#  - Abbreviations and acronyms only if they're industry-specific (RIC, BTE = hearing aids)
+#  - Brand names only if they're closely associated with one vertical (Shimano = cycling)
+#  - Exclude terms that appear legitimately in multiple verticals (ISO, decibel)
+
+hearing_aids:
+  niche_keywords:
+    - hearing
+    - audiology
+    - hearing aid
+    - assistive listening
+  terms:
+    - "hearing aid"
+    - "hearing aids"
+    - "audiologist"
+    - "audiological"
+    - "audiology"
+    - "otoscope"
+    - "tinnitus"
+    - "cochlear"
+    - "earmold"
+    - "audiogram"
+    - "audiologist"
+    - "hearing test"
+    - "RIC hearing"
+    - "BTE hearing"
+    - "ITE hearing"
+    - "behind-the-ear"
+    - "in-the-ear"
+    - "receiver-in-canal"
+    - "OTC hearing"
+    - "over-the-counter hearing"
+    - "hearing loss compensation"
+    - "sensorineural"
+    - "conductive hearing"
+    - "dB HL"
+    - "audiometric"
+    - "Oticon"
+    - "Phonak"
+    - "Signia"
+    - "Starkey hearing"
+    - "Widex"
+    - "ReSound hearing"
+
+photography:
+  niche_keywords:
+    - photography
+    - camera
+    - lens
+    - photo gear
+  terms:
+    - "shutter speed"
+    - "bokeh"
+    - "mirrorless camera"
+    - "DSLR"
+    - "focal length"
+    - "crop sensor"
+    - "full frame sensor"
+    - "viewfinder"
+    - "lens hood"
+    - "prime lens"
+    - "zoom lens"
+    - "RAW format"
+    - "autofocus system"
+    - "burst shooting"
+    - "exposure compensation"
+    - "noise reduction photography"
+    - "Sony Alpha"
+    - "Canon EOS"
+    - "Nikon Z"
+    - "Fujifilm X"
+    - "micro four thirds"
+    - "lens mount"
+    - "f-stop"
+    - "depth of field"
+
+cycling:
+  niche_keywords:
+    - cycling
+    - bike
+    - bicycle
+    - e-bike
+    - ebike
+    - ten27
+  terms:
+    - "derailleur"
+    - "cassette cycling"
+    - "chainring"
+    - "Shimano"
+    - "SRAM cycling"
+    - "groupset"
+    - "bottom bracket"
+    - "cadence sensor"
+    - "drivetrain"
+    - "crankset"
+    - "rear derailleur"
+    - "front derailleur"
+    - "saddle cycling"
+    - "handlebar drop"
+    - "power meter cycling"
+    - "gear ratio cycling"
+    - "disc brake cycling"
+    - "tubeless tire"
+    - "carbon fork"
+    - "Bosch motor"
+    - "Shimano Steps"
+    - "torque sensor ebike"
+    - "pedal assist system"
+    - "watt-hour battery"
+
+overlanding:
+  niche_keywords:
+    - overlanding
+    - overland
+    - vehicle-based camping
+    - off-road camping
+  terms:
+    - "overland vehicle"
+    - "off-road recovery"
+    - "snatch strap"
+    - "hi-lift jack"
+    - "rooftop tent"
+    - "skid plate"
+    - "differential lock"
+    - "recovery board"
+    - "MaxTrax"
+    - "Eezi-Awn"
+    - "suspension lift"
+    - "bull bar"
+    - "winch recovery"
+    - "ARB air"
+    - "Prinsu"
+    - "roof rack overlanding"
+    - "RTT"
+    - "underbody protection"
+    - "rock slider"
+
+gardening:
+  niche_keywords:
+    - gardening
+    - garden
+    - horticulture
+    - planting
+  terms:
+    - "planting zone"
+    - "USDA zone"
+    - "germination"
+    - "soil amendment"
+    - "grow light"
+    - "hardening off"
+    - "seedling tray"
+    - "trowel"
+    - "garden fork"
+    - "raised bed gardening"
+    - "compost bin"
+    - "NPK fertilizer"
+    - "pH soil"
+    - "companion planting"
+    - "succession planting"
+    - "drip irrigation"
+    - "mulching"
+    - "overwintering plants"
+    - "frost date"
+    - "cold frame"
+
+kitchen_cookware:
+  niche_keywords:
+    - kitchen
+    - cookware
+    - cooking
+    - tablespoon
+  terms:
+    - "mise en place"
+    - "mandoline slicer"
+    - "Dutch oven"
+    - "springform pan"
+    - "beurre blanc"
+    - "julienne"
+    - "ramekin"
+    - "fondue set"
+    - "carbon steel pan"
+    - "non-stick cookware"
+    - "stainless steel cookware"
+    - "cast iron skillet"
+    - "immersion blender"
+    - "stand mixer"
+    - "thermometer cooking"
+    - "bench scraper"
+    - "Wüsthof"
+    - "Victorinox kitchen"
+    - "All-Clad"
+    - "Lodge cast iron"
+
+entertaining:
+  niche_keywords:
+    - entertaining
+    - table setting
+    - home entertaining
+    - dining
+  terms:
+    - "table runner"
+    - "place setting"
+    - "charger plate"
+    - "napkin ring"
+    - "charcuterie board"
+    - "serveware"
+    - "chafing dish"
+    - "dinnerware set"
+    - "flatware set"
+    - "Lenox"
+    - "Noritake"
+    - "Waterford"
+    - "Mikasa"
+    - "buffet server"
+    - "tiered serving tray"
+    - "punch bowl"
+
+sauna:
+  niche_keywords:
+    - sauna
+    - steam room
+    - infrared sauna
+  terms:
+    - "kiuas"
+    - "löyly"
+    - "Finnish sauna"
+    - "Harvia"
+    - "Saunum"
+    - "Clearlight sauna"
+    - "Sunlighten"
+    - "almost heaven sauna"
+    - "barrel sauna"
+    - "sauna stones"
+    - "sauna bucket"
+    - "sauna hat"
+    - "sauna heater"
+    - "infrared sauna"
+    - "steam room"
+    - "sauna blanket"
+    - "sauna tent"
+    - "sauna whisk"
+    - "vihta"
+    - "loyly"
+    - "Lifesmart sauna"
+    - "Dynamic sauna"
+
+caregiving:
+  niche_keywords:
+    - caregiver
+    - caregiving
+    - senior care
+    - elder care
+    - home care
+    - aging
+    - mobility
+    - accessibility
+  terms:
+    - "activities of daily living"
+    - "ADL"
+    - "skilled nursing"
+    - "occupational therapist"
+    - "physical therapist"
+    - "wheelchair accessible"
+    - "grab bar"
+    - "raised toilet seat"
+    - "shower chair"
+    - "medical alert"
+    - "fall detection"
+    - "caregiver burnout"
+    - "memory care"
+    - "dementia care"
+    - "Alzheimer"
+    - "hospice"
+    - "palliative care"
+    - "Medicare coverage"
+    - "Medicaid eligibility"
+    - "in-home aide"
+    - "adult day care"
+    - "respite care"
+    - "durable medical equipment"
+    - "DME"
+    - "pill organizer"
+    - "medication dispenser"
+    - "transfer belt"
+    - "rollator walker"

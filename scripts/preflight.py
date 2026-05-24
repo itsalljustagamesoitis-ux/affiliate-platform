@@ -64,34 +64,38 @@ YMYL_HUB_TERMS = [
     "sauna-health", "sauna-how-to", "health-guide", "health-benefit",
 ]
 
-# Known cross-vertical vocabulary by niche slug
-KNOWN_VERTICAL_VOCAB: dict[str, list[str]] = {
-    "hearing": [
-        "hearing aid", "audiologist", "audiology", "otoscope", "tinnitus",
-        "hearing loss", "decibal", "decibel", "cochlear", "earmold",
-        "Medicare", "Medicaid", "hearing test", "audiogram",
-    ],
-    "camera": [
-        "mirrorless", "DSLR", "aperture", "shutter speed", "ISO", "bokeh",
-        "crop sensor", "full frame", "focal length", "viewfinder",
-    ],
-    "garden": [
-        "planting zone", "USDA zone", "germination", "trowel", "compost",
-        "soil amendment", "grow light", "seedling", "hardening off",
-    ],
-    "kitchen": [
-        "Dutch oven", "cast iron skillet", "mise en place", "mandoline",
-        "immersion blender", "springform pan",
-    ],
-    "cycling": [
-        "derailleur", "cassette", "chainring", "cadence sensor", "Shimano",
-        "SRAM", "groupset", "bottom bracket",
-    ],
-    "overland": [
-        "overlanding", "off-road recovery", "snatch strap", "hi-lift jack",
-        "rooftop tent", "skid plate", "differential lock",
-    ],
-}
+MASTER_VOCAB_PATH = PLATFORM_ROOT / "config/forbidden-vocabulary.yaml"
+
+
+def load_master_vocab() -> dict:
+    """Load affiliate-platform/config/forbidden-vocabulary.yaml.
+    Returns dict of {section_key: {"niche_keywords": [...], "terms": [...]}}"""
+    if not MASTER_VOCAB_PATH.exists():
+        return {}
+    with open(MASTER_VOCAB_PATH, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return data
+
+
+def detect_vertical(cfg: dict) -> str:
+    """Return the section key from forbidden-vocabulary.yaml that matches this site.
+    Uses site.config.yaml `vertical:` override first, then matches niche against
+    each section's niche_keywords list. Returns '' if no match."""
+    # Explicit override in site.config.yaml
+    override = cfg.get("site", {}).get("vertical", "")
+    if override and str(override).lower() not in ("false", "none", ""):
+        return str(override).lower()
+
+    niche = (cfg.get("site", {}).get("niche", "") or "").lower()
+    if not niche:
+        return ""
+
+    master = load_master_vocab()
+    for section_key, section in master.items():
+        for kw in section.get("niche_keywords", []):
+            if kw.lower() in niche:
+                return section_key
+    return ""
 
 # ── Result tracking ───────────────────────────────────────────────────────────
 
@@ -159,10 +163,10 @@ def slug_wordset(slug: str) -> frozenset[str]:
 def check_scaffold_contamination(site_root: Path, cfg: dict, verbose: bool) -> CheckResult:
     r = CheckResult("scaffold-contamination")
 
-    # Build forbidden vocabulary list
+    # Priority 1: per-site config/furniture-validation.yaml (explicit override)
     forbidden: list[str] = []
+    source_label = ""
 
-    # Load from config/furniture-validation.yaml
     fv_path = site_root / "config/furniture-validation.yaml"
     fv = load_yaml(fv_path)
     if fv:
@@ -171,54 +175,71 @@ def check_scaffold_contamination(site_root: Path, cfg: dict, verbose: bool) -> C
                 forbidden.append(entry.lower())
             elif isinstance(entry, dict) and "term" in entry:
                 forbidden.append(entry["term"].lower())
+        if forbidden:
+            source_label = "config/furniture-validation.yaml"
 
-    # Load from site.config.yaml forbidden_vocabulary
-    fc_list = cfg.get("content", {}).get("forbidden_vocabulary", [])
-    for term in fc_list:
-        forbidden.append(str(term).lower())
-
-    # If no site-specific config, derive from niche
-    niche = cfg.get("site", {}).get("niche", "") or ""
-    niche_lower = niche.lower()
+    # Priority 2: site.config.yaml forbidden_vocabulary list
     if not forbidden:
-        r.warn("No forbidden vocabulary configured — add config/furniture-validation.yaml to enable this check")
-        r.info("  See PIPELINE.md §8 for furniture-validation.yaml format")
-        return r
+        for term in cfg.get("content", {}).get("forbidden_vocabulary", []):
+            forbidden.append(str(term).lower())
+        if forbidden:
+            source_label = "site.config.yaml content.forbidden_vocabulary"
+
+    # Priority 3: platform master vocabulary file (all sections except this site's vertical)
+    if not forbidden:
+        own_vertical = detect_vertical(cfg)
+        master = load_master_vocab()
+        if master:
+            skipped_sections = []
+            for section_key, section in master.items():
+                if section_key == own_vertical:
+                    skipped_sections.append(section_key)
+                    continue
+                for term in section.get("terms", []):
+                    forbidden.append(str(term).lower())
+            if own_vertical:
+                r.info(f"Using master vocabulary ({len(master)} sections); skipping own vertical '{own_vertical}'")
+            else:
+                r.info(f"Using master vocabulary ({len(master)} sections); vertical undetected — scanning all sections")
+            source_label = f"affiliate-platform/config/forbidden-vocabulary.yaml"
+        else:
+            r.warn("No forbidden vocabulary configured — master vocabulary file not found at affiliate-platform/config/forbidden-vocabulary.yaml")
+            return r
+
+    # Pre-compile word-boundary patterns for each term.
+    # Multi-word phrases use \b only at start/end; single words use strict \b on both sides.
+    compiled = []
+    for term in forbidden:
+        escaped = re.escape(term)
+        pattern = re.compile(r"\b" + escaped + r"\b", re.IGNORECASE)
+        compiled.append((term, pattern))
 
     # Scan content/articles/ and src/pages/
     scan_dirs = [site_root / "content/articles", site_root / "src/pages"]
-    contaminated: list = []  # (file, term, snippet)
+    contaminated: list = []  # (file, term)
 
     for scan_dir in scan_dirs:
         if not scan_dir.exists():
             continue
-        for fp in scan_dir.rglob("*.md"):
+        for fp in list(scan_dir.rglob("*.md")) + list(scan_dir.rglob("*.astro")):
             try:
-                text = fp.read_text(encoding="utf-8").lower()
-                for term in forbidden:
-                    if term in text:
-                        contaminated.append((fp.name, term, ""))
-                        break
-            except Exception:
-                pass
-        for fp in scan_dir.rglob("*.astro"):
-            try:
-                text = fp.read_text(encoding="utf-8").lower()
-                for term in forbidden:
-                    if term in text:
-                        contaminated.append((fp.name, term, ""))
+                text = fp.read_text(encoding="utf-8")
+                for term, pattern in compiled:
+                    if pattern.search(text):
+                        contaminated.append((fp.name, term))
                         break
             except Exception:
                 pass
 
     if contaminated:
         r.fail(f"{len(contaminated)} file(s) contain forbidden cross-vertical vocabulary")
-        for fname, term, _ in contaminated[:10]:
+        r.info(f"  Vocabulary source: {source_label}")
+        for fname, term in contaminated[:10]:
             r.info(f"  {fname}: contains '{term}'")
         if len(contaminated) > 10:
             r.info(f"  ... and {len(contaminated) - 10} more")
     else:
-        r.info(f"No cross-vertical vocabulary found ({len(forbidden)} terms checked)")
+        r.info(f"No cross-vertical vocabulary found ({len(forbidden)} terms from {source_label}) ✓")
 
     return r
 
