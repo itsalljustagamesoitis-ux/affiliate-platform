@@ -1,7 +1,7 @@
-# PIPELINE.md — v1.2
+# PIPELINE.md — v1.4
 
-**Version:** v1.2 — updated 2026-05-20. Adds four hardening items from Ten27 Phase 5 UAT.
-See section 12 (v1.2 changelog) for full change log. Previous version: v1.0 (locked against Northwoods Overland launch, 2026-05-18).
+**Version:** v1.4 — updated 2026-05-24. Adds pre-flight script and five structural checks from SaunasSoSimple UAT post-mortem.
+See section 13 (v1.4 changelog) for full change log. Previous version: v1.2 (2026-05-20, Ten27 UAT hardening).
 
 The complete operational specification for building, launching, and operating affiliate sites in the portfolio.
 
@@ -23,6 +23,7 @@ This document is the source of truth. Every site follows the same sequence. No s
 10. Pending operational fixes for current sites
 11. Document maintenance
 12. v1.2 changelog — Ten27 UAT hardening
+13. v1.4 changelog — SaunasSoSimple UAT hardening
 
 ---
 
@@ -999,6 +1000,44 @@ npm run build
 
 ---
 
+### Point 15.5: Pre-flight check (v1.4)
+
+**What it does:** Runs 9 structural checks across the site before any production deploy. Catches the class of issues that produced SaunasSoSimple's 7-critical UAT.
+
+**Run:**
+
+```bash
+python3 affiliate-platform/scripts/preflight.py --site <slug>
+```
+
+**Must exit 0 before proceeding to Point 16.** WARNs are non-blocking; FAILs block launch.
+
+**Checks:**
+
+| # | Check | UAT issue caught |
+|---|-------|-----------------|
+| 1 | scaffold-contamination | Hearing-aid vocabulary in sauna articles |
+| 2 | state-sync | Empty content/articles/ when pipeline has articles |
+| 3 | hub-descriptions | Boilerplate hub descriptions in navigation.yaml |
+| 4 | json-ld-urls | Relative URLs in SchemaMarkup.astro |
+| 5 | og-locale | Missing og:locale in BaseLayout.astro |
+| 6 | persona-consistency | Wrong persona photo, implausible bio claims |
+| 7 | url-slug-dedup | Near-duplicate slugs (same words, different order) |
+| 8 | ymyl-hub-check | Health/medical hub labels or slugs |
+| 9 | product-topic-match | Products from foreign verticals assigned to articles |
+
+**scaffold-contamination requires configuration:** Create `config/furniture-validation.yaml` listing forbidden vocabulary for the site's vertical. Without it, check 1 produces a WARN and skips. See `validate-furniture-pages.mjs` for the format — the same file serves both tools.
+
+**Retroactive coverage:** Running this against SaunasSoSimple after its UAT remediation produces LAUNCH CLEAR (0 FAIL, 3 WARN). The 3 WARNs are informational: scaffold-contamination unconfigured, persona byline small (valid compressed image), 12 within-site hub adjacency articles (sauna-brand-harvia articles using sauna-wood-fired products — valid cross-hub Harvia products).
+
+**Failure modes:**
+
+- Missing `config/furniture-validation.yaml` → check 1 WARNs, does not scan
+- products.yaml not in sync with site (wrong hub values for replacement products)
+- Navigation.yaml categories missing (hub enumeration fails)
+
+---
+
 ### Point 16: Push live
 
 **What it does:** Push to GitHub, Cloudflare auto-deploys, verify live.
@@ -1493,6 +1532,66 @@ When new lessons emerge:
 **Remaining risk documented:** `data/generate-pipeline.py` scripts do full overwrites from xlsx — running after manual patches loses all patches. Documented in Point 13 as a warning.
 
 **Added:** 5 unit tests in `producer/tests/test_data_loader.py::TestSavePipelinePersistence` verifying merge correctness across all edge cases.
+
+---
+
+## 13. v1.4 changelog — SaunasSoSimple UAT hardening
+
+**Date:** 2026-05-24  
+**Trigger:** Seven critical issues surfaced during SaunasSoSimple (Site 11) UAT. Fixed post-launch; gap analysis performed to prevent recurrence on Site 12 (caregiver site).
+
+### 13.1 Pre-flight script (Point 15.5)
+
+**Problem:** Platform lacked a single-command structural check that could catch the full class of SSS UAT issues before deploy. Issues were found post-launch during manual UAT rather than during build.
+
+**Fix:**
+- `scripts/preflight.py` — 9-check pre-flight script, added as Point 15.5 in the pipeline
+- Must exit 0 before Point 16 (push live)
+- Distinguishes hard FAILs (cross-domain product mismatches, YMYL hubs, missing hub descriptions) from soft WARNs (within-site hub adjacency, unconfigured vocabulary check)
+
+### 13.2 SSS UAT issue taxonomy (7 critical issues)
+
+| Issue | Root cause | Pre-flight check | Fix |
+|-------|-----------|-----------------|-----|
+| 1. Scaffold contamination | hearing-aid vocabulary in sauna articles from shared template | scaffold-contamination | Step 1: delete 10 contaminated pages |
+| 2. Hub descriptions boilerplate | 49 hubs had generic descriptions from site scaffold | hub-descriptions | Step 3: wrote Marcus-voice copy for all 49 hubs |
+| 3. JSON-LD relative URLs | SchemaMarkup.astro used relative paths for schema urls | json-ld-urls | Platform fix: siteUrl prefix on all schema URL fields |
+| 4. YMYL hubs | sauna-health and sauna-how-to hubs present (health risk) | ymyl-hub-check | Step 4: removed hubs, 301 redirects to accessories-extras |
+| 5. URL slug duplicates | 55 near-duplicate slugs (same keywords, different order) | url-slug-dedup | Step 5: deleted 55 duplicates, 55 × 301 redirects |
+| 6. Product mismatches | 11 Harvia articles had solar rope lights; 5 cedar articles had pet bedding | product-topic-match | Step 6: replaced wrong products with appropriate ones |
+| 7. Persona/OG quality | Male persona had female headshot; og:locale missing; cookie banner overlap | persona-consistency + og-locale | Step 7: replaced headshot, platform-level og:locale + cookie fix |
+
+### 13.3 Mac/VM state sync risk
+
+**Problem:** SaunasSoSimple articles existed on VM (46.225.29.35) but not on the Mac build machine. All five early deploys in the session produced empty sites (77 dirs, 68 pages — no articles). Required rollback via CF REST API and rsync from VM to Mac.
+
+**Pattern:** When the build machine is not the authoring machine, article state must be explicitly synced before build. The pre-flight `state-sync` check catches the "content/articles/ empty but pipeline has articles" condition.
+
+**Standing rule:** Mac is the canonical build machine. VM retains the old 365-article set (including 55 duplicates from before dedup) and must never be used as the build source for saunassosimple.
+
+**Rollback command (CF Pages REST API — wrangler v4 no longer has `pages deployment rollback`):**
+
+```bash
+curl -s -X POST \
+  "https://api.cloudflare.com/client/v4/accounts/<account_id>/pages/projects/<project>/deployments/<deployment_id>/rollback" \
+  -H "Authorization: Bearer <CF_API_TOKEN>" \
+  -H "Content-Type: application/json"
+```
+
+### 13.4 Product hub values must match article hub after replacement
+
+**Problem:** When products are replaced in articles (Step 6), the new product's `hub` field in products.yaml may not match the article's hub — either because the product was originally sourced for a different hub, or because hub assignments shifted (YMYL strip moved articles between hubs).
+
+**Pattern found in SSS:**
+- `harvia-smart-sensor-for-sauna-heaters-compatible` sourced for sauna-wood-fired, used in sauna-brand-harvia articles
+- `western-red-cedar-sauna-door-71` sourced as sauna-components, used in sauna-materials articles
+- 20 products with hub=sauna-health remained after the YMYL strip moved their articles to accessories-extras
+
+**Fix:** After any product replacement or hub reassignment, run `scripts/preflight.py --check product-topic-match` to surface residual mismatches. Update `hub:` in products.yaml for replaced products to match where they're actually used.
+
+**Distinction the pre-flight makes:**
+- FAIL: product hub not in site navigation at all (cross-domain contamination — rope lights, pet bedding)
+- WARN: product hub is a valid site hub but different from article hub (within-site adjacency — acceptable for brand-spanning products like Harvia sensors that span wood-fired and electric hubs)
 
 ---
 
