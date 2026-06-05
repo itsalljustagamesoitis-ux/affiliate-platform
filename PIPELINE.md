@@ -1,7 +1,7 @@
-# PIPELINE.md — v1.4
+# PIPELINE.md — v1.6
 
-**Version:** v1.4 — updated 2026-05-24. Adds pre-flight script and five structural checks from SaunasSoSimple UAT post-mortem.
-See section 13 (v1.4 changelog) for full change log. Previous version: v1.2 (2026-05-20, Ten27 UAT hardening).
+**Version:** v1.6 — updated 2026-06-01. Codifies autonomous launch enforcement, locks persona-before-producer discipline, and identifies the tooling backlog required to operate from spec.
+See section 15 (v1.6 changelog) for full change log. Previous version: v1.5 (2026-05-28, pre-site-13 platform cleanup, Section 14). Previous to that: v1.4 (2026-05-24, SaunasSoSimple UAT hardening, Section 13). Previous to that: v1.2 (2026-05-20, Ten27 UAT hardening, Section 12).
 
 The complete operational specification for building, launching, and operating affiliate sites in the portfolio.
 
@@ -24,6 +24,9 @@ This document is the source of truth. Every site follows the same sequence. No s
 11. Document maintenance
 12. v1.2 changelog — Ten27 UAT hardening
 13. v1.4 changelog — SaunasSoSimple UAT hardening
+14. v1.5 changelog — Pre-site-13 platform cleanup
+15. v1.6 changelog — Autonomous launch hardening
+16. Autonomous launch enforcement
 
 ---
 
@@ -47,11 +50,23 @@ Sites that are naturally flat (one category, multiple hubs) just have N=1 catego
 
 Each site has exactly one persona. Persona file at `config/personas/<persona-slug>.yaml`, photos at `public/images/brand/<persona-slug>-byline.jpg` and `<persona-slug>-about.jpg`. The producer reads this single persona for all article generation. About page is one page about one person.
 
-### 1.4 wrangler.toml + Git push deploy pattern
+### 1.4 Deploy pattern (v1.6 updated)
 
-Sites deploy via Git push triggering Cloudflare Pages auto-deploy. wrangler.toml in the repo declares project name and non-secret environment variables (NODE_VERSION). Secrets (AMAZON_TAG) are set in the Cloudflare Pages dashboard for both Production and Preview environments.
+Sites deploy via direct upload to Cloudflare Pages using wrangler. The command pattern is:
 
-The CLI `wrangler` command is not used for active deployment in normal operation. Configuration lives in version control; deploys are triggered by pushes.
+```
+wrangler pages deploy dist --project-name <slug> --branch main
+```
+
+Direct upload to the main branch is production deploy. No GitHub repo is required for sites going forward.
+
+**Historical note (Sites 1–10):** Sites 1–10 use the older Git push → Cloudflare auto-deploy pattern. Their GitHub repos remain operational. The pattern was changed for Sites 11+ to eliminate GitHub App permission failure modes and reduce moving parts. Sites 1–10 are preserved in their current pattern; no migration required.
+
+`wrangler.toml`: Declares the Cloudflare Pages project name (`name = "<slug>"`) and NODE_VERSION. Lives in the repo for configuration consistency, but is not the deploy trigger.
+
+**Environment variables** (AMAZON_TAG, NODE_VERSION, etc.): Set via Cloudflare API by `tools/cloudflare-pages-config.mjs` during Point 16 (push live). No manual dashboard configuration required. Production and Preview environments configured in a single tool invocation.
+
+**Custom domain attachment:** Performed by Claude Code during Point 16 via `tools/cloudflare-pages-config.mjs attach-domain`. Not a manual Keith step.
 
 ### 1.5 Deploy completion criterion
 
@@ -62,13 +77,17 @@ After every Claude Code task that produces deployable changes, the task is not c
 3. Cloudflare Pages deployment fired and reached green
 4. Live verification passes
 
-Live verification consists of 5 hard checks. All 5 must pass. Single failure = deploy not complete:
+Live verification consists of 9 hard checks. All 9 must pass. Single failure = deploy not complete:
 
-- `curl https://<domain>` returns 200
-- `curl https://<domain>/sitemap-index.xml` returns 200
-- Sample 3 article URLs return 200
-- HTML source contains GA4 measurement ID
-- HTML source contains correct AMAZON_TAG in affiliate links
+1. `curl https://<domain>` returns 200
+2. `curl https://<domain>/sitemap-index.xml` returns 200
+3. Sample 3 article URLs return 200
+4. HTML source contains GA4 measurement ID
+5. HTML source contains correct AMAZON_TAG in affiliate links
+6. (v1.6) Custom domain attached to Cloudflare Pages project (curl -I returns cf-ray header indicating Cloudflare termination)
+7. (v1.6) Environment variables AMAZON_TAG present on both Production and Preview environments (verified via Cloudflare API)
+8. (v1.6) Content-existence validator passes on built dist/ (zero placeholder leaks, zero empty article-page__content divs)
+9. (v1.6) Skip-list URLs return 404 or 301 (no articles on producer's skip-list returning 200)
 
 Tool retries once after 30 seconds before final fail. State is binary — pass or fail.
 
@@ -111,6 +130,17 @@ Validator rules are classified at definition time. See VALIDATORS.md for full ru
 
 Regeneration pass only — no iterative validator widening per site. Hard fail rate consistently above threshold across multiple sites becomes a platform-level review.
 
+**v1.6 new validator classifications:**
+
+| Validator | Classification |
+|---|---|
+| `validate-content-existence` | Hard fail |
+| `validate-persona-spec-compliance` | Hard fail |
+| `validate-product-slug-resolution` | Hard fail |
+| `validate-meta-leakage` | Hard fail |
+| `validate-card-voice` | Soft fail |
+| `validate-catalog-category-coherence` | Hard fail |
+
 ### 1.11 Placeholders are obvious, not plausible
 
 All template content uses obvious placeholder tokens (`{{TOKEN_NAME}}`) or visibly-broken text (`LOREM_IPSUM_REPLACE_ME`), never realistic-but-wrong content. Templates that inherit content from another site are forbidden — site shells start empty of content and get filled, never copy-and-edit.
@@ -144,23 +174,32 @@ Producer emits `product:slug` directly. No raw Amazon URLs, no `?tag=` strings s
 - Placeholders obvious, not plausible (1.11)
 - product:slug affiliate link format (1.12)
 - Cookie consent platform default (Consent Mode v2)
-- Image bank: 150 images per site, 1200x630, hub-based naming
+- Image bank: minimum 150 images per site, 1200x630, hub-based naming, hub-balanced (no hub >2x average) (v1.6: ceiling removed, floor + balance constraint replaces)
 - Image assignment: random within hub
 - Producer run mode: foreground with `tee` to log file
 - Producer output destination: `staging/` (not `content/articles/`)
 - Regeneration pass once, then publish (no iterative calibration per site)
 - Cloudflare deploy timeout: 10 minutes hard fail
 - Dashboard phase transitions: Phase 1 sites 1-10, Phase 2 sites 11-30, Phase 3 sites 31+
+- Persona-lock-before-producer-run discipline mandatory (v1.6)
+- `launch-site.mjs` is the only entry point for new site builds (v1.6)
+- Direct upload deploy pattern for Sites 11+ (Section 1.4 v1.6 update)
+- Cloudflare API automation for custom domain attachment, env vars, DNS TXT records (v1.6)
+- Astro data-store cache deletion before every production build (v1.6)
+- portfolio.yaml updated at every phase transition (v1.6)
 
 **Judgment with documented defaults:**
 
 - Niche selection: 60% Amazon density typical default
 - Keyword research thresholds: 300 launch / 500 reserve / 100 vol min / KD 40 max / Commercial+Transactional+Informational intent
 - Domain selection: guidance, not gates
-- Persona photo source: judgment per site
 - Brand colors: Claude Code derives from niche, you override if needed
-- Source products workflow: Chrome Claude default with escalation
+- Source products workflow: Rainforest API canonical; scraping deprecated for production runs
 - Legal text source: Claude Code generates from master templates with token substitution
+
+**Moved from Judgment to Locked (v1.6):**
+
+- Persona photo source: AI-generated via documented prompt template (`~/affiliate-platform/templates/persona-photo-prompt.md`), never user-provided. The "judgment per site" framing produced inconsistent quality across the cohort.
 
 **TBC (deferred until real decisions need making):**
 
@@ -250,6 +289,18 @@ Running `/launch-site --resume <slug>` picks up at the current_point. Inputs alr
 - Operational discipline encoded in the tool, not in your head
 
 The ritual is the highest-priority platform addition before site 4.
+
+### 2.7 Autonomous-launch enforcement model (v1.6)
+
+The ritual now operates under explicit autonomy boundaries. Every step is either:
+
+- **Autonomous** — Claude Code executes without asking. Decision policy documented in this PIPELINE.md.
+- **Keith identity-bound** — Requires Keith's credentials, accounts, or identity. Ritual halts and surfaces a structured request.
+- **Keith decision-bound** — Requires Keith's strategic judgment (niche selection, domain selection, persona biographical details). Ritual halts and surfaces a structured questionnaire.
+
+The ritual never defers decisions to Keith that have a documented default policy. If the runbook says Claude Code derives brand colors from niche, the ritual derives them. Keith reviews and overrides at preview time, not at decision time.
+
+Section 16 (Autonomous launch enforcement) specifies which decisions fall into which bucket and what the policies are for each autonomous decision.
 
 ---
 
@@ -440,18 +491,57 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - `public/images/brand/<persona-slug>-byline.jpg`
 - `public/images/brand/<persona-slug>-about.jpg`
 
-**Photo source: judgment.** AI-generated, real, stock — whatever produces a credible match.
+**Photo source: AI-generated (v1.6 locked).** Tool: `tools/generate-persona-photos.mjs`. Template: `~/affiliate-platform/templates/persona-photo-prompt.md`. "Judgment per site" framing retired — inconsistent quality across cohort. Photos are generated, not user-provided.
 
-**Photo presence: gated.** Hard pause if photos aren't real-and-in-place. No placeholder MD5 of another site's persona.
+**Photo presence: gated.** Hard pause if photos aren't in-place. No placeholder MD5 of another site's persona.
 
 **Voice depth: basic notes + banned phrases default.** Detailed style guide override-able if specific niche warrants.
+
+**v1.6 persona YAML required fields (in addition to base fields):**
+
+```yaml
+# v1.6 additions
+persona_locked: false
+locked_at: null
+content_hash: null
+
+# Voice inheritance — read by both narrative and card generators
+voice_register: first_person
+first_person_pronouns: ["I've owned", "I've used", "I've tested", "my", "I've found"]
+forbidden_self_reference: ["the engineer", "the writer", "this site's author"]
+
+# Spec compliance fields — read by validate-persona-spec-compliance
+owned_gear: [<list of products persona has used>]
+home_territory: [<list of locations persona has experience in>]
+defers_to:
+  - name: <Expert Name>
+    domain: <expertise area>
+forbidden_claims: [<patterns persona must never make>]
+
+# Demographic anchors — read by validate-persona-spec-compliance
+family: {partner_name: null, kids: null, pets: null}
+career: <profession>
+tenure_years: <number>
+tenure_start_year: <year>
+```
+
+**Persona lock procedure (v1.6 hard gate):**
+
+1. All required fields populated
+2. Both photos exist and pass MD5-uniqueness check against portfolio
+3. Persona YAML committed to repo
+4. Lock command: `tools/lock-persona.mjs --site <slug>` — sets `persona_locked: true`, `locked_at`, and `content_hash`
+5. Producer at Point 13 verifies `persona_locked: true` AND content hash matches before running
+
+**Unlock procedure (rare):** `tools/unlock-persona.mjs --site <slug> --reason "<rationale>"`. Reason logged to `~/affiliate-platform/persona-unlock-log.yaml`. Re-lock required before producer can run again.
 
 **Verification:**
 
 - Persona yaml exists at correct path
-- All required fields populated (no `{{TOKEN}}` remaining)
+- All required fields populated including v1.6 additions (no `{{TOKEN}}` remaining)
 - Both photos exist
 - Photos are NOT placeholder MD5 of any other portfolio site's persona
+- `persona_locked: true` set before producer runs
 - Producer reads this persona file
 
 **Failure modes:**
@@ -459,6 +549,7 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - Photo MD5 matches another portfolio site's persona
 - Persona yaml has placeholder tokens remaining
 - Voice notes inconsistent with niche
+- Producer runs before persona is locked (v1.6 hard gate — producer refuses)
 
 ---
 
@@ -542,6 +633,10 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - wrangler.toml name matches site slug
 - 5 visual slots populated (`primary_color`, `accent_color`, `background_color`, `font_headings`, `font_body`)
 - No `{{PLACEHOLDER_TOKEN}}` text remaining anywhere
+- (v1.6) `grep "{{" public/images/brand/*.svg` returns no matches — no SVG asset contains unsubstituted placeholder tokens
+- (v1.6) `package.json` build script includes `rm -f node_modules/.astro/data-store.json` as pre-build step
+- (v1.6) `config/dtc-brands/<niche>.yaml` exists for the site's niche
+- (v1.6) `config/category-types/<niche>.yaml` exists for the site's niche
 
 **Failure modes:**
 
@@ -550,6 +645,9 @@ Category, Hub, Hub Slug, Hub URL, Keyword, Slug, Locked URL, Article Type, Requi
 - Persona/logo files are placeholders
 - Submodule not pinned, points to floating HEAD
 - Placeholder tokens remaining
+- (v1.6) SVG brand assets contain unsubstituted `{{` placeholder tokens
+- (v1.6) Astro cache invalidation step missing from build pipeline
+- (v1.6) Niche-specific config files missing (DTC brand list, category type list)
 
 ---
 
@@ -627,13 +725,21 @@ If no `config/furniture-validation.yaml` exists, bleed detection is skipped. For
 
 **What it does:** Register a tracking ID with Amazon for the site, configure in code and Cloudflare.
 
-**Process:**
+**Process (v1.6 updated — split by actor):**
 
+**Keith identity-bound (Bucket C):**
 1. Log into Amazon Associates dashboard
-2. Create a new tracking ID: `<site-slug>-20`
-3. Configure the tracking ID:
-   - Primary source of truth: `site.config.yaml` under `affiliate.amazon_tracking_id` (see §1.8). The build reads this value by default.
-   - Optional override: Cloudflare Pages dashboard → Environment variables → Production AND Preview as `AMAZON_TAG = "<tracking-id>"`. When present, the Cloudflare env var takes precedence over site.config.yaml.
+2. Create a new tracking ID: `<site-slug>-20` (Claude Code proposes the string; Keith creates it with that exact string)
+3. Confirm creation in dashboard; provide string to Claude Code
+
+**Claude Code autonomous (Bucket A):**
+1. Set `affiliate.amazon_tracking_id` in `site.config.yaml`
+2. Configure env vars via Cloudflare API (no dashboard):
+   ```
+   tools/cloudflare-pages-config.mjs set-env --site <slug> --env production --key AMAZON_TAG --value <tracking-id>
+   tools/cloudflare-pages-config.mjs set-env --site <slug> --env preview --key AMAZON_TAG --value <tracking-id>
+   ```
+3. Update `portfolio.yaml` via `tools/portfolio-update.mjs`
 
 **Hard pause if:** Amazon Associates rejects the tracking ID application.
 
@@ -668,6 +774,8 @@ If no `config/furniture-validation.yaml` exists, bleed detection is skipped. For
 - review: 1 product
 
 **Canonical workflow — Rainforest API (recommended for all production runs):**
+
+**(v1.6) Policy filters apply automatically:** brand-string match required, category match required, known-DTC-brand fallback, seller-prefix scrub (e.g. `STOVER Patagonia` → `Patagonia`). Requires `config/dtc-brands/<niche>.yaml` and `config/category-types/<niche>.yaml` to be present; tool refuses to source without them.
 
 ```
 # Step 1: Bulk source products for all articles with empty products[]
@@ -731,6 +839,8 @@ If non-zero: for each null-brand product, look up the manufacturer name and set 
 - High NOT_ON_AMAZON rate in premium-brand niches (judgment: accept or find substitutes)
 - RAINFOREST_KEY not set — tool exits with clear error pointing to credentials.env
 - Skipping brand-enrichment pass → false FAILs in brand-match audit
+- (v1.6) DTC brand list missing for niche — `source-products-rainforest.py` refuses to source until `config/dtc-brands/<niche>.yaml` is present
+- (v1.6) Category type list missing for niche — tool refuses to source until `config/category-types/<niche>.yaml` is present
 
 ---
 
@@ -740,7 +850,7 @@ If non-zero: for each null-brand product, look up the manufacturer name and set 
 
 **Locked specs:**
 
-- 150 images per site
+- **Minimum** 150 images per site (v1.6: no upper limit, but image bank must be hub-balanced — no hub >2x the average count per hub). Cohort showed counts 150–1,330; hard ceiling was removed as not beneficial.
 - 1200x630, 16:9 aspect ratio
 - Hub-based naming: `<hub>-1.jpg`, `<hub>-2.jpg`, etc.
 - Sourced from Pexels API
@@ -839,6 +949,19 @@ node affiliate-platform/scripts/validate-catalog-brand-coverage.mjs --site <slug
 
 ### Point 13: Article generation
 
+#### 13.0 Producer prerequisites (v1.6)
+
+Before producer runs, the ritual confirms all of the following. Any missing prerequisite is HARD failure — producer refuses to start.
+
+1. `persona_locked: true` in persona YAML **and** current content hash matches locked hash
+2. All articles in pipeline.json have `products[]` assigned
+3. All articles in pipeline.json have `hero_image` and `body_images[]` assigned
+4. `products.yaml` has zero `VERIFY` entries
+5. `products.yaml` has 100% `brand:` coverage (no null brand fields)
+6. `products.yaml` has 100% `category_type` coverage
+7. `config/dtc-brands/<niche>.yaml` exists
+8. `config/category-types/<niche>.yaml` exists
+
 **What it does:** Producer runs against fully populated pipeline.json (products + images + article configs), generates one .md file per article.
 
 **Run mode:** Foreground with `tee` to log file.
@@ -905,6 +1028,41 @@ SOFT violations are lower-urgency but represent editorial voice drift that weake
 
 **Producer-side enforcement:** `check_output_shape()` in `article_builder.py` catches both HARD (Check 5) and SOFT (Check 6) patterns at generation time, causing immediate retry. The standalone audit tool serves as a second-pass sweep across the already-published catalog.
 
+**V18 retroactive remediation — owned-place attribution pattern (validated 2026-06-05):**
+When patching HARD V18 violations in published corpora, the most effective and persona-preserving technique is *owned-place attribution*: replace the personal ownership claim with a reference to the persona's location or context ("in this kitchen", "in this garage", "in use", "tested here"). This removes the fabricated ownership while keeping the persona's voice and authority intact. Examples from Day 8 remediation across 4 sites: "I've owned mine for six years" → "This knife has been in this kitchen for six years"; "I've tested several options in my own garage" → "Several options have been tested in this garage through Portland winters". Universal-truth framing ("Both were tested with béchamel...") and gerund subjects ("Testing covered three very different approaches...") are acceptable alternatives when place-anchoring feels forced. See Tier A/B/C decomposition in `COHORT_AUDIT_REPORT.md` for the full method.
+
+**Relationship to 13.5b (v1.6):** This validator catches first-person testing claims by regex pattern. Point 13.5b performs semantic comparison against the locked persona YAML for owned-gear, partner-name, geographic, tenure, and defers-to claims. Both validators run — they catch different failure modes.
+
+---
+
+### Point 13.5b: Persona-spec compliance audit gate (v1.6)
+
+**What it does:** Compares first-person claims in staged article bodies against the locked persona YAML. Catches the Site 13 class of fabrication: wrong gear (E50/L50 vs Modi+/Magni+), wrong partner name (Sam vs Hannah), wrong geography, wrong tenure, hallucinated defers-to names.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-persona-spec-compliance.mjs --site <slug>
+```
+
+**What it checks against persona YAML fields:**
+
+| Field | Check |
+|---|---|
+| `owned_gear` | Any gear claimed to be owned/used must be in this list |
+| `family.partner_name` | Partner name in article must match this field |
+| `home_territory` | Geographic claims must be in this list |
+| `career` | Career/profession claims must match |
+| `tenure_years` / `tenure_start_year` | Tenure duration claims must be consistent |
+| `defers_to` | Any expert attribution must be in this list |
+| `forbidden_claims` | Patterns in this list must never appear |
+
+**HARD violation:** Any fabricated claim that contradicts the locked persona spec. Exit 1. Must fix before Point 14.
+
+**Fix:** Regenerate with `--force --id <N>` (maximum 3 attempts). After 3 attempts, article moves to skip-list.
+
+**Implementation note:** Requires an LLM-pass per article via Haiku. Estimated cost: ~$0.001–0.01 per article (~$0.30–3.00 for a 300-article site).
+
 ---
 
 ### Point 13.6: Image markdown validator gate (v1.2)
@@ -934,6 +1092,61 @@ node affiliate-platform/scripts/validate-image-markdown.mjs --site <slug>
 
 ---
 
+### Point 13.7: Meta-leakage validator gate (v1.6)
+
+**What it does:** Scans staged article bodies for producer-internal reasoning that leaked into article content. Catches the Site 14 class of issue where the producer's brief-reasoning appeared verbatim in the marantz-vs-anthem-vs-denon article body.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-meta-leakage.mjs --site <slug>
+```
+
+**Patterns flagged (regex, case-insensitive):**
+
+- `\bthe brief\b`
+- `\bprompt system\b`
+- `\bh2_structure\b`
+- `\bbrief specifies\b`
+- `\bpersona's defer-to\b`
+- `\bbrief also specifies\b`
+- `\barticle type defined in\b`
+- `\bformat governs\b`
+
+**HARD violation:** Exit 1. Must fix before Point 14. Fix: delete leaked reasoning block and regenerate with `--force`.
+
+---
+
+### Point 13.8: Card-voice density validator gate (v1.6)
+
+**What it does:** Checks that product cards in buyer-guide articles use the persona's first-person voice, not third-person or agentless voice. Catches the Site 15 class of issue where Greg's locked persona produced first-person narrative prose but depersonalized buyer-guide card copy.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-card-voice.mjs --site <slug>
+```
+
+**What it checks:** Proportion of product cards that contain first-person pronouns from `voice_register` / `first_person_pronouns` in persona YAML. Cards with zero first-person markers are flagged.
+
+**SOFT violation:** Logged to calibration-log.yaml. Not blocking. Exit 0 with count.
+
+---
+
+### Point 13.9: Product slug resolution validator gate (v1.6)
+
+**What it does:** Validates that every `product:<slug>` reference in staged article markdown resolves to a key in `products.yaml`. Catches the Site 15 class of issue where `product:aventik-eupheng-riverruns-yarn` was referenced but the products.yaml key was `aventik-eupheng-riverruns-yarn-strike` — build succeeded, but the rendered affiliate link was broken.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-product-slug-resolution.mjs --site <slug>
+```
+
+**HARD violation:** Exit 1. Must fix before Point 14. Fix: correct the slug reference in the article or add the missing product to products.yaml.
+
+---
+
 ### Point 14: Regeneration pass and publish
 
 **What it does:** Regenerate failed articles once in staging, then move all staged articles to content/articles/.
@@ -947,8 +1160,9 @@ node affiliate-platform/scripts/validate-image-markdown.mjs --site <slug>
 3. Articles still failing after regeneration: hand-edit in staging/, drop, or accept (judgment per article)
 4. Soft fails ship with logged warning to calibration-log.yaml
 5. Strip any validator output appended to failed articles
-6. Move all staged articles to `content/articles/` via `tools/publish-staging.mjs`
-7. Verify count matches expected publish count
+6. **(v1.6) Skip-list check:** Before moving any article, `publish-staging.mjs` reads `data/skip-list.yaml`; any article on the skip-list is excluded from the staging-to-content move regardless of pass/fail status.
+7. Move all non-skip-listed staged articles to `content/articles/` via `tools/publish-staging.mjs`
+8. Verify count matches expected publish count
 
 **Hard fail rate consistently above threshold (>5%) across multiple sites becomes a platform-level review.**
 
@@ -960,6 +1174,7 @@ node affiliate-platform/scripts/validate-image-markdown.mjs --site <slug>
 - Hard fail count = 0
 - Soft fail count surfaced and accepted
 - After a publish run completes, `staging/` and `staging/failed/` contain only files from the current pending batch (failed regenerations or unapproved drafts). Across the lifecycle of a live site, these directories accumulate artifacts of in-flight work — they are not asserted empty as a steady state.
+- (v1.6) Skip-list cross-check: for each slug in `data/skip-list.yaml`, confirm no `.md` file exists in `content/articles/` for that slug
 
 **Failure modes:**
 
@@ -981,6 +1196,12 @@ npm install  # first time only
 npm run build
 ```
 
+**(v1.6) Cache invalidation pre-step:** The `npm run build` command deletes `node_modules/.astro/data-store.json` before invoking `astro build`. This prevents the Site 15 class of failure (91 articles with empty body content from stale cache entries). Updated build script:
+
+```json
+"build": "rm -f node_modules/.astro/data-store.json && astro build && npx pagefind && node build-validator.mjs"
+```
+
 **Build runs build-validator** which checks for VERIFY entries, NOT_ON_AMAZON rendering, broken links, hardcoded affiliate tags, placeholder tokens.
 
 **Verification:**
@@ -997,6 +1218,7 @@ npm run build
 - Internal link broken
 - Build-validator finding raw Amazon URLs (shouldn't happen — producer emits product:slug)
 - Placeholder tokens that escaped earlier checks
+- (v1.6) Data-store cache contains stale entries from prior failed build — mitigated by v1.6 cache deletion pre-step
 
 ---
 
@@ -1038,6 +1260,35 @@ python3 affiliate-platform/scripts/preflight.py --site <slug>
 
 ---
 
+### Point 15.6: Content-existence validator (v1.6)
+
+**What it does:** Runs against `dist/` after build, before deploy. Checks rendered HTML for structurally valid but semantically empty content — the highest-priority new validator in v1.6. Catches placeholder leaks, empty article body divs, and low-word-count articles that escaped earlier validation.
+
+**Run:**
+
+```bash
+node affiliate-platform/scripts/validate-content-existence.mjs --site <slug>
+```
+
+**Patterns flagged in rendered HTML body content:**
+
+- `\[write [^\]]+\]` — unfilled write-here instructions
+- `\{\{[^}]+\}\}` — unsubstituted template tokens
+- `\[TODO\b`, `\[PENDING\b`, `\[FIXME\b` — editorial markers
+- `\bplaceholder\b` (case-sensitive, in body content not navigation)
+- `\bVERIFY\b`, `\bverify\b` (in product card contexts)
+- `\bNOT_FOUND\b`, `\bNOT_ON_AMAZON\b` (rendered as visible text)
+- `\bLOREM_IPSUM\b`
+
+**Structural checks:**
+
+- Empty `article-page__content` div (zero inner text)
+- Articles with rendered body word count below 200 words
+
+**HARD violation:** Exit 1. Blocks deploy. Fix: investigate build output for the affected article. Maximum 2 rebuild attempts before escalating to Keith.
+
+---
+
 ### Point 16: Push live
 
 **What it does:** Push to GitHub, Cloudflare auto-deploys, verify live.
@@ -1046,31 +1297,35 @@ python3 affiliate-platform/scripts/preflight.py --site <slug>
 
 **Pre-condition gate: `tools/verify-bindings.mjs --site <slug>` runs first.**
 
-This catches the OHT-style "wires connected to wrong endpoints" failures. Eight checks performed:
+This catches the OHT-style "wires connected to wrong endpoints" failures. Ten checks performed (v1.6 updated from eight):
 
 1. Cloudflare project name = site slug
-2. Cloudflare project's GitHub repo = expected repo (`itsalljustagamesoitis-ux/<site-slug>`)
+2. Cloudflare project's GitHub repo = expected repo (`itsalljustagamesoitis-ux/<site-slug>`) — skipped for Sites 11+ (no GitHub repo)
 3. Cloudflare project's custom domain = site domain
 4. AMAZON_TAG in Cloudflare Production env = `affiliate.amazon_tracking_id` in site.config.yaml (if env var is set)
 5. AMAZON_TAG in Cloudflare Preview env = same value (if env var is set)
 6. GA4 measurement ID unique across portfolio (cross-check against portfolio.yaml)
 7. IndexNow key file at site root matches BWT registration
 8. DNS for site domain points at correct Cloudflare Pages project
+9. **(v1.6)** All SVG brand assets in `public/images/brand/` are free of placeholder tokens (`grep "{{" *.svg` returns empty)
+10. **(v1.6)** Custom domain SSL certificate issued by Cloudflare (curl -I returns HTTPS response, not certificate error)
 
 If any check fails, deploy doesn't even start. Tool reports specifically which binding is wrong.
 
 **Process (after bindings verified):**
 
 1. Commit any pending changes locally
-2. Push to GitHub origin
+1.5. **(v1.6)** Run `tools/cloudflare-pages-config.mjs attach-domain --site <slug> --domain <domain>` (idempotent — safe to run even if domain already attached)
+2. Run `wrangler pages deploy dist --project-name <slug> --branch main`
 3. Wait for Cloudflare Pages deployment (10-minute timeout, hard fail past it)
 4. Verify deployment reaches green status
-5. Run live verification (5 hard checks per Section 1.5)
-6. Report outcome
+5. Run live verification (9 hard checks per Section 1.5)
+6. Update portfolio.yaml via `tools/portfolio-update.mjs --site <slug> --set status=live`
+7. Report outcome
 
 **Hard pause if:** Any binding check fails or any verification check fails.
 
-**Verification:** All 5 live checks pass (per Section 1.5).
+**Verification:** All 9 live checks pass (per Section 1.5).
 
 **Failure modes (the OHT lessons, now caught by verify-bindings):**
 
@@ -1085,20 +1340,22 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 
 ### Point 17: GA4 setup
 
-**What it does:** Create GA4 property, get measurement ID, inject into site.
+**What it does:** Create GA4 property, inject measurement ID into site, update portfolio.yaml.
 
-**Google Analytics side (browser, ~10 minutes):**
+**Division of labor (v1.6 Keith identity-bound format):**
 
+**Keith action (browser, ~10 minutes):**
 1. Sign in to analytics.google.com
 2. Admin → Create Property → name after site
 3. Add web data stream pointing at site URL
 4. Copy measurement ID (`G-XXXXXXXXXX`)
+5. Reply with measurement ID string
 
-**Site side:**
-
-1. Add measurement ID to `site.config.yaml` (repo root) under `analytics.ga4_measurement_id`
-2. Astro Layout reads config, injects script
-3. Push triggers deploy with GA4 active
+**Claude Code action (after Keith provides ID):**
+1. Add measurement ID to `site.config.yaml` under `analytics.ga4_measurement_id`
+2. Redeploy via `wrangler pages deploy dist --project-name <slug> --branch main`
+3. Update portfolio.yaml: `tools/portfolio-update.mjs --site <slug> --set ga4_id=<id>`
+4. Verify HTML source contains correct `googletagmanager.com/gtag/js?id=G-XXXX`
 
 **Platform defaults (already implemented):**
 
@@ -1106,11 +1363,12 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 - Consent Mode v2: enabled
 - Custom events: `affiliate_click` with link_position tracking
 
-**Verification (built into deploy-and-verify):**
+**Verification:**
 
 - HTML source contains correct `googletagmanager.com/gtag/js?id=G-XXXX`
 - DevTools shows requests to google-analytics.com firing on page load (after consent)
 - GA4 Realtime shows traffic when site visited
+- portfolio.yaml `ga4_id` populated
 
 **Failure modes:**
 
@@ -1121,21 +1379,29 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 
 ### Point 18: Bing Webmaster Tools — verify and submit sitemap
 
-**What it does:** Add site to BWT, verify ownership, submit sitemap.
+**What it does:** Add site to BWT, verify ownership, submit sitemap, update portfolio.yaml.
 
-**Process (browser, ~5-10 minutes):**
+**Division of labor (v1.6 Keith identity-bound format):**
 
+**Keith action (browser, ~5-10 minutes):**
 1. Sign in to bing.com/webmasters
 2. Add a Site → enter domain
-3. Verify via DNS TXT record in Cloudflare
-4. Sitemaps → Submit `https://<domain>/sitemap-index.xml`
-5. Configure: enable IndexNow integration, register IndexNow key (point 20)
+3. Note the DNS TXT verification string shown by BWT
+4. Reply with the TXT verification string
+
+**Claude Code action (after Keith provides verification string):**
+1. Add DNS TXT record via `tools/cloudflare-pages-config.mjs add-dns-txt --site <slug> --name <domain> --value <string>`
+2. Wait for BWT to verify (up to 24 hours for DNS propagation)
+3. Submit sitemap: `https://<domain>/sitemap-index.xml` (Keith action in BWT UI)
+4. Configure IndexNow integration in BWT (Keith action in BWT UI)
+5. Update portfolio.yaml: `tools/portfolio-update.mjs --site <slug> --set bwt_verified=true`
 
 **Verification:**
 
 - Site appears as verified property
 - Sitemap status: Success within 24 hours
 - Discovered URL count matches site's article count
+- portfolio.yaml `bwt_verified: true`
 
 **Failure modes:**
 
@@ -1147,21 +1413,29 @@ If any check fails, deploy doesn't even start. Tool reports specifically which b
 
 ### Point 19: Google Search Console — verify and submit sitemap
 
-**What it does:** Add site to GSC, verify ownership, submit sitemap.
+**What it does:** Add site to GSC, verify ownership, submit sitemap, update portfolio.yaml.
 
-**Process (browser, ~5-10 minutes):**
+**Division of labor (v1.6 Keith identity-bound format):**
 
+**Keith action (browser, ~5-10 minutes):**
 1. Sign in to search.google.com/search-console
 2. Add property → enter domain (use Domain property)
-3. Verify via DNS TXT record in Cloudflare
-4. Sitemaps → Add `sitemap-index.xml`
+3. Note the DNS TXT verification string shown by GSC
+4. Reply with the TXT verification string
 5. Optional: link to GA4 property
+
+**Claude Code action (after Keith provides verification string):**
+1. Add DNS TXT record via `tools/cloudflare-pages-config.mjs add-dns-txt --site <slug> --name <domain> --value <string>`
+2. Wait for GSC to verify (DNS propagation, up to 48 hours)
+3. Submit sitemap in GSC UI (Keith action): Sitemaps → Add `sitemap-index.xml`
+4. Update portfolio.yaml: `tools/portfolio-update.mjs --site <slug> --set gsc_verified=true`
 
 **Verification:**
 
 - Property verified
 - Sitemap status: Success within 24-48 hours
 - Discovered URLs match article count
+- portfolio.yaml `gsc_verified: true`
 
 **Failure modes:**
 
@@ -1221,7 +1495,7 @@ Must pass (exit 0). If violations found:
 
 **What it does:** Add site to portfolio operational dashboard.
 
-**What it produces:** Entry in `~/affiliate-platform/portfolio.yaml`:
+**What it produces:** Entry in `~/affiliate-platform/portfolio.yaml` (v1.6 schema):
 
 ```yaml
 sites:
@@ -1231,10 +1505,23 @@ sites:
     tracking_id: <amazon-tracking-id>
     ga4_id: <ga4-measurement-id>
     cloudflare_project: <cloudflare-project-name>
-    github_repo: itsalljustagamesoitis-ux/<repo-name>
+    github_repo: null                     # null for Sites 11+; repo path for Sites 1-10
     status: live
     launched: <date>
+    # v1.6 additions
+    persona_locked: true
+    persona_locked_at: <ISO date>
+    gsc_verified: true
+    bwt_verified: true
+    custom_domain_attached: true
+    deploy_pattern: direct_upload         # direct_upload (Sites 11+) or git_push (Sites 1-10)
+    affiliates:
+      amazon: active
+      brand_direct:
+        - {name: <Brand>, status: pending|approved, applied: <date>}
 ```
+
+**Writeback:** `tools/portfolio-update.mjs --site <slug> --set <field>=<value>` writes individual fields. Called automatically at Points 16, 17, 18, 19. Never let portfolio.yaml go stale — it is the source of truth for operational state.
 
 Optional fields:
 - `notes`: per-site operational notes (e.g., known deploy quirks, manual workarounds, anything an operator should know before touching the site)
@@ -1592,6 +1879,410 @@ curl -s -X POST \
 **Distinction the pre-flight makes:**
 - FAIL: product hub not in site navigation at all (cross-domain contamination — rope lights, pet bedding)
 - WARN: product hub is a valid site hub but different from article hub (within-site adjacency — acceptable for brand-spanning products like Harvia sensors that span wood-fired and electric hubs)
+
+---
+
+---
+
+## 14. v1.5 changelog — Pre-site-13 platform cleanup
+
+**Date:** 2026-05-28  
+**Trigger:** Pre-site-13 platform cleanup audit. Goal: close all platform/generator-level debt that would propagate into a freshly scaffolded site. Confirmed-open items only (no fixes from stale lists without audit verification).
+
+### 14.1 V9 dollar-figure portfolio sweep (COMPLETE 2026-05-27)
+
+**Problem:** 197+ articles across FSG, SSS, TCD, BCB, BHH contained hardcoded dollar amounts in article body and/or `title:` frontmatter — Amazon ToS Section 5(v) violation. Discovered during FSG V9 remediation 2026-05-27.
+
+**Scope of violations fixed:**
+- FSG: 154 → 0 (two sessions)
+- SSS: 2 → 0
+- TCD: 2 → 0
+- BCB: 5 → 0
+- BHH: 16 → 0 (dominant pattern: `[Budget Hearing Aids (Under $500)]` hub link text repeated across 7 articles)
+
+**Enforcement:** `dollar_figures_enforcement: warn` temp overrides removed from FSG and BHH `site.config.yaml`. All sites now at FAIL enforcement. Added V9 standalone entry to `VALIDATORS.md` (was only documented as rule A03).
+
+### 14.2 Template fixes — "tested reviews" phrasing and metaDescription bio-dump (COMPLETE 2026-05-28)
+
+**Problem:** Three template-level issues propagated to all scaffolded sites via `templates/site-shell/src/pages/`:
+
+**Issue 1 — `how-we-test.astro` URL mismatch:**
+- Template had `how-we-test.astro` (creates `/how-we-test/` URL)
+- `Footer.astro` links to `/how-we-research/` (set in an earlier platform fix)
+- All sites scaffolded before this fix had a broken footer link
+
+**Fix:** Renamed `how-we-test.astro` → `how-we-research.astro` in template. Updated `title:` from "How We Test" → "How We Research". Content body was already clean (used "verified owner research" framing). Deleted stale `how-we-test.astro` from 7 live sites (FSG, MLT, OHT, TCD, BCB, NWO, TEN27). 4 sites (BHH, CuratedCameras, SSS, FFC) already had only `how-we-research.astro`.
+
+**Issue 2 — "Tested reviews of" in `[hub].astro`:**
+- Template had: `description={`Honest, tested reviews of ${hub.label.toLowerCase()} for ${cfg.site.brand_name} readers.`}` and `Tested reviews of {hub.label.toLowerCase()} — what's worth buying and what to avoid.`
+- 8 live sites retained this phrasing (FSG, MLT, OHT, TCD, BCB, NWO, TEN27, BHH). 3 sites (CuratedCameras, SSS, FFC) were already clean.
+- FSG/MLT/OHT/TCD also had site-specific overrides with "from a gardener who actually uses them" (OHT/TCD showed FSG-origin cross-contamination)
+
+**Fix:** Template and all 8 affected sites updated to `hub.description ?? \`Research-based guides on ${hub.label.toLowerCase()} from ${cfg.site.brand_name}.\`` pattern (matches SSS/FFC pattern, supports hub-description override from `navigation.yaml`).
+
+**Issue 3 — `persona.bio_short` appended to metaDescription in `index.astro`:**
+- Template had: `description={`Honest, tested reviews of ${cfg.site.niche} products. ${persona.bio_short}`}`
+- All 11 live sites had some variant with `${persona.bio_short}` appended, making the homepage metaDescription a persona bio dump rather than a topic-focused description
+
+**Fix:** Template updated to `description={`Research-based guidance on ${cfg.site.niche} products from ${cfg.site.brand_name}.`}` (no bio dump). All 11 live sites fixed (older 8 used "Honest, tested reviews" prefix; newer 3 used "Research-based guidance" prefix but retained bio_short). All deployed.
+
+### 14.3 Clean-scaffold verification (Phase D)
+
+A throwaway test site was scaffolded from the fixed templates and the full 14-check preflight run against it. Results:
+
+- **10 PASS** — scaffold-contamination, json-ld-urls, og-locale, url-slug-dedup, ymyl-hub-check, brand-niche, spec-consistency, hub-consistency, product-coherence, dollar-figures
+- **3 WARN** — state-sync (empty pipeline), persona-consistency (placeholder photos + short bio), product-topic-match (no articles yet)
+- **1 FAIL** — hub-descriptions (empty navigation.yaml, expected empty-state before content generation)
+
+The single FAIL (`hub-descriptions`) is expected pre-content-generation behavior — hub descriptions are written during Phase 2 pipeline work (Point 3 per-hub-description pass). This is not a template bug. The three WARNs are also expected for a zero-content fresh scaffold.
+
+**Conclusion:** A freshly scaffolded site 13 inherits 0 template-level propagating bugs. The only pre-launch FAIL will be `hub-descriptions` until content generation Phase 2 is complete.
+
+### 14.4 VALIDATORS.md and preflight.py documentation
+
+- Added V9 (dollar-figures) standalone entry to `VALIDATORS.md` Section 10 (was only A03 in rule table)
+- Added V13 (safe-deploy) standalone entry to `VALIDATORS.md` Section 10
+- Preflight.py header updated to reflect 14 checks (was "9 checks" from SSS UAT)
+- V14 (hub-consistency), V15 (product-coherence), V16 (spec-consistency) already documented in VALIDATORS.md Section 10 (SHIPPED 2026-05-26)
+
+---
+
+## 15. v1.6 changelog — Autonomous launch hardening
+
+**Date:** 2026-06-01
+**Trigger:** Sites 13/14/15 cohort surfaced systemic gaps between PIPELINE.md spec and actual launch behavior.
+
+### 15.1 Persona-lock discipline confirmed and locked
+
+**Finding:** Across three sites the relationship between persona-lock timing and editorial fabrication is now empirically established:
+
+| Site | Persona timing | Fabrications in articles |
+|---|---|---|
+| Site 13 (Marcus) | Locked after content generated | Multiple (wrong gear, fabricated meetup, hallucinated engineer name, wrong partner name) |
+| Site 14 (Adrian) | Locked 2 days before producer | Zero |
+| Site 15 (Greg) | Locked before producer | Zero |
+
+**Spec change:** Persona lock is now a hard gate at Point 5 close. Producer at Point 13 refuses to run unless persona is locked. Lock state stored as `persona_locked: true` in the persona YAML with `locked_at: ISO timestamp` and `content_hash`. If the YAML changes after lock, the producer refuses to run until re-locked.
+
+### 15.2 Pipeline meta-leakage class identified (Site 14 finding)
+
+**Finding:** Site 14's marantz-vs-anthem-vs-denon article shipped with the producer's internal brief-reasoning published verbatim as article body.
+
+**Spec change:** New validator at Point 13.7 — `validate-meta-leakage.mjs`. HARD failure, exit 1, blocks publish.
+
+Patterns flagged: `\bthe brief\b`, `\bprompt system\b`, `\bh2_structure\b`, `\bbrief specifies\b`, `\bpersona's defer-to\b`, `\bbrief also specifies\b`, `\barticle type defined in\b`, `\bformat governs\b`.
+
+### 15.3 Buyer-guide card depersonalization class identified (Site 15 finding)
+
+**Finding:** Greg's locked persona produced first-person voice in narrative prose but third-person/agentless voice in buyer-guide product cards specifically.
+
+**Spec change:** Producer must inherit persona voice properties into the card generation code path. New validator at Point 13.8 — `validate-card-voice.mjs`. SOFT failure, logged to calibration-log.yaml.
+
+### 15.4 Content-existence validator (highest-priority new validator)
+
+**Finding:** Three sites shipped articles with structurally valid but semantically empty content. Existing validators check structure; none scan rendered HTML for content-existence patterns.
+
+**Spec change:** New validator at Point 15.6 — `validate-content-existence.mjs`. Runs against `dist/` after build, before deploy. HARD failure, exit 1, blocks deploy.
+
+### 15.5 Persona-spec compliance validator
+
+**Finding:** No existing validator compares first-person claims in article bodies against the locked persona spec. Site 13's entire editorial fix session was for this class of violation.
+
+**Spec change:** New validator at Point 13.5b — `validate-persona-spec-compliance.mjs`. HARD failure, exit 1, blocks publish. Implementation note: requires an LLM-pass per article via Haiku (~$0.001–0.01/article).
+
+### 15.6 Product slug resolution validator
+
+**Finding:** Site 15's `how-to-indicator-nymph.md` referenced `product:aventik-eupheng-riverruns-yarn` but the products.yaml key was `aventik-eupheng-riverruns-yarn-strike`. Build succeeded. Rendered HTML had a broken affiliate link.
+
+**Spec change:** New validator at Point 13.9 — `validate-product-slug-resolution.mjs`. HARD failure, exit 1, blocks publish.
+
+### 15.7 Astro data-store cache invalidation policy
+
+**Finding:** Site 15 build produced 91 articles with empty body content despite valid markdown files. Root cause: `node_modules/.astro/data-store.json` contained stale entries with `rendered: undefined` from a prior failed build.
+
+**Spec change:** `package.json` build script updated to delete `node_modules/.astro/data-store.json` before every production build.
+
+### 15.8 SVG asset placeholder detection
+
+**Finding:** Sites 14 and 15 both shipped with `logo-header.svg` containing `{{BRAND_NAME}}` as literal text.
+
+**Spec change:** New check in `verify-site-shell.mjs` (Point 7 close) and `verify-bindings.mjs` (Point 16 pre-deploy): `grep "{{" public/images/brand/*.svg` — any match is HARD failure.
+
+### 15.9 Sourcing tool DTC fallback policy
+
+**Finding:** Site 15's catalog had 10 wrong-ASIN products where the Rainforest sourcing tool backfilled DTC products with unrelated Amazon results.
+
+**Spec change:** `tools/source-products-rainforest.py` updated with three policies: brand-string match required, category match required, known-DTC-brand fallback. Seller-prefix scrub added (`STOVER Patagonia` → `Patagonia`).
+
+**DTC config file naming:** The per-niche file path is `config/dtc-brands/<niche>.yaml` where `<niche>` is the exact value of `site.niche` in `site.config.yaml`. For example: a site with `site.niche: fly-fishing` requires `config/dtc-brands/fly-fishing.yaml` — not `fishing.yaml`. The niche value determines the filename; do not abbreviate or simplify it.
+
+### 15.10 Catalog category-coherence filter
+
+**Finding:** Site 15's `/best-saltwater-flies/` had a spin lure as Best Overall and a bait-catching rig as Also Consider.
+
+**Spec change:** New `category_type` field in products.yaml per product. New validator at Point 12.5b — `validate-catalog-category-coherence.mjs`. HARD failure, exit 1.
+
+### 15.11 Pipeline status writeback policy
+
+**Finding:** Sites 13, 14, and 15 all shipped with all 300 articles in pipeline.json showing `status: not_started` despite being live.
+
+**Spec change:** Producer updates pipeline.json status per article after successful publish. `publish-staging.mjs` updates `status: published` when articles move from staging to content/articles/.
+
+### 15.12 Em-dash producer prompt fix and validator
+
+**Finding:** Site 14 had 253/300 articles with em-dashes rendered as ` , ` (space-comma-space). Site 13 had ~30 articles with the same pattern.
+
+**Spec change:** Producer prompt updated with explicit instruction to use `—` (U+2014). New post-generation check in `article_builder.py::check_output_shape()`. Build-validator soft-fail check (threshold: >10 per article).
+
+### 15.13 Skip-list enforcement at deploy
+
+**Finding:** Site 15's simms-g3-vs-g4.md was on the producer's skip-list but rendered live with 4 broken Amazon links.
+
+**Spec change:** `publish-staging.mjs` reads `data/skip-list.yaml`. Articles on skip-list excluded from staging-to-content move. `verify-deploy.mjs` post-deploy check confirms skip-list URLs return 404/301, not 200.
+
+### 15.14 Pages-API automation gaps (autonomous-launch tooling backlog)
+
+**Finding:** Custom domain attachment, DNS TXT records for GSC/BWT, environment variables on Pages — all Claude Code's responsibility per spec but de facto manual Keith gates.
+
+**Spec change:** New tool `tools/cloudflare-pages-config.mjs`. Single entry point for all Pages-API automation. `launch-site.mjs` invokes it at appropriate ritual points.
+
+### 15.15 Deploy pattern reality vs spec (Section 1.4 correction)
+
+**Finding:** PIPELINE.md Section 1.4 specified git push → CF auto-deploy. Actual pattern for Sites 11+ is `wrangler pages deploy dist` direct upload. `portfolio.yaml` shows `github_repo: null` for Sites 11–15.
+
+**Spec change:** Section 1.4 updated to reflect actual deploy pattern. Sites 1–10: git push. Sites 11+: direct upload. Pattern locked at scaffold.
+
+### 15.16 portfolio.yaml writeback policy
+
+**Finding:** portfolio.yaml is consistently stale. Site 13 showed `status: pre_launch` and `ga4_id: null` on the day it was confirmed live with GA4 deployed.
+
+**Spec change:** Every phase transition explicitly writes back to portfolio.yaml. New tool `tools/portfolio-update.mjs`. Each ritual point invokes it.
+
+### 15.17 Tooling backlog audit
+
+Status of tools as of v1.6:
+
+| Tool | Status |
+|---|---|
+| `tools/launch-site.mjs` | NOT BUILT — Section 2 ritual never implemented |
+| `tools/initialise-site.mjs` | Exists; inconsistently used |
+| `tools/verify-site-shell.mjs` | Exists; photo MD5 check unconfirmed |
+| `tools/verify-bindings.mjs` | Exists; pre-deploy invocation inconsistent |
+| `tools/source-products-rainforest.py` | Exists; inconsistently used |
+| `tools/source-images-pexels.mjs` | Exists; inconsistently used |
+| `tools/assign-article-images.mjs` | Exists; standard usage |
+| `tools/publish-staging.mjs` | Exists; some sites bypass |
+| `tools/deploy-and-verify.mjs` | Exists; standard usage |
+| `tools/dashboard.mjs` | Exists; runs against stale portfolio.yaml |
+| `tools/xlsx-to-pipeline.mjs` | Exists; standard usage |
+| `tools/check-niche-density.mjs` | NOT BUILT |
+| `tools/expand-articles.mjs` | NOT BUILT |
+| `tools/asin-health-check.mjs` | NOT BUILT |
+| `tools/earnings-poll.mjs` | NOT BUILT |
+| `tools/cloudflare-pages-config.mjs` | NOT BUILT — new in v1.6 |
+| `tools/portfolio-update.mjs` | NOT BUILT — new in v1.6 |
+| `tools/lock-persona.mjs` | NOT BUILT — new in v1.6 |
+| `tools/generate-persona-photos.mjs` | NOT BUILT — new in v1.6 |
+| `tools/generate-brand-assets.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-content-existence.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-persona-spec-compliance.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-product-slug-resolution.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-meta-leakage.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-card-voice.mjs` | NOT BUILT — new in v1.6 |
+| `scripts/validate-catalog-category-coherence.mjs` | NOT BUILT — new in v1.6 |
+
+**Critical path for autonomous launch:** `launch-site.mjs`, `cloudflare-pages-config.mjs`, `portfolio-update.mjs`, `lock-persona.mjs`, and the six new validators must exist before Site 16 launches under the autonomous-launch model. Estimated build effort: ~2 weeks of focused platform work.
+
+### 15.18 Editorial fix backlog from cohort
+
+Site-specific bugs confirmed across Sites 13/14/15 that should be propagated to template and checked on Sites 1–12:
+
+- Persona byline image path-construction bug (page-relative vs root-absolute) — Sites 13, 14, 15
+- Cookie consent persistence (fix shipped on Site 14, not propagated)
+- SVG `currentColor` fill rendering invisible when loaded as `<img>` (fix shipped on Site 14, not propagated)
+- Em-dash rendering as ` , ` (fixed on Site 14, root cause documented in 15.12)
+- Boilerplate identical pros/cons across products in buyer guides — Site 14
+- Renewed/refurbished SKUs as primary picks — Site 14
+- Seller-prefix in product names (`STOVER Patagonia Swiftcurrent Waders`) — Site 15
+- Doubled-apostrophe escape artifacts (`Greg''s`) — Site 15
+
+---
+
+## 16. Autonomous launch enforcement
+
+### 16.1 Decision categorization framework
+
+Every decision in the 21-point pipeline falls into one of four buckets:
+
+- **Bucket A** — Autonomous with documented policy. Claude Code applies the policy. No human intervention.
+- **Bucket B** — Autonomous with Keith review at preview gate. Claude Code applies the policy. Keith reviews preview deploy URL before promoting to production.
+- **Bucket C** — Keith identity-bound. Requires Keith's account, credential, or signature. Ritual halts and surfaces structured request.
+- **Bucket D** — Keith strategic decision. Requires Keith's judgment for the portfolio. Ritual halts and surfaces structured questionnaire.
+
+### 16.2 Per-point decision categorization
+
+| Point | Decision | Bucket | Policy if A or B |
+|---|---|---|---|
+| 1 | Niche selection | D | Keith decides; questionnaire elicits niche statement |
+| 1.5 | Amazon availability assessment | A | Run Rainforest on 20-30 queries; apply three-tier framework |
+| 2 | Keyword research | C | Keith provides XLSX; format validated by xlsx-to-pipeline |
+| 3 | Pipeline.json generation | A | xlsx-to-pipeline.mjs runs autonomously |
+| 4 | Domain selection | D | Keith decides; ritual receives domain as input |
+| 5 | Persona | D (biographical) + A (technical) | Keith provides biographical core; Claude Code structures YAML |
+| 5b | Persona photos | A | Generate via documented prompt template |
+| 5c | Persona lock | A | After validation passes, lock-persona.mjs runs autonomously |
+| 6 | Visual identity | B | Derive colors from niche per documented palette; Keith overrides at preview |
+| 7 | Site shell | A | initialise-site.mjs runs autonomously |
+| 8 | Site furniture | A | Generate from template family for niche |
+| 9 | Amazon tracking ID | C | Keith creates ID; provides string; Claude Code wires |
+| 10 | Source products | A | source-products-rainforest.py with documented policy filters |
+| 11 | Source images | A | source-images-pexels.mjs runs autonomously |
+| 12 | Assign images | A | assign-article-images.mjs runs autonomously |
+| 12.5 | Brand match audit | A | Run validator; iterate sourcing until pass or escalate to D |
+| 13 | Producer run | A | Producer runs with locked persona |
+| 13.5 | Persona claim audit | A | Validator runs; HARD failures regenerate |
+| 13.5b | Persona spec compliance | A | Validator runs; HARD failures regenerate |
+| 13.6 | Image markdown validator | A | Validator runs; fix-image-markdown.py on HARD failures |
+| 13.7 | Meta-leakage validator | A | Validator runs; HARD failures regenerate |
+| 13.8 | Card-voice density | A | Validator runs; SOFT failures logged |
+| 13.9 | Product slug resolution | A | Validator runs; HARD failures fix or regenerate |
+| 14 | Publish staging | A | publish-staging.mjs runs autonomously |
+| 15 | Local build | A | npm run build runs autonomously |
+| 15.5 | Pre-flight | A | preflight.py runs autonomously |
+| 15.6 | Content existence | A | validate-content-existence.mjs runs autonomously |
+| 16 | Push live | A | deploy-and-verify.mjs + cloudflare-pages-config.mjs |
+| 17a | GA4 property creation | C | Keith creates; provides measurement ID |
+| 17b | GA4 injection | A | Claude Code injects ID, redeploys |
+| 18a | BWT verification | C | Keith creates property; provides verification string |
+| 18b | BWT DNS record | A | cloudflare-pages-config.mjs adds TXT record |
+| 19a | GSC verification | C | Keith creates property; provides verification string |
+| 19b | GSC DNS record | A | cloudflare-pages-config.mjs adds TXT record |
+| 20 | IndexNow | A | Producer integration fires automatically |
+| 20.5 | UAT furniture re-validation | A | Validator runs autonomously |
+| 21 | Dashboard plug-in | A | portfolio-update.mjs writes entry |
+
+**Summary (35 decisions):**
+- Bucket A (autonomous): 25 (71%)
+- Bucket B (autonomous + Keith preview review): 1 (3%)
+- Bucket C (Keith identity-bound): 6 (17%)
+- Bucket D (Keith strategic): 3 (9%)
+
+**Keith's involvement consolidates to three touchpoints:**
+1. Pre-launch input bundle: Niche + domain + keyword XLSX + persona biographical context
+2. Mid-launch identity gates: Amazon ID, GA4 property, GSC property, BWT property
+3. Pre-promotion review: Preview deploy URL review (default on; can graduate to autonomous)
+
+### 16.3 Bucket A policy specifications
+
+**1.5 Amazon density:** Run Rainforest on 20-30 representative queries. Apply tier framework: ≥70% Amazon → launch Amazon-only; 50–70% → pre-seed 10–20 DTC products; <50% → pre-seed extensively OR halt for Keith confirmation.
+
+**5b Persona photos:** Generate via `~/affiliate-platform/templates/persona-photo-prompt.md`. Tool: `tools/generate-persona-photos.mjs`. Produces both photos, runs MD5 uniqueness check against portfolio.
+
+**6 Visual identity:** Derive colors per niche from `~/affiliate-platform/config/niche-palettes.yaml`. Logo generation: `tools/generate-brand-assets.mjs`. Keith reviews at preview.
+
+**9 Amazon tracking ID format:** `<slug-truncated-to-fit-20-char-limit>-20`. Claude Code derives the proposed string; Keith creates the ID in Amazon Associates with that exact string.
+
+**10 Product sourcing:** source-products-rainforest.py with v1.6 policy filters. No manual confirmation per product. Brand enrichment runs immediately after.
+
+**12.5 Brand match audit:** Validator runs. FAILs → re-run sourcing with brand-specific queries. Second-pass FAILs → escalate to Keith.
+
+**13.5 / 13.5b / 13.7 / 13.9 Validators:** HARD failures trigger regeneration with `--force --id <N>`. Maximum 3 regeneration attempts. After 3 attempts, article moves to skip-list.
+
+**15.6 Content existence:** HARD failures trigger investigation and rebuild. Maximum 2 rebuild attempts before escalating to Keith.
+
+**16 Custom domain attachment:** Always attempt via API. Retry with exponential backoff (10s, 30s, 60s, 120s). After 5 minutes, escalate to Keith.
+
+### 16.4 Bucket C structured request format
+
+When the ritual hits a Keith identity-bound gate, it halts and surfaces a structured request in chat:
+
+```
+RITUAL HALT — Point 9: Amazon Associates tracking ID required
+
+Action required from Keith:
+1. Log in to Amazon Associates dashboard
+2. Create new tracking ID with the exact string: <proposed-tracking-id>
+3. Confirm creation in dashboard
+4. Reply with: "tracking ID created" (or "tracking ID failed — <reason>")
+
+Tool: tools/cloudflare-pages-config.mjs will wire AMAZON_TAG to production
+and preview environments once you confirm. No further action from you after
+confirmation.
+
+Estimated time: 5 minutes.
+```
+
+### 16.5 Preview review graduation policy
+
+By default, the ritual deploys to a preview URL and halts at "Awaiting preview review" before promoting to production DNS.
+
+**Graduation:** After N consecutive sites launch through the autonomous ritual with zero SEV-1 findings in editorial UAT, the preview review gate may be graduated to autonomous promotion. Initial N = 3. The graduation decision is itself a Keith strategic decision (Bucket D) requiring explicit unlock via `tools/graduate-autonomous-launch.mjs --confirm`.
+
+### 16.6 Failure escalation policy
+
+Escalation hierarchy:
+1. Retry with backoff — transient failures
+2. Apply alternate policy — documented fallbacks
+3. Escalate to Keith with diagnostic — policy exhausted
+4. Halt ritual cleanly — preserves state in state.yaml, surfaces structured request, resumable
+
+The ritual never proceeds with degraded state.
+
+### 16.7 Concurrency policy
+
+Only one site launches at a time. Ritual checks `~/affiliate-platform/active-launches.yaml` before starting; refuses if another launch is in progress.
+
+### 16.8 Resumability and state
+
+State file at `~/affiliate-platform/sites/<slug>/state.yaml`:
+
+```yaml
+slug: <slug>
+started: <ISO>
+last_updated: <ISO>
+current_point: <number>
+current_bucket: <A | B | C | D>
+status: in_progress | awaiting_keith | failed | complete
+points_complete: [<list>]
+points_failed: [{point, reason}]
+keith_pending: [<list of pending Bucket C/D requests>]
+inputs:
+  niche: <provided at Point 1>
+  domain: <provided at Point 4>
+  keyword_xlsx_path: <provided at Point 2>
+  persona_context: <provided at Point 5>
+  amazon_tracking_id: <set after Point 9>
+  ga4_measurement_id: <set after Point 17>
+artifacts:
+  cloudflare_project: <slug>
+  cloudflare_zone_id: <zone_id>
+  preview_url: <set after first deploy>
+  production_url: <set after DNS attach>
+```
+
+Resume via `tools/launch-site.mjs --resume <slug>`. State is the source of truth.
+
+### 16.9 Audit trail
+
+Every autonomous decision writes to `~/affiliate-platform/sites/<slug>/decisions.log`:
+
+```
+<ISO> [Point 1.5] decision=amazon_tier_tiered amazon_rate=58% strategy=pre_seed_dtc bucket=A
+<ISO> [Point 6] decision=visual_identity_derived primary=#1A1F2E accent=#C0853A bucket=A
+<ISO> [Point 9] halt=awaiting_keith request=amazon_tracking_id bucket=C
+<ISO> [Point 9] resume=keith_provided value=undisclosedsounds-20 bucket=C
+```
+
+### 16.10 What this section locks
+
+Added to Section 1.13:
+
+- `launch-site.mjs` is the only entry point for new site builds
+- Decision categorization framework (Buckets A/B/C/D)
+- Sequential launches only (no concurrency)
+- Preview review gate default (graduation requires explicit unlock)
+- Audit trail per site in decisions.log
+- State.yaml as source of truth for ritual progress
 
 ---
 
