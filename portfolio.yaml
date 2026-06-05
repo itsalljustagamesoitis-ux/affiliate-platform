@@ -46,3 +46,150 @@ sites:
     github_repo: itsalljustagamesoitis-ux/bear-creek-barbecue
     status: pre_launch
     launched: null
+  - slug: northwoods-overland
+    domain: northwoodsoverland.com
+    persona: erik
+    tracking_id: northwoodsoverland-20
+    ga4_id: G-133SJWWF5B
+    cloudflare_project: northwoods-overland
+    github_repo: null
+    status: launched
+    launched: 2026-05-18T00:00:00.000Z
+  - slug: ten27
+    domain: ten27cycles.com
+    persona: dan
+    tracking_id: ten27cycles-20
+    ga4_id: null
+    cloudflare_project: ten27
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Aged domain (former Ten27 Cycles bike shop, Evanston IL, closed 2023). DNS on Cloudflare. Env vars needed:
+      BING_SITE_VERIFICATION, CF_BEACON_TOKEN, GA4_ID.
+  - slug: betterhearinghub
+    domain: betterhearinghub.com
+    persona: margaret
+    tracking_id: betterhearinghub-20
+    ga4_id: G-Z9DJFR6FPF
+    cloudflare_project: betterhearinghub
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 9 of 10. YMYL hearing-aid affiliate. Amazon tag betterhearinghub-20. Env vars needed: GA4_ID,
+      GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
+  - slug: curatedcameras
+    domain: curatedcameras.com
+    persona: sarah
+    tracking_id: curatedcameras-20
+    ga4_id: G-0V2M84ML0L
+    cloudflare_project: curatedcameras
+    github_repo: null
+    status: live
+    launched: 2026-05-23T00:00:00.000Z
+    notes: >-
+      Site 10 of 11. Photography gear affiliate. NOT YMYL. Amazon tag curatedcameras-20. Persona: Sarah Holland,
+      Portland OR, Fujifilm X-T4 shooter, 11-year gear writer. 260-article pipeline from
+      photography-qualified-keywords-v3.xlsx.
+  - slug: saunassosimple
+    domain: saunassosimple.com
+    persona: marcus
+    tracking_id: saunassosimple-20
+    ga4_id: null
+    cloudflare_project: saunassosimple
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 11 of 12. Home sauna affiliate. NOT YMYL (except sauna-health articles — use qualified framing). Amazon tag
+      saunassosimple-20. Persona: Marcus Andersson, Minneapolis MN, Finnish-American curator/researcher, 8-year sauna
+      writer. 386-article pipeline from sauna-site11-pipeline-v2.xlsx. Env vars needed: GA4_ID,
+      GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
+  - slug: fourfernscare
+    domain: fourfernscare.com
+    persona: linda
+    tracking_id: fourfernscare-20
+    ga4_id: G-0R27RFBLD1
+    cloudflare_project: fourfernscare
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 12 of 12. Senior caregiving affiliate. YMYL throughout — Linda Hoffmann (adult-child caregiver, NOT a
+      credentialed professional). 360-article pipeline from caregiver-site12-pipeline-v4.xlsx. Hearing-aids hub included
+      (6 articles); pre-flight WARN on hearing_aids foreign section is expected/documented. Env vars needed: GA4_ID,
+      GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
+  - slug: strengthmill
+    domain: strengthmill.com
+    persona: dan
+    tracking_id: strengthmill-20
+    ga4_id: G-G39HN9TN8E
+    cloudflare_project: strengthmill
+    github_repo: null
+    status: live
+    launched: 2026-05-28T00:00:00.000Z
+    notes: >-
+      Site 13. Home gym equipment affiliate. NOT YMYL. Persona: Dan Kowalski, Portland OR, software engineer / garage
+      gym builder. 273-article pipeline (Phase B cleanup complete 2026-05-28). Shares first name 'Dan' with Ten27
+      persona — V5 suppresses cross-hit via own_persona_names.
+  - slug: undisclosedsounds
+    domain: undisclosedsounds.com
+    persona: marcus
+    tracking_id: undisclosedsounds-20
+    ga4_id: null
+    cloudflare_project: undisclosedsounds
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 13. Audiophile affiliate. Aged-domain pickup — disavow file required before content (see DISAVOW.md).
+      Persona: Marcus Tran, Austin TX, UX researcher, 3 years in hobby. 300-article pipeline. 7 hubs: headphones, iems,
+      dacs, amplifiers, accessories, guides, learn. Amazon tag undisclosedsounds-20. GSC/BWT verified 2026-05-29.
+      330-product catalog built. Env vars needed: GA4_ID, CF_BEACON_TOKEN.
+    persona_locked: null
+  - slug: homepicturescinema
+    domain: homepicturescinema.com
+    persona: adrian
+    tracking_id: homepicturescinema-20
+    ga4_id: null
+    cloudflare_project: homepicturescinema
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 14. Home cinema affiliate. Aged-domain pickup ($10, expired filmmaker portfolio) — disavow file required
+      before content (file pending from main assistant; 576 backlinks, ~80-100 spam domains). Persona PENDING (design
+      conversation required before content pipeline). 9 provisional hubs: projectors, av-receivers, speakers, screens,
+      sources, accessories, calibration, guides, learn. Amazon tag homepicturescinema-20. GSC/BWT need verification. Env
+      vars needed: GA4_ID, GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
+  - slug: rmflyfishing
+    domain: rmflyfishing.com
+    persona: greg
+    tracking_id: rmflyfishing-20
+    ga4_id: null
+    cloudflare_project: rmflyfishing
+    github_repo: null
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 15. Fly fishing affiliate. Hand-registered domain (no aged history, no disavow needed). Persona: Greg Becker,
+      52, semi-retired mechanical engineer, Salida CO. 20 years fly fishing. Euro nymphing specialist. Works part-time
+      at Ark Anglers. Tagline: Honest fly fishing notes from twenty years on Western water. 11 provisional hubs: rods,
+      reels, lines-leaders, waders-boots, flies, fly-tying, accessories, techniques, waters, species, learn. Amazon tag
+      rmflyfishing-20. GSC/BWT need verification. Env vars needed: GA4_ID, GOOGLE_SITE_VERIFICATION,
+      BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
+  - slug: ridgelinebushcraft
+    domain: ridgelinebushcraft.com
+    status: pre_launch
+    deploy_pattern: direct_upload
+    persona: wesley-tate
+  - slug: firstlightfield
+    domain: firstlightfield.com
+    persona: james-calloway
+    tracking_id: firstlightfld-20
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: firstlightfield
+    github_repo: itsalljustagamesoitis-ux/firstlightfield
+    status: pre_launch
+    launched: null
