@@ -148,8 +148,11 @@ def _enforce_product_count(article: dict, products: dict, metadata: dict) -> lis
       - Excess (assigned > max): trim to max (highest-rated then most relevant)
       - No assigned products: use hub-matched products (min-max enforced)
     """
+    from prompt_loader import _PRODUCT_COUNT, _normalise_type as _norm_type
     assigned = article.get("products", [])
-    pc = metadata.get("product_count", {"min": 6, "max": 8})
+    norm_type = _norm_type(article.get("type", ""))
+    fallback_pc = _PRODUCT_COUNT.get(norm_type, {"min": 6, "max": 8})
+    pc = metadata.get("product_count") or fallback_pc
     min_count = pc["min"]
     max_count = pc["max"]
 
@@ -173,7 +176,8 @@ def _enforce_product_count(article: dict, products: dict, metadata: dict) -> lis
     else:
         # Fall back to hub-matched products
         hub_slug = article.get("hub_slug", article.get("hub", ""))
-        hub_prods = {k: v for k, v in products.items() if v.get("hub") == hub_slug}
+        from data_loader import product_matches_hub
+        hub_prods = {k: v for k, v in products.items() if product_matches_hub(v, hub_slug)}
         if len(hub_prods) < min_count:
             raise ValueError(
                 f"Insufficient hub products for '{article['slug']}' (hub: {hub_slug}): "
@@ -244,6 +248,23 @@ _REFUSAL_PATTERNS = [
     re.compile(r'\bas an llm\b', re.IGNORECASE),
 ]
 
+# First-person product testing claims — FTC compliance + Google helpful-content signal.
+# The persona is an editorial voice, not a hands-on tester of each specific product.
+# Patterns match specific testing/ownership claims; they do not block general editorial voice.
+_TESTING_CLAIM_PATTERNS = [
+    re.compile(r'\bI (?:personally )?tested\b', re.IGNORECASE),
+    re.compile(r"\bI'?ve (?:owned|tested)\b", re.IGNORECASE),
+    re.compile(r'\bIn my (?:testing|hands-on use|personal use)\b', re.IGNORECASE),
+    re.compile(r'\bmy (?:personal )?(?:testing|hands-on)\b', re.IGNORECASE),
+    re.compile(r'\bwhen I (?:tested|tried|installed) (?:this|it|the)\b', re.IGNORECASE),
+    re.compile(r'\bI(?:\'ve)? been (?:using|running|testing) this\b', re.IGNORECASE),
+    re.compile(r'\bafter (?:\d+ )?(?:weeks?|months?|nights?|trips?) of (?:using|testing|running) (?:this|it)\b', re.IGNORECASE),
+]
+
+_SOFT_CLAIM_PATTERNS = [
+    re.compile(r"\bI'd (?:argue|move|recommend|suggest|lean|prefer)\b", re.IGNORECASE),
+]
+
 _COMMERCIAL_TYPES = frozenset({"buyer_guide", "roundup", "comparison"})
 
 _MIN_WORDS_BY_TYPE: dict[str, int] = {
@@ -301,6 +322,26 @@ def check_output_shape(
                 f"no-products: '{article_type}' has no product_keys and no (product:slug) links"
                 " — article will render with no CTAs"
             )
+
+    # Check 5: No first-person product testing claims (FTC compliance + ranking signal)
+    for pattern in _TESTING_CLAIM_PATTERNS:
+        m = pattern.search(body)
+        if m:
+            failures.append(
+                f"testing-claim: matched \"{m.group()}\" — article claims personal testing/ownership "
+                "of a specific product. Use sourced framing instead (owner reviews, field reports, specs)."
+            )
+            break
+
+    # Check 6: No first-person editorial voice soft violations (persona-claim discipline)
+    for pattern in _SOFT_CLAIM_PATTERNS:
+        m = pattern.search(body)
+        if m:
+            failures.append(
+                f"persona-claim: matched \"{m.group()}\" — use neutral framing instead "
+                "(e.g. 'the labor cost is justified' not 'I'd argue the labor cost is justified')."
+            )
+            break
 
     return (len(failures) == 0, failures)
 
@@ -426,7 +467,7 @@ def build_prompt(
 
 TARGET KEYWORD: {article['keyword']}
 ARTICLE TYPE: {article_type}
-ANGLE / PERSONA HOOK: {article['angle']}
+ANGLE / PERSONA HOOK: {article.get('angle') or article['keyword']}
 TARGET WORD COUNT: {word_count_str} words
 CATEGORY: {category_label}
 HUB: {hub_label} ({hub_url})
@@ -593,11 +634,15 @@ def generate_article(
 
     prompt = build_prompt(article, product_keys, products, eeat, persona, site_config, metadata)
 
+    system_block = (
+        [{"type": "text", "text": system_text, "cache_control": {"type": "ephemeral"}}]
+        if system_text else system_text
+    )
     resp = client.messages.create(
         model="claude-sonnet-4-6",
         # 8192: platform system prompt is ~23K chars vs legacy ~4K — output budget compressed at 4096
         max_tokens=8192,
-        system=system_text,
+        system=system_block,
         messages=[{"role": "user", "content": prompt}],
     )
     body = resp.content[0].text.strip()
@@ -607,9 +652,16 @@ def generate_article(
     body = _enforce_price_ban(body, dollar_allowed)
     body = _enforce_faq_sentence_limit(body)
     body = _enforce_ai_tell_bans(body)
+    body = _enforce_soft_claims(body)
     body = _strip_spurious_commas(body)
     hub = article.get("hub_slug", article.get("hub", ""))
-    body = inject_body_images(body, article.get("body_images"), hub)
+    images_base = site_config.get("images", {}).get("base_url", "/images")
+    raw_images = article.get("body_images")
+    body_images = (
+        [f"{images_base}/{img['path']}" if isinstance(img, dict) else img for img in raw_images]
+        if raw_images else None
+    )
+    body = inject_body_images(body, body_images, hub)
     title, description = generate_title_and_desc(article, body, client)
     return body, title, description, product_keys
 
@@ -635,6 +687,16 @@ PERSONA BACKGROUND: {background}
 VOICE: {voice_notes}
 
 PRICE RULE: {dollar_rule}
+
+SOURCED FRAMING (HARD CONSTRAINT):
+The persona is the editorial voice — they do not claim personal hands-on testing or ownership of specific products reviewed.
+ALLOWED: "Based on owner reviews...", "Verified buyers note...", "Spec data shows...", "Field reports from [community] indicate..."
+FORBIDDEN: "I tested...", "I've owned this...", "In my testing...", "When I installed/used/tried this...", "After [N] weeks/months of using this..."
+
+BIOGRAPHICAL FABRICATION BAN (HARD CONSTRAINT):
+Do not invent biographical events, named relationships, or ownership anecdotes not established in PERSONA BACKGROUND above.
+FORBIDDEN: Named events/expos the persona has not attended, named insider relationships ("a contact at [brand]"), extended ownership claims for gear not in the persona's documented owned-gear list, fabricated named community encounters.
+ALLOWED: The persona's actual owned gear and documented preferences as stated above.
 
 BANNED WORDS: {banned_words}
 
@@ -687,6 +749,61 @@ def build_frontmatter(
     def _cy(s):
         return s.replace("\u2014", ",").replace("\u2013", ",").replace('"', '\\"')
 
+    def _derive_pros_cons(product: dict, hub: str) -> tuple[list[str], list[str]]:
+        """Derive minimal real pros/cons from product metadata when default_pros/cons are absent.
+        Never returns placeholder strings — fails to empty list if no derivation is possible."""
+        # Hub-keyed fallback content — generic but category-accurate
+        HUB_FALLBACKS = {
+            "subwoofers": (
+                ["Dedicated low-frequency driver delivers bass extension beyond typical speaker limits"],
+                ["Requires proper room placement and level calibration to integrate cleanly with mains"],
+            ),
+            "speakers": (
+                ["Full-range driver coverage eliminates the crossover complexity of a multi-speaker system"],
+                ["Placement sensitivity means room position significantly affects perceived tonal balance"],
+            ),
+            "av-receivers": (
+                ["Centralized processing and switching simplifies multi-source home theater management"],
+                ["Room correction setup requires a measurement microphone and calibration time to optimize"],
+            ),
+            "soundbars": (
+                ["Single-unit installation eliminates speaker placement and wiring complexity"],
+                ["Virtual surround processing cannot match the spatial accuracy of a properly placed 5.1 system"],
+            ),
+            "projectors": (
+                ["Large-screen image quality at a fraction of the cost of equivalent flat-panel displays"],
+                ["Room light control is critical — even moderate ambient light reduces contrast ratio noticeably"],
+            ),
+            "screens": (
+                ["Dedicated projection surface delivers higher gain and more accurate color rendering than a painted wall"],
+                ["Fixed-frame installation requires careful pre-measurement to align correctly with the projector throw"],
+            ),
+            "calibration": (
+                ["Objective measurement capability removes guesswork from audio/video tuning decisions"],
+                ["Results depend on measurement technique — improper mic placement produces misleading data"],
+            ),
+            "accessories": (
+                ["Purpose-built accessory designed for home theater integration and signal integrity"],
+                ["Compatibility depends on specific equipment — verify connector and format support before purchase"],
+            ),
+            "sources": (
+                ["Dedicated source component separates playback quality from display processing limitations"],
+                ["Requires a compatible input on the receiver or display and correct format configuration"],
+            ),
+            "guides": (
+                ["Provides structured approach to a common home theater setup or upgrade decision"],
+                ["Results vary based on room acoustics and existing equipment baseline"],
+            ),
+        }
+
+        pros, cons = HUB_FALLBACKS.get(hub, ([], []))
+
+        # Validate: reject any string containing the old placeholder marker
+        pros = [p for p in pros if "[write" not in p]
+        cons = [c for c in cons if "[write" not in c]
+
+        return pros[:2], cons[:1]
+
     prod_refs = []
     for i, key in enumerate(assigned_keys):
         role = roles[i] if i < len(roles) else "also_consider"
@@ -694,10 +811,27 @@ def build_frontmatter(
         pros = [_cy(x) for x in p.get("default_pros", [])[:2]]
         cons = [_cy(x) for x in p.get("default_cons", [])[:1]]
         ref = f'  - id: "{key}"\n    role: "{role}"'
-        if pros:
-            ref += "\n    article_specific_pros:\n" + "\n".join(f'      - "{pr}"' for pr in pros)
-        if cons:
-            ref += "\n    article_specific_cons:\n" + "\n".join(f'      - "{c}"' for c in cons)
+        _buying_type = article_type in ("buyer_guide", "roundup")
+
+        # If catalog has no pros/cons and this is a buying article, derive from metadata.
+        # Never emit placeholder instruction strings — they must not reach production.
+        if not pros and _buying_type:
+            hub_slug = article.get("hub_slug", article.get("hub", ""))
+            pros, cons_derived = _derive_pros_cons(p, hub_slug)
+            if not cons:
+                cons = cons_derived
+
+        ref += "\n    article_specific_pros:\n" + (
+            "\n".join(f'      - "{pr}"' for pr in pros) if pros else "      []"
+        )
+        ref += "\n    article_specific_cons:\n" + (
+            "\n".join(f'      - "{c}"' for c in cons) if cons else "      []"
+        )
+
+        # Safety gate: if placeholder leaked through, fail loudly rather than emit broken content
+        if "[write" in ref:
+            raise ValueError(f"Placeholder string detected in product ref for {key} — aborting article generation")
+
         prod_refs.append(ref)
 
     products_yaml = "\n".join(prod_refs) if prod_refs else "  []"
@@ -720,8 +854,10 @@ def build_frontmatter(
     safe_title = _clean_yaml(title) if title else article["keyword"].title()
     safe_desc = _clean_yaml(description) if description else ""
     hub = article.get("hub_slug", article.get("hub", ""))
-    img_n = (article.get("id", 1) - 1) % 8 + 1
-    hero_image = article.get("hero_image") or f"articles/{hub}-{img_n}.jpg"
+    _raw_id = article.get("id", 1)
+    _id_num = int(''.join(filter(str.isdigit, str(_raw_id))) or '1')
+    img_n = (_id_num - 1) % 8 + 1
+    hero_image = article.get("hero_image") or f"articles/{hub}-{img_n}.webp"
     hero_alt = _clean_yaml(article.get("hero_image_alt", "") or safe_title)
 
     # R10: category from article (populated by enrich_article)
@@ -1004,10 +1140,14 @@ def inject_body_images(body: str, body_images, hub: str) -> str:
         if inserted:
             images.pop(0)
 
-    # Position 2: before How to Choose / Buying Guide
+    # Position 2: after How to Choose / Buying Guide heading (not before — image before heading
+    # lands inside the last product section and fails the B11.x validator rule)
     if images:
-        body, inserted = _insert_before(body, r'^##\s+(How to Choose|Buying Guide)', images[0])
-        if inserted:
+        m = re.search(r'^(##\s+(?:How to Choose|Buying Guide)[^\n]*\n)', body, re.MULTILINE)
+        if m:
+            pos = m.end()
+            block = _img_md(images[0], hub)
+            body = body[:pos] + '\n' + block + '\n' + body[pos:]
             images.pop(0)
 
     # Position 3: before FAQ
@@ -1041,20 +1181,36 @@ _AI_TELL_PHRASES = [
 _SENTENCE_RE = re.compile(r'(?<=[.?!])\s+')
 
 
+def _ai_tell_inline_replace(text: str) -> str:
+    """Remove banned AI-tell phrases inline (used for headings and JSON-LD)."""
+    for phrase in _AI_TELL_PHRASES:
+        if phrase.lower() in text.lower():
+            text = re.sub(re.escape(phrase), "", text, flags=re.IGNORECASE)
+            text = re.sub(r"  +", " ", text).strip()
+    return text
+
+
 def _enforce_ai_tell_bans(body: str) -> str:
-    """Remove sentences containing banned AI-tell phrases. Logs each removal."""
-    # Only scrub prose — leave JSON-LD blocks intact
+    """Remove/replace banned AI-tell phrases. Sentence removal for prose; inline replacement for headings and JSON-LD."""
     json_marker = '<script type="application/ld+json">'
     if json_marker in body:
         prose, _, rest = body.partition(json_marker)
-        return _enforce_ai_tell_bans(prose) + json_marker + rest
+        # Prose: full sentence removal; JSON-LD: inline replacement only
+        return _enforce_ai_tell_bans(prose) + json_marker + _ai_tell_inline_replace(rest)
 
     lines = body.split("\n")
     cleaned_lines = []
     for line in lines:
-        # Skip heading lines, image lines, frontmatter-style lines
-        if line.startswith("#") or line.startswith("!") or line.startswith("---"):
+        if line.startswith("!") or line.startswith("---"):
             cleaned_lines.append(line)
+            continue
+
+        if line.startswith("#"):
+            # Headings: inline removal so the heading isn't dropped entirely
+            cleaned = _ai_tell_inline_replace(line)
+            if cleaned != line:
+                print("  [AI-TELL] removed phrase from heading")
+            cleaned_lines.append(cleaned)
             continue
 
         for phrase in _AI_TELL_PHRASES:
@@ -1076,3 +1232,30 @@ def _enforce_ai_tell_bans(body: str) -> str:
     result = "\n".join(cleaned_lines)
     result = re.sub(r"\n{3,}", "\n\n", result)
     return result
+
+
+_SOFT_CLAIM_REPLACEMENTS = [
+    # Drop "I'd" prefix — "I'd recommend X" → "recommend X", "I'd suggest" → "suggest", etc.
+    (re.compile(r"\bI'd (recommend|suggest|prefer)\b", re.IGNORECASE), r"\1"),
+    # Rephrase: "I'd argue" → "the evidence suggests"
+    (re.compile(r"\bI'd argue\b", re.IGNORECASE), "the evidence suggests"),
+    # Rephrase: "I'd lean" → "the lean here is"
+    (re.compile(r"\bI'd lean\b", re.IGNORECASE), "the lean here is"),
+    # Rephrase: "I'd move" → "the move is"
+    (re.compile(r"\bI'd move\b", re.IGNORECASE), "the move is"),
+]
+
+
+def _enforce_soft_claims(body: str) -> str:
+    """Auto-replace first-person editorial phrases that fail the persona-claim shape check."""
+    json_marker = '<script type="application/ld+json">'
+    if json_marker in body:
+        prose, _, rest = body.partition(json_marker)
+        return _enforce_soft_claims(prose) + json_marker + rest
+
+    for pattern, replacement in _SOFT_CLAIM_REPLACEMENTS:
+        if pattern.search(body):
+            body = pattern.sub(replacement, body)
+            print(f"  [SOFT-CLAIM] replaced '{pattern.pattern}' → '{replacement}'")
+    return body
+

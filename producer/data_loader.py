@@ -42,18 +42,10 @@ def load_products(site_root: Path) -> dict:
         # Platform builder uses 'amazon_asin'; Rainforest uses 'asin'
         if "amazon_asin" not in p and "asin" in p:
             p["amazon_asin"] = p["asin"]
-        # build_frontmatter reads default_pros/cons to populate article_specific_pros/cons;
-        # some sources don't provide them.
         if "default_pros" not in p:
-            brand = p.get("brand") or ""
-            hub = p.get("hub") or ""
-            hub_label = hub.replace("-", " ") if hub else "product"
-            p["default_pros"] = [
-                f"Well-reviewed {hub_label} option" if hub_label else "Highly rated",
-                f"From {brand}" if brand else "Strong customer ratings",
-            ]
+            p["default_pros"] = []
         if "default_cons" not in p:
-            p["default_cons"] = ["Verify specifications match your needs before purchasing"]
+            p["default_cons"] = []
         products[key] = p
     return products
 
@@ -105,8 +97,16 @@ def enrich_article(article: dict, nav: dict) -> dict:
     return article
 
 
+def product_matches_hub(product: dict, hub_slug: str) -> bool:
+    """True when product belongs to the given hub (supports both hub: str and hubs: [list])."""
+    hubs = product.get("hubs")
+    if isinstance(hubs, list):
+        return hub_slug in hubs
+    return product.get("hub") == hub_slug
+
+
 def get_hub_products(products: dict, hub_slug: str) -> dict:
-    return {k: v for k, v in products.items() if v.get("hub") == hub_slug}
+    return {k: v for k, v in products.items() if product_matches_hub(v, hub_slug)}
 
 
 def get_article_by_id(pipeline: list, article_id: int) -> Optional[dict]:
@@ -132,17 +132,35 @@ def save_pipeline(pipeline: list, site_root: Path) -> None:
     path = site_root / "data/pipeline.json"
     tmp = path.with_suffix(".json.tmp")
     bak = path.with_suffix(".json.bak")
-    # Preserve the wrapper dict (version, site, etc.) when saving
     try:
         with open(path) as f:
             existing = json.load(f)
     except Exception:
         existing = {}
+
+    # Merge mutable status fields from in-memory pipeline into the current on-disk
+    # version, so external edits made during a run (skip flags, product changes) survive.
     if isinstance(existing, dict):
-        existing["articles"] = pipeline
+        disk_articles = existing.get("articles", [])
+    else:
+        disk_articles = existing if isinstance(existing, list) else []
+
+    mem_by_id = {a["id"]: a for a in pipeline}
+    merged = []
+    for disk_a in disk_articles:
+        mem_a = mem_by_id.get(disk_a["id"])
+        if mem_a is not None:
+            for key in ("status", "staged", "published", "fail_count"):
+                if key in mem_a:
+                    disk_a[key] = mem_a[key]
+        merged.append(disk_a)
+
+    if isinstance(existing, dict):
+        existing["articles"] = merged
         data = existing
     else:
-        data = pipeline
+        data = merged
+
     with open(tmp, "w") as f:
         json.dump(data, f, indent=2)
     if path.exists():

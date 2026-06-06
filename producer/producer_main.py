@@ -73,7 +73,11 @@ def get_api_key(site_root: Path) -> str:
 
 
 def already_staged(slug: str, staging_dir: Path, articles_dir: Path) -> bool:
-    return (staging_dir / f"{slug}.docx").exists() or (articles_dir / f"{slug}.md").exists()
+    return (
+        (staging_dir / f"{slug}.md").exists()
+        or (staging_dir / "failed" / f"{slug}.md").exists()
+        or (articles_dir / f"{slug}.md").exists()
+    )
 
 
 def mark_produced(pipeline: list, article_id: int) -> None:
@@ -145,6 +149,10 @@ def run(args, site_root: Path):
             print(f"  SKIP — {slug}.md already staged. Use --force to regenerate.\n")
             continue
 
+        if article.get("fail_count", 0) >= 3 and not args.force:
+            print(f"  SKIP — {slug} has failed {article['fail_count']} times. Use --force to retry.\n")
+            continue
+
         if "products" not in article:
             print(f"  SKIP — no product assignment. Run: python3 data/assign-products.py\n")
             continue
@@ -198,21 +206,24 @@ def run(args, site_root: Path):
                 article, products, eeat, persona, client,
                 site_config, site_root, system_text, metadata,
             )
+
             word_count = len(body.split())
 
-            # Pre-write shape check — catches refusal content and grossly malformed output
-            # before any file I/O. Halts the producer on failure so the root cause is
-            # investigated rather than silently writing bad content to staging/failed/.
+            # Pre-write shape check — catches refusal content and grossly malformed output.
             shape_ok, shape_failures = check_output_shape(body, article["type"], product_keys)
             if not shape_ok:
                 print(f"\n  SHAPE CHECK FAILED for '{slug}':")
                 for msg in shape_failures:
                     print(f"    ✗ {msg}")
-                if args.force:
-                    print("  --force: bypassing shape check and continuing.")
-                else:
-                    print(f"\n  Producer halted. Investigate root cause or use --force to bypass.")
-                    sys.exit(3)
+                failed_dir = staging_dir / "failed"
+                failed_dir.mkdir(exist_ok=True)
+                sidecar = failed_dir / f"{slug}.failures"
+                sidecar.write_text("\n".join(shape_failures), encoding="utf-8")
+                article["fail_count"] = article.get("fail_count", 0) + 1
+                article.pop("_siblings", None)
+                save_pipeline(pipeline, site_root)
+                errors += 1
+                continue
 
             frontmatter = build_frontmatter(
                 article, product_keys, products, title, description, site_config
@@ -256,6 +267,7 @@ def run(args, site_root: Path):
                     md_path.unlink(missing_ok=True)
                     sidecar_path = failed_dir / f"{slug}.failures"
                     sidecar_path.write_text(validator_output, encoding="utf-8")
+                    article["fail_count"] = article.get("fail_count", 0) + 1
                     print(
                         f" done ({word_count} words) — validator FAIL → "
                         f"staging/failed/{slug}.md  (see {slug}.failures)"
@@ -274,7 +286,7 @@ def run(args, site_root: Path):
             continue
 
         if i < len(articles) - 1:
-            time.sleep(1)
+            time.sleep(8)
 
     if args.publish:
         print(f"\nDone. {len(articles)} article(s) written to content/articles/")

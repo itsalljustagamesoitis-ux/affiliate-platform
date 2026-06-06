@@ -1848,13 +1848,19 @@ When new lessons emerge:
 | 6. Product mismatches | 11 Harvia articles had solar rope lights; 5 cedar articles had pet bedding | product-topic-match | Step 6: replaced wrong products with appropriate ones |
 | 7. Persona/OG quality | Male persona had female headshot; og:locale missing; cookie banner overlap | persona-consistency + og-locale | Step 7: replaced headshot, platform-level og:locale + cookie fix |
 
-### 13.3 Mac/VM state sync risk
+### 13.3 Mac/VM state sync — VM is canonical (updated 2026-06-05)
 
-**Problem:** SaunasSoSimple articles existed on VM (46.225.29.35) but not on the Mac build machine. All five early deploys in the session produced empty sites (77 dirs, 68 pages — no articles). Required rollback via CF REST API and rsync from VM to Mac.
+**History:** SaunasSoSimple articles existed on VM (46.225.29.35) but not on the Mac build machine. All five early deploys in the session produced empty sites (77 dirs, 68 pages — no articles). Required rollback via CF REST API and rsync from VM to Mac. At that time the standing rule was "Mac is canonical." That rule is superseded.
 
-**Pattern:** When the build machine is not the authoring machine, article state must be explicitly synced before build. The pre-flight `state-sync` check catches the "content/articles/ empty but pipeline has articles" condition.
+**Updated standing rule (VM canonical, all sites):** The VM (46.225.29.35) is the canonical content store for all sites. Mac is the build machine but not the source of truth. The VM holds patched, validated article state; Mac may lag.
 
-**Standing rule:** Mac is the canonical build machine. VM retains the old 365-article set (including 55 duplicates from before dedup) and must never be used as the build source for saunassosimple.
+**Session sync protocol:**
+- **Start of session:** `rsync -avz --delete root@46.225.29.35:/root/<site>/content/ /Users/keithlacy/<site>/content/` — pull VM state to Mac before any build or edit
+- **End of session:** `rsync -avz --delete /Users/keithlacy/<site>/content/ root@46.225.29.35:/root/<site>/content/` — push Mac edits back to VM
+
+Sites are reconciled as they're touched; no bulk force-sync of all sites at once.
+
+**Pattern:** When Mac lags VM, always sync VM→Mac first. Do not build from Mac-only state for any site that has had VM-side patches applied.
 
 **Rollback command (CF Pages REST API — wrangler v4 no longer has `pages deployment rollback`):**
 
@@ -2094,6 +2100,71 @@ Status of tools as of v1.6:
 **Critical path for autonomous launch:** `launch-site.mjs`, `cloudflare-pages-config.mjs`, `portfolio-update.mjs`, `lock-persona.mjs`, and the six new validators must exist before Site 16 launches under the autonomous-launch model. Estimated build effort: ~2 weeks of focused platform work.
 
 ### 15.18 Editorial fix backlog from cohort
+
+#### Validator calibration backlog
+
+**B41 — Pre-flight slug collision check (2026-06-05)**
+Article slug matching a hub slug causes the hub page to overwrite the article at the same URL in every Astro build. The article is never publicly accessible. Pre-flight currently does not detect this.
+- Fix: add a slug-collision check to `preflight.py` that compares article slugs against hub names in `navigation.yaml`. FAIL if any collision found.
+- Priority: before Site 17 launch. A site with keyword research producing hub-matching terms will silently dead-end articles.
+- Discovery: SM `barbells.md` had `slug: "barbells"` matching the "barbells" hub. Article was never live — hub page shadowed it in every deploy.
+
+**B42 — V18 possessive ownership patterns (2026-06-05)**
+V18 v1.1 caught explicit testing/ownership language (`I've tested`, `I own`, `I've carried`) but missed first-person possessive place/equipment claims (`my garage`, `my kitchen`, `my workshop`, `my home gym`). These are ownership signals with equivalent FTC risk.
+- Fix: V18 v1.2 adds `my (?:garage(?: gym)?|home gym|kitchen|workshop|listening room|workout room|setup)` as HARD with heading-skip (FAQ headers use `my garage` in question form — skip lines starting with `#`). **Shipped 2026-06-05** to `/root/affiliate-platform/scripts/validate-persona-claims.mjs`.
+- Portfolio B42 HARD counts from V18 v1.2 first run (VM sites): SM 15, MLT 33, NWO 1, SSS 2. RBC 0 (Wesley's `my pack/kit` was already in REVIEW_PATTERNS). Mac-only sites not yet scanned.
+- Remediation: same sentence-start rewrite pattern as Day 8 V18 patches. `my garage` → `in this garage`, `my kitchen` → `in this kitchen`. Day 10 remediation batch across SM + MLT + remaining sites.
+
+**B43 — Portfolio Mac/VM divergence audit at v1.X validator transitions (2026-06-05)**
+Day 4 patched RBC on VM (45 HARD). Day 8 patched MLT on Mac (38 HARD). Neither sync was propagated. When V18 v1.2 first ran, Mac RBC showed 52 HARD (stale) and VM MLT showed 33 HARD (stale). The canonical number was 0 and 11 respectively — wrong surface gave wrong count.
+- Root cause: no sync protocol before Day 8's VM canonical policy decision. Each session patched wherever it ran and left the other side stale.
+- Fix applied 2026-06-05: VM canonical policy documented in PIPELINE.md §13.3 + HETZNER-VM-STATE.md. Session-start VM→Mac sync + session-end Mac→VM sync now required. **Persona config (`config/personas/`) must also be synced** — persona YAML determines owned-gear suppression in V18; a stale persona file produces false positives/negatives even when article content is identical.
+- Add to v1.X transition checklist: before running the new validator version portfolio-wide, sync all sites to canonical state first (VM→Mac or Mac→VM per site's history). Otherwise stale-state violations pollute the violation count.
+
+**B44 — Portfolio VM/Mac article-count divergence (2026-06-05) — CLOSED 2026-06-05**
+Divergence table surfaced 2026-06-05 as part of Day 9 B42 scope audit. Five sites had meaningful VM-ahead divergence: MLT +9, CC +8, NWO +19, BHH +24, SSS +69.
+- Root cause: Sites deployed from VM had no Mac→VM or VM→Mac sync post-launch. Content accumulates on VM while Mac copy stays frozen at launch state.
+- Day 10 resolution per site:
+  - **SSS:** VM→Mac (+69 articles). All 69 V18-clean. Mac now 365 articles.
+  - **CC:** VM→Mac (hygiene, +8 articles). All V18-clean. Mac now 255 articles.
+  - **NWO:** All 19 VM-only articles are near-dup slug variants of existing Mac articles. No sync needed. Mac-canonical.
+  - **MLT:** All 9 VM-only articles are near-dup slug variants of existing Mac articles. Mac→VM push (--delete) cleaned 9 VM near-dups. VM now 191 matching Mac.
+  - **BHH:** Deferred to Day 11 — bidirectional divergence, near-dup investigation required. BHH is CLEAN for V18 so no FTC urgency.
+- Going forward: VM canonical policy (§13.3) + session-start/end sync protocol prevents recurrence.
+
+**B45 — NWO VM `maxtrax-boot.md` B38 contamination (2026-06-05) — CLOSED 2026-06-06**
+VM-only article `maxtrax-boot.md` has title "MaxTRAX Boot Buyer's Guide: Orthopedic vs. Work Boots" — MaxTRAX is a traction recovery board brand; this article covers footwear (wrong niche). Deleted from VM during Day 11 Phase 2 cleanup. No Mac action needed (was never on Mac).
+
+**B48 — Rainforest sourcing returns thin results for book-category articles — CLOSED 2026-06-06**
+Book-keyword articles (astronomy-books, astronomy-books-for-beginners, childrens-astronomy-books, etc.) consistently return 0-2 sourced products despite Amazon having thousands of astronomy books. Root cause: `source-products-rainforest.py` uses a plain keyword search with no `category_id` parameter. Amazon's default search returns physical products (telescopes, mounts) ranked above books for astronomy queries. The book products that ARE found get sourced into the shared accessories hub, but each individual keyword only retrieves 1-2 unique books — not enough for the 3-product minimum.
+- Fix shipped (Day 15): Added `is_book_article()` detection (keyword or slug contains "book") to `tools/source-products-rainforest.py`. When detected, `category_id=283155` (Amazon Books node) is added to the Rainforest API request. This restricts results to Amazon Books and surfaces 7+ matching results.
+- Workaround applied (Site 17): Cross-assigned all 17 book products in the accessories catalog across 7 book articles (6 products each). All 7 articles now have sufficient products.
+- Affects: Any site with reference/learning content where books are the natural product type.
+
+**B45 — Semantic slug dedup in xlsx-to-pipeline.mjs — CLOSED 2026-06-06**
+Fix shipped (Day 15): Added MODIFIER_WORDS stripping + semantic key comparison to `tools/xlsx-to-pipeline.mjs`. After pipeline.json is built, articles within each hub are grouped by their modifier-stripped token set (sorted). Articles whose stripped tokens match a higher-volume article in the same hub are marked `status: "dupe"` with a `dupe_of` reference. MODIFIER_WORDS: best, good, great, top, worst, affordable, cheap, budget, inexpensive, expensive, premium, basic, simple, easy, a, an, the. Test result: 6/12 Site 17 book-keyword articles correctly detected as near-dups (astronomy-books, good-astronomy-books, top-astronomy-books, great-astronomy-books, astronomy-books-for-beginners, good-astronomy-books-for-beginners). antique-astronomy-books and old-astronomy-books correctly NOT flagged.
+
+**B45 update (2026-06-06) — Semantic near-duplicate slugs affecting Site 17 launch:**
+Site 17 produced 10 astrophotography-telescope near-duplicate slugs that V1 dedup didn't catch at keyword research time: astrophotography-telescope, good-telescope-for-astrophotography, great-telescope-for-astrophotography, beginner-astrophotography-telescope, deep-sky-astrophotography-telescope, dobsonian-telescope-astrophotography, portable-astrophotography-telescope, starter-telescope-for-astrophotography, best-starter-telescope-for-astrophotography, best-beginner-telescope-for-astrophotography. All 10 dropped at launch (shortfall articles). V1 dedup uses token-set comparison within each hub — it catches exact synonym pairs but misses semantic equivalence across modifier chains (beginner/starter/good/great are not caught as duplicates of each other). Same shape as MLT KitchenAid 8-quart variants. B45 tooling fix (semantic-equivalence check) is now affecting launch quality, not just remediation. Elevate priority.
+
+**B49 — Multi-hub product schema support — CLOSED 2026-06-06**
+Products in `products.yaml` were limited to a single `hub: slug` field. Articles containing cross-hub products (e.g., a telescope that also appears in mounts articles) generated Rule 2 violations. Fix shipped (Day 15): Added `product_matches_hub(product, hub_slug)` helper to `data_loader.py` that checks both `hub: str` (single, backward-compatible) and `hubs: [list]` (new, multi-hub). Updated `get_hub_products()` and `article_builder.py` fallback path to use the helper. Updated three test assertions in `test_phase1_output_schema.py` to handle both schema variants. No migration required — existing `hub: str` products continue to work unchanged.
+
+**B50 — `already_staged()` checks .docx extension instead of .md — CLOSED 2026-06-06**
+`producer/producer_main.py` `already_staged()` checked `staging/{slug}.docx` which is never written (staging files are `.md`). This caused the skip gate to miss articles that were already staged, allowing re-production of completed articles. Fix shipped (Day 15): removed the `.docx` branch. Function now checks `staging/{slug}.md`, `staging/failed/{slug}.md`, and `articles/{slug}.md`.
+
+**B47 — New site scaffold lands on Mac only; VM sync is manual (2026-06-05)**
+`tools/initialise-site.mjs` creates the site directory on whichever machine Claude Code runs on (Mac). The VM is the canonical content store for production runs, but there is no automatic rsync step at the end of scaffold. Operator must manually rsync Mac→VM before launching the producer. This caused a delayed discovery on Site 17 (firstlightfield): full rsync + npm install + debug cycle added ~20 minutes to first launch.
+- Fix (process): Add Mac→VM rsync as the final step in Phase 5 (pre-production) for any new site. Document in §13.3 session-start/end protocol.
+- Fix (tooling): `initialise-site.mjs` could accept a `--sync-vm` flag that rsyncs to `root@46.225.29.35:/root/<slug>/` as the final scaffold step. Out of scope for Day 11 — note for Day 12+.
+- Priority: Low — one-time cost per new site, easily worked around. But the friction is non-obvious (silent failure: producer runs on Mac fine, VM runs fail).
+
+**B46 — V1 dedup Mac-only workflow causes systematic VM/Mac divergence (2026-06-05)**
+Root cause of the VM/Mac divergence pattern observed across MLT, NWO, BHH, and CC (Day 9–11 investigation): V1 slug-dedup runs on Mac during keyword research and local content work. The deduped canonical slugs get deployed to production (Mac→CF Pages) but the pre-dedup slug variants persist on VM indefinitely. VM accumulates stale slug variants; Mac carries the canonical deduplicated state.
+- Evidence: MLT 9 VM-only = near-dup variants; NWO 19 VM-only = near-dup variants; BHH 27 VM-only = near-dup variants. All three sites confirmed same pattern on Days 10–11.
+- Fix (process): After V1 dedup runs on Mac, immediately rsync content to VM before any subsequent session work. This is a one-line addition to the session-start/end sync protocol (§13.3).
+- Fix (tooling): Consider adding a V1 dedup check to the session-end sync: `node scripts/validate-slug-dups.mjs --check-vm-drift` that surfaces VM slugs with no Mac canonical. Add to Day 12+ workflow.
+- Priority: Medium — the divergence is hygiene-level, not FTC-risk. All three confirmed cases are now resolved. Recurrence prevention is the remaining action.
 
 Site-specific bugs confirmed across Sites 13/14/15 that should be propagated to template and checked on Sites 1–12:
 

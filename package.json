@@ -1,7 +1,7 @@
 {
   "name": "@platform/core",
   "type": "module",
-  "version": "2.0.3",
+  "version": "2.2.0",
   "description": "Shared platform layer for affiliate sites (FSG, MLT, OHT)",
   "exports": {
     "./src/layouts/*": "./src/layouts/*",
@@ -28,7 +28,9 @@
     "cheerio": "^1.2.0",
     "gray-matter": "^4.0.3",
     "js-yaml": "^4.1.1",
+    "openai": "^6.39.1",
     "sharp": "^0.34.2",
+    "to-ico": "^1.1.5",
     "zod": "^4.4.2"
   },
   "peerDependencies": {

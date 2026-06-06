@@ -3,6 +3,12 @@ import { getSiteConfig, getNav } from '../lib/config'
 
 const cfg = getSiteConfig()
 const nav = getNav()
+
+// Single-category sites: flatten hubs to top-level nav items
+const flatNav = nav.categories.length === 1 && nav.categories[0].hubs?.length > 0
+const navItems = flatNav
+  ? nav.categories[0].hubs.map(h => ({ ...h, hubs: [] as typeof nav.categories[0]['hubs'] }))
+  : nav.categories
 ---
 
 <header class="site-header">
@@ -17,9 +23,9 @@ const nav = getNav()
       </a>
     )}
 
-    <nav aria-label="Main navigation" class="site-header__nav">
+    <nav aria-label="Main navigation" class="site-header__nav" id="site-nav">
       <ul class="site-nav" id="main-nav">
-        {nav.categories.map(cat => {
+        {navItems.map(cat => {
           const hasDropdown = cat.hubs.length > 1
           return (
             <li class={`site-nav__item ${hasDropdown ? 'has-dropdown' : ''}`}>
@@ -44,17 +50,28 @@ const nav = getNav()
             </li>
           )
         })}
+        {(nav as any).utility_links?.map((link: {label: string, href: string}) => (
+          <li class="site-nav__item">
+            <a href={link.href} class="site-nav__link">{link.label}</a>
+          </li>
+        ))}
+        <li class="site-nav__item site-nav__more" hidden>
+          <button class="site-nav__link site-nav__more-btn"
+                  aria-haspopup="true" aria-expanded="false"
+                  aria-controls="nav-more-submenu">
+            More
+            <svg class="site-nav__chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <ul id="nav-more-submenu" class="site-nav__dropdown site-nav__more-list">
+          </ul>
+        </li>
       </ul>
     </nav>
 
     <div class="site-header__actions">
-      <a href="/search/" class="site-header__search" aria-label="Search">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-          <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" stroke-width="1.75"/>
-          <path d="M13 13l3.5 3.5" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/>
-        </svg>
-      </a>
-      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false">
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="site-nav">
         <span></span><span></span><span></span>
       </button>
     </div>
@@ -64,14 +81,30 @@ const nav = getNav()
 <script>
   // ── Mobile hamburger toggle ───────────────────────────────────────────────
   const toggle = document.getElementById('nav-toggle') as HTMLButtonElement
-  const nav = document.getElementById('main-nav')
+  const mobileNav = document.getElementById('site-nav') as HTMLElement
+
+  function closeMobileMenu() {
+    mobileNav?.classList.remove('is-open')
+    toggle?.setAttribute('aria-expanded', 'false')
+  }
+
   toggle?.addEventListener('click', () => {
-    const open = toggle.getAttribute('aria-expanded') === 'true'
-    toggle.setAttribute('aria-expanded', String(!open))
-    nav?.classList.toggle('is-open', !open)
+    if (mobileNav?.classList.contains('is-open')) {
+      closeMobileMenu()
+    } else {
+      mobileNav?.classList.add('is-open')
+      toggle?.setAttribute('aria-expanded', 'true')
+    }
   })
 
-  // Close regular category dropdowns and More submenu when clicking outside
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mobileNav?.classList.contains('is-open')) {
+      closeMobileMenu()
+      toggle?.focus()
+    }
+  })
+
+  // Close dropdowns, More submenu, and mobile menu when clicking outside
   document.addEventListener('click', (e) => {
     if (!(e.target as Element).closest('.has-dropdown')) {
       document.querySelectorAll<HTMLElement>('.site-nav__dropdown').forEach(d => {
@@ -86,6 +119,11 @@ const nav = getNav()
         btn.setAttribute('aria-expanded', 'false')
       })
     }
+    if (mobileNav?.classList.contains('is-open') &&
+        !mobileNav.contains(e.target as Node) &&
+        !toggle?.contains(e.target as Node)) {
+      closeMobileMenu()
+    }
   })
 
   // ── Overflow "More" dropdown (desktop) ───────────────────────────────────
@@ -98,28 +136,12 @@ const nav = getNav()
     const items = [...navEl.querySelectorAll<HTMLElement>(':scope > .site-nav__item:not(.site-nav__more)')]
     if (items.length === 0) return
 
-    // Create the "More" list item once
-    let moreItem = navEl.querySelector<HTMLElement>('.site-nav__more')
-    if (!moreItem) {
-      moreItem = document.createElement('li')
-      moreItem.className = 'site-nav__item site-nav__more has-dropdown'
-      moreItem.style.display = 'none'
-      moreItem.innerHTML = `
-        <button class="site-nav__link site-nav__more-btn" aria-expanded="false" aria-haspopup="true">
-          More
-          <svg class="site-nav__chevron" aria-hidden="true" width="12" height="12" viewBox="0 0 12 12">
-            <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </button>
-        <ul class="site-nav__dropdown site-nav__more-list"></ul>
-      `
-      navEl.appendChild(moreItem)
-    }
+    const moreItem = navEl.querySelector<HTMLElement>('.site-nav__more')
+    if (!moreItem) return
 
     const moreList = moreItem.querySelector<HTMLElement>('.site-nav__more-list')!
     const moreBtn = moreItem.querySelector<HTMLButtonElement>('.site-nav__more-btn')!
 
-    // Toggle More submenu on click (click-only; CSS hover is suppressed for .site-nav__more-list)
     moreBtn.addEventListener('click', (e) => {
       e.stopPropagation()
       const isOpen = moreBtn.getAttribute('aria-expanded') === 'true'
@@ -127,27 +149,24 @@ const nav = getNav()
       moreList.classList.toggle('is-open', !isOpen)
     })
 
-    // Escape closes submenu, returns focus to button
-    ;[moreBtn, moreList].forEach(el => {
-      el.addEventListener('keydown', (e) => {
-        if ((e as KeyboardEvent).key === 'Escape') {
-          moreList.classList.remove('is-open')
-          moreBtn.setAttribute('aria-expanded', 'false')
-          moreBtn.focus()
-        }
-      })
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && moreList.classList.contains('is-open')) {
+        moreList.classList.remove('is-open')
+        moreBtn.setAttribute('aria-expanded', 'false')
+        moreBtn.focus()
+      }
     })
 
     function remeasure() {
       if (window.innerWidth <= 900) {
         items.forEach(item => { item.style.display = '' })
-        moreItem!.style.display = 'none'
+        moreItem!.setAttribute('hidden', '')
         return
       }
 
       // Show all items, hide More button to measure natural widths
       items.forEach(item => { item.style.display = '' })
-      moreItem!.style.display = 'none'
+      moreItem!.setAttribute('hidden', '')
 
       const navWidth = navEl!.parentElement!.getBoundingClientRect().width
       const MORE_BTN_WIDTH = 90
@@ -191,18 +210,32 @@ const nav = getNav()
         moreList.appendChild(li)
       }
 
-      moreItem!.style.display = ''
+      moreItem!.removeAttribute('hidden')
       moreBtn.setAttribute('aria-expanded', 'false')
-      moreList.classList.remove('is-open')  // closed by default — click to open
+      moreList.classList.remove('is-open')
     }
 
     remeasure()
+
+    let rafId: number | null = null
+    function scheduleRemeasure() {
+      if (rafId !== null) cancelAnimationFrame(rafId)
+      rafId = requestAnimationFrame(() => { rafId = null; remeasure() })
+    }
 
     let resizeTimer: ReturnType<typeof setTimeout>
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer)
       resizeTimer = setTimeout(remeasure, 100)
     })
+
+    if ('fonts' in document) {
+      document.fonts.ready.then(() => scheduleRemeasure())
+    }
+    window.addEventListener('load', () => scheduleRemeasure())
+    if ('ResizeObserver' in window && navEl!.parentElement) {
+      new ResizeObserver(() => scheduleRemeasure()).observe(navEl!.parentElement)
+    }
   }
 
   if (document.readyState === 'loading') {
@@ -247,7 +280,7 @@ const nav = getNav()
     list-style: none; padding: 0.5rem 0; margin: 0;
     min-width: 200px; z-index: 200;
   }
-  .site-nav__item:hover .site-nav__dropdown { display: block; }
+  .site-nav__item.has-dropdown:hover .site-nav__dropdown { display: block; }
 
   .site-nav__dropdown li a {
     display: block; padding: 0.55rem 1.25rem;

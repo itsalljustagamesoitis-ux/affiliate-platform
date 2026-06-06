@@ -1,5 +1,184 @@
 # @platform/core — Changelog
 
+## [2.2.0] — 2026-06-06 — Day 15: B50/B49/B48/B45 fixes, Header.astro single-category nav
+
+**B50 — `already_staged()` extension bug:** Removed dead `.docx` check from
+`producer/producer_main.py`. Function now correctly detects staged `.md` files.
+
+**B49 — Multi-hub product schema:** Added `product_matches_hub()` helper to `data_loader.py`;
+updated `get_hub_products()` and `article_builder.py` fallback to support both `hub: str` and
+`hubs: [list]` product schemas.
+
+**B48 — Rainforest book category:** Added `is_book_article()` detection and `category_id=283155`
+parameter to `tools/source-products-rainforest.py` so book-keyword articles get Amazon Books
+results instead of physical product noise.
+
+**B45 — Semantic slug dedup:** Post-processing step added to `tools/xlsx-to-pipeline.mjs`
+that strips MODIFIER_WORDS (best/good/great/top/etc.) from keywords, groups articles within
+each hub by their stripped token-set, and marks lower-volume near-duplicates `status: "dupe"`.
+
+**Header.astro single-category nav:** Sites with one nav category now flatten hubs to top-level
+nav items instead of wrapping them in a single dropdown. Multi-category sites unaffected.
+
+**Portfolio V18/V20:** 0 HARD V18, 0 V20 across all 12 sites after fixing 18 possessive-place
+violations in strengthmill (15), northwoods-overland (1), saunassosimple (2).
+
+---
+
+## [2.1.1] — 2026-05-17 — verify-deploy: skeleton-site article-card check downgraded to WARN
+
+`verify-deploy.mjs` check 6 (homepage structural elements): the `article-card` check now
+issues a WARN instead of FAIL when `localSlugs.length === 0` (no articles in
+`content/articles/`). Skeleton sites at Phase 2 have no articles by design; a FAIL here
+blocked deploy verification for new sites before content exists.
+
+---
+
+## [2.1.0] — 2026-05-17 — GDPR compliance pass: self-hosted fonts, consent expiry, ARIA, button parity
+
+**Fix 1 — Self-host Google Fonts (eliminates pre-consent IP transfer to Google):**
+Removed all `<link rel="stylesheet" href="https://fonts.googleapis.com/...">` tags from
+`BaseLayout.astro`. Added build-time font face generation using `existsSync` to check which
+WOFF2 files exist in each site's `public/fonts/`. Font face declarations are injected via
+`<style set:html={fontFaceCSS} />`. Each of the 6 sites downloaded Latin-subset WOFF2 files
+from Google Fonts API; `hasFontFile()` guard handles edge cases (Lato has no 500/600 weight,
+Oswald/Space Grotesk have no italic). No third-party data transfer occurs before user consent.
+
+**Fix 2 — Button visual parity:**
+Decline button background changed from `#1d4ed8` (blue — visually prominent, creates hierarchy
+toward Accept) to `#52525b` (neutral zinc — equal visual weight). Accept uses
+`var(--color-primary)` for site theming. Both buttons are same size, padding, and font-weight.
+
+**Fix 3 — 12-month consent expiry with JSON storage:**
+Consent now stored as `JSON.stringify({value:'1'|'0', timestamp: Date.now()})` instead of bare
+`'1'`/`'0'`. `loadConsent()` helper parses and validates: if `Date.now() - timestamp > MAX_AGE`
+(365 days), entry is cleared and `null` returned — banner shows again. GA4 consent-restore block
+at page load was also updated to parse JSON format and respect the same 365-day check; stale or
+malformed entries are cleared from localStorage.
+
+**Fix 4 — CSS variable theming:**
+Banner background set to `#1f2937` (dark neutral, works across all site themes). Accept button
+uses `var(--color-primary, #4a7c59)` so it inherits each site's primary color without hardcoding.
+Decline uses `#52525b` neutral. Privacy policy link uses `var(--color-accent, #a3c97a)`.
+
+**Fix 5 — Minimal ARIA accessibility:**
+- Added `role="dialog"`, `aria-modal="false"`, `aria-label="Cookie consent"`,
+  `aria-describedby="cookie-banner-desc"` to banner `<div>`; `id="cookie-banner-desc"` to
+  description `<p>`.
+- Accept button receives focus (`setTimeout 100ms`) when banner first appears, and when
+  `__showConsentBanner()` re-shows it.
+- `document.addEventListener('keydown', ...)` — Escape key closes banner and saves Decline
+  (same behavior as clicking Decline).
+
+---
+
+## [2.0.7] — 2026-05-17 — Cookie banner: fix always-visible bug + GDPR Art. 7(3) withdrawal path
+
+**Bug 1 — Banner always visible (root cause):**
+`BaseLayout.astro` line 123 had duplicate `display` declarations in the same inline style string:
+`style="display:none;...;z-index:9999;display:flex;..."`. The browser resolves to `display:flex`
+(last declaration wins), so the banner rendered visible for every visitor. The JS then had no
+`else` branch — it only set `display:flex` for first-timers, never `display:none` for returning
+visitors. Result: returning visitors who had already accepted or declined saw the banner again on
+every page load.
+
+**Fix:**
+- Removed `display:flex` from inline style (kept only `display:none`). Banner now defaults hidden.
+- Added `else { banner.style.display='none'; }` branch — returning visitors get explicit hide.
+
+**Bug 2 — No consent withdrawal path (GDPR Art. 7(3)):**
+No UI existed for users to revisit or withdraw a prior consent decision. Once they accepted,
+withdrawal required manually clearing localStorage.
+
+**Fix:**
+- Added `window.__showConsentBanner()` to the consent IIFE: clears localStorage key, re-shows
+  banner. Scoped to the IIFE so `key` is already in closure scope.
+- Added "Manage cookies" link to `Footer.astro` Legal section (below Privacy Policy) using
+  `onclick="event.preventDefault();window.__showConsentBanner&&window.__showConsentBanner();"`.
+  Propagates to all 6 sites via shared platform Footer.
+
+---
+
+## [2.0.6] — 2026-05-17 — Mobile hamburger menu: fix is-open targeting + Escape + click-outside
+
+**Root cause:** The hamburger click handler called `document.getElementById('main-nav')` (the
+`<ul>`) and toggled `is-open` on it. The CSS rule is `.site-header__nav.is-open` which requires
+`is-open` on the `<nav>` wrapper element. The class was being added to the wrong node — the menu
+was always hidden. Latent since v2.0.0; not caught because no verification environment reached
+widths below ~900px before Chrome Claude's mobile testing.
+
+**Fix:**
+- Added `id="site-nav"` to the `<nav>` wrapper; `aria-controls="site-nav"` to the hamburger button
+- JS now targets `document.getElementById('site-nav')` (the `<nav>`) for `is-open` toggling
+- Added `closeMobileMenu()` helper for shared close logic
+- Added `document.addEventListener('keydown', ...)` — Escape closes menu and returns focus to toggle
+- Added click-outside close to the existing document click handler (guarded against toggle and nav)
+
+---
+
+## [2.0.5] — 2026-05-17 — Responsive nav: fix timing race on cold-cache first load
+
+**Root cause:** `remeasure()` ran once at script-execute time, before fonts and SVGs had finished
+loading. Items rendered with system-font fallback widths initially, then re-rendered wider once
+web fonts arrived. The early measurement produced a stale cutoff that over-hid items, resulting
+in header overflow and too few items in the submenu on first cold-cache load. Subsequent warm-cache
+loads were clean.
+
+**Fix — three re-measurement triggers:**
+
+1. `document.fonts.ready.then(scheduleRemeasure)` — fires after web fonts load; the primary fix
+   for the font-swap width shift
+2. `window.addEventListener('load', scheduleRemeasure)` — fires after all subresources (images,
+   SVGs, deferred scripts) load; catches anything fonts.ready doesn't
+3. `ResizeObserver` on `navEl.parentElement` (the `<nav>` wrapper, not the `<ul>`) — re-measures
+   when the nav container's available width changes (browser zoom, container resize, etc.).
+   Observing the parent rather than the UL avoids a remeasure→resize→remeasure infinite loop,
+   since the nav container's flex-allocated width doesn't change when items are hidden/shown.
+
+**Debounce:** All three new triggers route through `scheduleRemeasure()` which uses
+`requestAnimationFrame` to coalesce rapid successive calls into a single measurement.
+The synchronous initial `remeasure()` call on script-execute is unchanged.
+
+---
+
+## [2.0.4] — 2026-05-17 — Header nav: SSR submenu element, hidden-attribute contract, Escape handler
+
+**Sub-bug 1 — Astro scoped-style bypass (root cause of all three):**
+The More `<li>` and its submenu `<ul>` were created entirely in JS. Astro adds `data-astro-cid-*`
+attributes to HTML elements at build time; JS-created elements never get this attribute. All scoped
+CSS rules targeting `.site-nav__more-list` and `.is-open` compiled to
+`.site-nav__more-list[data-astro-cid-xxx]`, which never matched the JS-injected element.
+
+**Fix (Path A — SSR the element):** Added the More `<li>` and its submenu `<ul>` directly to the
+Astro template with `hidden` attribute. JS now only reads the existing element, populates children,
+and toggles visibility — no createElement calls remain.
+
+```astro
+<li class="site-nav__item site-nav__more" hidden>
+  <button class="site-nav__link site-nav__more-btn" aria-haspopup="true" aria-expanded="false"
+          aria-controls="nav-more-submenu">
+    More <svg .../>
+  </button>
+  <ul id="nav-more-submenu" class="site-nav__dropdown site-nav__more-list"></ul>
+</li>
+```
+
+**Sub-bug 2 — visibility contract:**
+More item visibility now uses the `hidden` attribute: `setAttribute('hidden', '')` to hide,
+`removeAttribute('hidden')` to show. Replaced `style.display` manipulation throughout `remeasure()`.
+Hover rule narrowed to `.site-nav__item.has-dropdown:hover .site-nav__dropdown` — the More item
+has class `site-nav__more` but not `has-dropdown`, so hover no longer opens its submenu.
+Submenu open/close still controlled by `.is-open` class (now works because element is SSR'd).
+
+**Sub-bug 3 — Escape handler:**
+Moved from `[moreBtn, moreList].forEach(el => el.addEventListener('keydown', ...))` to
+`document.addEventListener('keydown', ...)` scoped by `moreList.classList.contains('is-open')`.
+Works from any focus position within the submenu, not just on the two elements.
+
+**Deployed:** All 6 sites.
+
+---
+
 ## [2.0.3] — 2026-05-17 — Nav JS: fix overflow population + submenu open-by-default
 
 **Bug 1 — submenu population mismatch (root cause):**
