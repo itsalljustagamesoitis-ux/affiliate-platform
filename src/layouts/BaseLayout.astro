@@ -32,7 +32,7 @@ const ga4Id = import.meta.env.GA4_ID ?? cfg.analytics.ga4_measurement_id
 const consentDefault = cfg.analytics.consent_default ?? 'denied'
 const googleVerification = import.meta.env.GOOGLE_SITE_VERIFICATION
 const bingVerification = import.meta.env.BING_SITE_VERIFICATION
-const cfAnalyticsToken = import.meta.env.CF_BEACON_TOKEN ?? (cfg.deployment as any).analytics_beacon_token
+const cfAnalyticsToken = import.meta.env.CF_BEACON_TOKEN ?? (cfg.deployment as any)?.analytics_beacon_token
 // Per-origin storage key — avoids brand coupling across clones
 const consentKey = `${cfg.site.domain.replace(/\./g, '_')}_consent`
 
