@@ -2,6 +2,30 @@ node_modules/
 .DS_Store
 .env.local
 .env*.local
+*.swp
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment / credentials
+.env
+credentials.env
+
+# Runtime lock and audit files
+active-launches.yaml
+persona-unlock-log.yaml
+
+# Per-launch operational state
+logs/
+launches/
 
 # initialise-site state files (per-site, ephemeral)
 sites/*.state.json
+
+# launch-site per-site state files (inside sites/*/  subdirectories)
+sites/*/state.yaml
+sites/*/decisions.log
