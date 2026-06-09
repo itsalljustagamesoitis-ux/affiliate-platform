@@ -16,10 +16,11 @@
  *   staging/failed/*.md       — validation failures, skipped by default
  */
 
-import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs'
+import { existsSync, readdirSync, readFileSync, writeFileSync, mkdirSync, unlinkSync, renameSync } from 'fs'
 import { join, basename } from 'path'
 import { homedir } from 'os'
 import { loadPortfolio } from './lib/portfolio.mjs'
+import yaml from 'js-yaml'
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
 
@@ -29,6 +30,64 @@ const c = {
   yellow: s => `\x1b[33m${s}\x1b[0m`,
   bold:   s => `\x1b[1m${s}\x1b[0m`,
   dim:    s => `\x1b[2m${s}\x1b[0m`,
+}
+
+// ── Skip-list ─────────────────────────────────────────────────────────────────
+//
+// data/skip-list.yaml format: a plain YAML list of article slugs.
+// Articles whose slug appears in the list are excluded from publish.
+//
+// Example data/skip-list.yaml:
+//   - some-article-slug
+//   - another-article-slug
+//
+// Missing file = empty skip list (not an error).
+
+function loadSkipList(siteDir) {
+  const skipFile = join(siteDir, 'data', 'skip-list.yaml')
+  if (!existsSync(skipFile)) return new Set()
+  try {
+    const raw = readFileSync(skipFile, 'utf-8')
+    const list = yaml.load(raw)
+    if (!Array.isArray(list)) return new Set()
+    return new Set(list.map(String))
+  } catch {
+    return new Set()
+  }
+}
+
+// ── Pipeline.json status writeback ────────────────────────────────────────────
+//
+// After publishing an article, writes status: published to the matching entry
+// in data/pipeline.json. Atomic write (tmp → rename). No-op if pipeline.json
+// is absent. Batched: callers accumulate slugs; writePipelineStatus() called once.
+
+function readPipeline(siteDir) {
+  const pipelinePath = join(siteDir, 'data', 'pipeline.json')
+  if (!existsSync(pipelinePath)) return null
+  try {
+    return { path: pipelinePath, data: JSON.parse(readFileSync(pipelinePath, 'utf-8')) }
+  } catch {
+    return null
+  }
+}
+
+function writePipelineStatus(pipeline, publishedSlugs) {
+  if (!pipeline || publishedSlugs.size === 0) return
+  const articles = pipeline.data?.articles ?? (Array.isArray(pipeline.data) ? pipeline.data : [])
+  let updated = 0
+  for (const article of articles) {
+    if (publishedSlugs.has(article.slug) && article.status !== 'published') {
+      article.status = 'published'
+      updated++
+    }
+  }
+  if (updated === 0) return
+  const tmp = pipeline.path + '.tmp'
+  try {
+    writeFileSync(tmp, JSON.stringify(pipeline.data, null, 2) + '\n', 'utf-8')
+    renameSync(tmp, pipeline.path)
+  } catch { /* non-fatal — pipeline writeback is best-effort */ }
 }
 
 // ── Arg parsing ───────────────────────────────────────────────────────────────
@@ -65,6 +124,15 @@ if (!sites.find(s => s.slug === siteSlug)) {
 const siteDir     = join(homedir(), siteSlug)
 const stagingDir  = join(siteDir, 'staging')
 const articlesDir = join(siteDir, 'content', 'articles')
+
+// Load skip-list and pipeline once; both are used inside publishFile
+const skipList       = loadSkipList(siteDir)
+const pipeline       = readPipeline(siteDir)
+const publishedSlugs = new Set()
+
+if (!jsonMode && skipList.size > 0) {
+  console.log(c.dim(`  Skip-list: ${skipList.size} slug(s) will be excluded`))
+}
 
 // ── Validator output stripping ────────────────────────────────────────────────
 
@@ -187,6 +255,15 @@ const results = {
  */
 function publishFile(filePath, pool) {
   const filename = basename(filePath)
+  const slug     = basename(filePath, '.md')
+
+  // Skip-list check — intentional exclusion, not a validation failure
+  if (skipList.has(slug)) {
+    if (!jsonMode) console.log(`  ${c.yellow('[SKIP-LIST]')} ${filename} ${c.dim('(in data/skip-list.yaml)')}`)
+    results.skipped.push({ file: filename, reason: 'skip-listed' })
+    return
+  }
+
   const raw = readFileSync(filePath, 'utf-8')
 
   const { cleaned, stripped } = stripValidatorOutput(raw)
@@ -206,6 +283,7 @@ function publishFile(filePath, pool) {
   if (!dryRun) {
     writeFileSync(dest, cleaned, 'utf-8')
     unlinkSync(filePath)
+    publishedSlugs.add(slug)
   }
 
   if (pool === 'failed') {
@@ -223,6 +301,10 @@ for (const f of failedFiles) {
     results.failed_skipped.push({ file: basename(f) })
   }
 }
+
+// ── Pipeline.json status writeback ────────────────────────────────────────────
+
+writePipelineStatus(pipeline, publishedSlugs)
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 
@@ -250,11 +332,13 @@ if (!jsonMode) {
 }
 
 if (jsonMode) {
+  const skipListedCount = results.skipped.filter(s => s.reason === 'skip-listed').length
   process.stdout.write(JSON.stringify({
     site: siteSlug,
     dry_run: dryRun,
     published: totalPublished,
     skipped: results.skipped.length,
+    skip_listed: skipListedCount,
     failed_published: results.failed_published.length,
     failed_left: results.failed_skipped.length,
     details: results,

@@ -6,8 +6,9 @@ import yaml
 import pytest
 from pathlib import Path
 
-ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(ROOT / "producer"))
+_cwd = Path.cwd()
+ROOT = _cwd if (_cwd / "site.config.yaml").exists() else Path(__file__).parent.parent.parent
+sys.path.insert(0, str(Path(__file__).parent.parent))  # always add producer/ to path
 
 
 @pytest.fixture(scope="session")
@@ -52,3 +53,14 @@ def all_hub_slugs(navigation):
 @pytest.fixture(scope="session")
 def image_dir(root):
     return root / "public/images/articles"
+
+
+@pytest.fixture(scope="session")
+def pipeline_hub_slugs(pipeline):
+    """Hub slugs that actually appear in pipeline.json — a subset of all nav hubs."""
+    slugs = set()
+    for a in pipeline:
+        hub = a.get("hub_slug") or a.get("hub", "")
+        if hub:
+            slugs.add(hub)
+    return slugs

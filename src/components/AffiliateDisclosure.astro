@@ -1,8 +1,12 @@
 ---
+import { getSiteConfig } from '../lib/config'
+
 interface Props {
   compact?: boolean
 }
 const { compact = false } = Astro.props
+const cfg = getSiteConfig()
+const consultationNote = cfg.ymyl?.professional_consultation_referral ?? null
 ---
 
 {compact ? (
@@ -15,10 +19,15 @@ const { compact = false } = Astro.props
     <p>
       <strong>Affiliate disclosure:</strong> Some links on this page are affiliate links.
       If you buy through them we earn a small commission at no extra cost to you.
-      This never influences which products we recommend — we only suggest things we'd buy ourselves.
+      Recommendations are research-driven; we don't claim personal use of every product reviewed.
       Product prices and availability are accurate as of the date published and are subject to change.
       Always check Amazon for current pricing before purchasing.
       <a href="/affiliate-disclosure/">Learn more</a>.
     </p>
+    {consultationNote && (
+      <p class="affiliate-disclosure__ymyl-note">
+        <strong>Important:</strong> {consultationNote}
+      </p>
+    )}
   </div>
 )}

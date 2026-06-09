@@ -51,7 +51,7 @@ if (picks.length === 0) return
             <a
               href={p.affiliate_link.url}
               class={p.affiliate_link.type === 'amazon' ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'}
-              rel={p.affiliate_link.type === 'amazon' ? 'nofollow sponsored' : 'nofollow'}
+              rel={p.affiliate_link.type === 'amazon' ? 'nofollow sponsored noopener' : 'nofollow noopener'}
               target="_blank"
               data-product={productDisplayName(p)}
             >

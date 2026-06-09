@@ -1,0 +1,98 @@
+# Niche color palettes and mark SVG data.
+#
+# Used by: tools/generate-brand-assets.mjs
+#
+# Each niche entry provides:
+#   default_primary_color  — fallback if site.config.yaml doesn't specify visual.primary_color
+#   default_accent_color   — fallback if site.config.yaml doesn't specify visual.accent_color
+#   default_font_headings  — font stack for logo wordmark and OG text
+#   mark_viewbox           — SVG viewBox for the mark (x y width height)
+#   mark_width             — numeric width of mark canvas (used for logo layout math)
+#   mark_height            — numeric height of mark canvas (drives logo height)
+#   mark_paths             — SVG fragment: path/shape elements using {{fill}} placeholder
+#
+# The tool substitutes {{fill}} in mark_paths with the appropriate color per variant:
+#   logo-header / logo-footer: site primary_color
+#   logo-header-dark:          #ffffff
+#   logo-monochrome:           #1a1a1a
+#   favicon / apple-touch-icon / og-default: appropriate per-context color
+#
+# To add a new niche: add an entry with the same structure. The default entry
+# is the fallback for any niche not listed here.
+#
+# Reference: affiliate-platform/PIPELINE.md §15.9 (niche file naming)
+
+niches:
+
+  fly-fishing:
+    default_primary_color: '#2C4A1E'
+    default_accent_color: '#8B6914'
+    default_font_headings: "Lora, Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 38 46"
+    mark_width: 38
+    mark_height: 46
+    mark_paths: |
+      <path d="M19,28 C14,23 4,13 8,4 C10,1 14,13 19,28Z" fill="{{fill}}"/>
+      <path d="M19,28 C24,23 34,13 30,4 C28,1 24,13 19,28Z" fill="{{fill}}"/>
+      <ellipse cx="19" cy="30" rx="4.5" ry="2.5" fill="{{fill}}"/>
+      <path d="M15,33 Q9,40 14,43 Q19,46 23,43 L23,35" stroke="{{fill}}" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+  audiophile:
+    default_primary_color: '#1A1A2E'
+    default_accent_color: '#C5A028'
+    default_font_headings: "Bitter, Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 40 38"
+    mark_width: 40
+    mark_height: 38
+    mark_paths: |
+      <path d="M9,20 C9,8 31,8 31,20" stroke="{{fill}}" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <rect x="3" y="19" width="8" height="13" rx="4" fill="{{fill}}"/>
+      <rect x="29" y="19" width="8" height="13" rx="4" fill="{{fill}}"/>
+
+  home-cinema:
+    default_primary_color: '#1A1A2E'
+    default_accent_color: '#C5A028'
+    default_font_headings: "Playfair Display, Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 42 32"
+    mark_width: 42
+    mark_height: 32
+    mark_paths: |
+      <rect x="2" y="2" width="38" height="28" rx="3" stroke="{{fill}}" stroke-width="2.5" fill="none"/>
+      <polygon points="16,8 16,22 30,15" fill="{{fill}}"/>
+
+  outdoor-cooking:
+    default_primary_color: '#8B2500'
+    default_accent_color: '#E87A00'
+    default_font_headings: "Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 40 44"
+    mark_width: 40
+    mark_height: 44
+    mark_paths: |
+      <path d="M6,22 Q6,32 20,32 Q34,32 34,22 Z" fill="{{fill}}"/>
+      <path d="M6,22 Q6,12 20,12 Q34,12 34,22" stroke="{{fill}}" stroke-width="2.5" fill="none"/>
+      <line x1="14" y1="32" x2="10" y2="44" stroke="{{fill}}" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="26" y1="32" x2="30" y2="44" stroke="{{fill}}" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="12" y1="38" x2="28" y2="38" stroke="{{fill}}" stroke-width="2" stroke-linecap="round"/>
+      <path d="M17,9 C15,5 20,2 20,8 C20,3 24,1 22,8 C24,5 26,7 24,10 C22,8 20,12 20,10 C20,12 18,10 17,9Z" fill="{{fill}}" opacity="0.9"/>
+
+  bushcraft:
+    default_primary_color: '#2C3919'
+    default_accent_color: '#8B6533'
+    default_font_headings: "Merriweather, Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 40 44"
+    mark_width: 40
+    mark_height: 44
+    mark_paths: |
+      <rect x="14" y="2" width="12" height="14" rx="3" fill="{{fill}}"/>
+      <rect x="8" y="14" width="24" height="4" rx="1" fill="{{fill}}"/>
+      <polygon points="14,18 26,18 20,42" fill="{{fill}}"/>
+
+  default:
+    default_primary_color: '#2D5016'
+    default_accent_color: '#C19A4B'
+    default_font_headings: "Georgia, 'Times New Roman', serif"
+    mark_viewbox: "0 0 40 40"
+    mark_width: 40
+    mark_height: 40
+    mark_paths: |
+      <polygon points="20,3 37,20 20,37 3,20" fill="{{fill}}"/>

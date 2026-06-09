@@ -8,7 +8,8 @@ import pytest
 from pathlib import Path
 from data_loader import enrich_article, get_hub_products, load_navigation
 
-ROOT = Path(__file__).parent.parent.parent
+_cwd = Path.cwd()
+ROOT = _cwd if (_cwd / "site.config.yaml").exists() else Path(__file__).parent.parent.parent
 IMAGE_DIR = ROOT / "public/images/articles"
 
 
@@ -27,92 +28,90 @@ def make_article(article_id, hub, article_type="review"):
     return a
 
 
+def _build_fm(article, products, title, description, site_config):
+    """Wrapper matching the current build_frontmatter(article, product_keys, products, title, description, site_config) signature."""
+    from article_builder import build_frontmatter
+    product_keys = list(products.keys())[:3]
+    return build_frontmatter(article, product_keys, products, title, description, site_config)
+
+
 class TestHeroImageCycling:
-    def test_uses_hub_prefix_not_slug(self, products):
-        from article_builder import build_frontmatter
+    def test_uses_hub_prefix_not_slug(self, products, site_config):
         first_product = list(products.values())[0]
         hub_slug = first_product.get("hub") or first_product.get("category")
         article = make_article(1, hub_slug)
         hub = article["hub"]
-        fm = build_frontmatter(article, products, "Test Title", "Test description here today.")
+        fm = _build_fm(article, products, "Test Title", "Test description here today.", site_config)
         data = yaml.safe_load(fm.strip("---\n").split("---")[0])
         assert data["hero_image"].startswith(f"articles/{hub}-"), \
             f"hero_image should start with 'articles/{hub}-', got: {data['hero_image']}"
 
-    def test_does_not_use_slug_pattern(self, products):
-        from article_builder import build_frontmatter
+    def test_does_not_use_slug_pattern(self, products, site_config):
         first_product = list(products.values())[0]
         hub = first_product.get("hub") or first_product.get("category")
         article = make_article(5, hub)
-        fm = build_frontmatter(article, products, "Title", "Description for this article.")
+        fm = _build_fm(article, products, "Title", "Description for this article.", site_config)
         assert article["slug"] not in fm.split("hero_image:")[1].split("\n")[0], \
             "hero_image should not contain the article slug"
 
-    def test_hero_image_n_between_1_and_8(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
+    def test_hero_image_n_between_1_and_8(self, products, all_hub_slugs, site_config):
         for hub_slug in list(all_hub_slugs)[:3]:
             for i in range(1, 9):
                 article = make_article(i, hub_slug)
-                fm = build_frontmatter(article, products, "T", "D" * 20)
+                fm = _build_fm(article, products, "T", "D" * 20, site_config)
                 data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
                 img = data["hero_image"]
-                n = int(img.split("-")[-1].replace(".jpg", ""))
+                n = int(img.split("-")[-1].replace(".jpg", "").replace(".webp", ""))
                 assert 1 <= n <= 8, f"Image number {n} out of range for hub {hub_slug}"
 
-    def test_image_file_exists_for_all_hubs(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
-        for hub_slug in all_hub_slugs:
+    def test_image_file_exists_for_all_hubs(self, products, pipeline_hub_slugs, site_config):
+        for hub_slug in pipeline_hub_slugs:
             article = make_article(1, hub_slug)
-            fm = build_frontmatter(article, products, "T", "D" * 20)
+            fm = _build_fm(article, products, "T", "D" * 20, site_config)
             data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
             img_path = IMAGE_DIR / data["hero_image"].replace("articles/", "")
             assert img_path.exists(), \
                 f"Hero image missing: {img_path} (hub: {hub_slug})"
 
-    def test_wraps_after_8(self, products):
-        from article_builder import build_frontmatter
+    def test_wraps_after_8(self, products, site_config):
         first_product = list(products.values())[0]
         hub = first_product.get("hub") or first_product.get("category")
         article = make_article(9, hub)
-        fm = build_frontmatter(article, products, "T", "D" * 20)
+        fm = _build_fm(article, products, "T", "D" * 20, site_config)
         data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
-        assert data["hero_image"].endswith("-1.jpg"), \
+        assert data["hero_image"].endswith("-1.webp") or data["hero_image"].endswith("-1.jpg"), \
             f"Article id 9 should wrap to image 1, got: {data['hero_image']}"
 
 
 class TestFrontmatterFields:
-    def test_category_label_populated(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
+    def test_category_label_populated(self, products, all_hub_slugs, site_config):
         hub = list(all_hub_slugs)[0]
         article = make_article(1, hub)
-        fm = build_frontmatter(article, products, "Title", "Description text here now.")
+        fm = _build_fm(article, products, "Title", "Description text here now.", site_config)
         data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
         assert data["category"], f"category field is empty for hub '{hub}'"
 
-    def test_hub_populated(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
+    def test_hub_populated(self, products, all_hub_slugs, site_config):
         hub = list(all_hub_slugs)[0]
         article = make_article(1, hub)
-        fm = build_frontmatter(article, products, "Title", "Description text here now.")
+        fm = _build_fm(article, products, "Title", "Description text here now.", site_config)
         data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
         assert data["hub"] == hub
 
-    def test_required_fields_present(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
+    def test_required_fields_present(self, products, all_hub_slugs, site_config):
         hub = list(all_hub_slugs)[0]
         article = make_article(1, hub)
-        fm = build_frontmatter(article, products, "My Title", "My description for test.")
+        fm = _build_fm(article, products, "My Title", "My description for test.", site_config)
         data = yaml.safe_load(fm.strip().lstrip("-").split("---")[0])
         required = ["title", "slug", "type", "date", "author", "category",
                     "hub", "hero_image", "description", "target_keyword"]
         missing = [f for f in required if not data.get(f)]
         assert not missing, f"Required frontmatter fields are empty: {missing}"
 
-    def test_no_em_dashes_in_frontmatter(self, products, all_hub_slugs):
-        from article_builder import build_frontmatter
+    def test_no_em_dashes_in_frontmatter(self, products, all_hub_slugs, site_config):
         hub = list(all_hub_slugs)[0]
         article = make_article(1, hub)
-        fm = build_frontmatter(article, products, "Title With, Comma", "Desc.")
+        fm = _build_fm(article, products, "Title With, Comma", "Desc.", site_config)
         assert "\u2014" not in fm, "Em dash found in frontmatter"
         assert "\u2013" not in fm, "En dash found in frontmatter"
 

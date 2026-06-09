@@ -1,0 +1,852 @@
+# Hub-level defaults for sourced products.
+#
+# When source-products-rainforest.py creates a new product record it has no
+# editorial data — only ASIN, title, and brand from the Rainforest response.
+# These templates supply the required structural fields so the product passes
+# test_all_products_have_required_fields without a manual pass.
+#
+# Fields per template:
+#   price_band      budget | mid | premium  (typical for this hub)
+#   notes_for_writers  Short editorial note for the article writer
+#
+# Curators should override notes_for_writers and price_band on any product
+# where the auto-assigned default is wrong.
+
+# ── Camera Bodies ────────────────────────────────────────────────────────────
+
+cameras-mirrorless:
+  price_band: mid
+  notes_for_writers: >
+    Cover sensor size, AF speed, and video specs. Note body-only vs kit-lens pricing.
+    Verify current price — mirrorless bodies fluctuate frequently.
+
+cameras-dslr:
+  price_band: mid
+  notes_for_writers: >
+    Highlight optical viewfinder advantage and lens ecosystem breadth.
+    Note that DSLRs are a declining category; position accordingly.
+
+cameras-sony:
+  price_band: mid
+  notes_for_writers: >
+    Emphasise Eye AF and real-time tracking. Note Alpha ecosystem lens availability.
+
+cameras-canon:
+  price_band: mid
+  notes_for_writers: >
+    Cover RF mount advantages and compatibility with EF lenses via adapter.
+
+cameras-nikon:
+  price_band: mid
+  notes_for_writers: >
+    Highlight Z-mount optical quality and backward compatibility with F-mount glass.
+
+cameras-fujifilm:
+  price_band: mid
+  notes_for_writers: >
+    Lead with film simulations and APS-C sensor philosophy. Note X-mount lens range.
+
+cameras-general:
+  price_band: mid
+  notes_for_writers: >
+    Buying guide article. Cover sensor size tradeoffs, mirrorless vs DSLR, and budget tiers.
+
+# ── Lenses ───────────────────────────────────────────────────────────────────
+
+lenses-prime:
+  price_band: mid
+  notes_for_writers: >
+    Cover max aperture, rendering character, and autofocus speed. Note mount compatibility.
+
+lenses-zoom:
+  price_band: mid
+  notes_for_writers: >
+    Emphasise zoom range convenience vs prime sharpness tradeoff. Cover IS/VR systems.
+
+lenses-macro:
+  price_band: mid
+  notes_for_writers: >
+    Specify 1:1 vs 1:2 reproduction ratio. Cover working distance and focus stacking use.
+
+lenses-telephoto:
+  price_band: premium
+  notes_for_writers: >
+    Cover reach, image stabilisation, and wildlife/sports suitability. Note weight.
+
+lenses-portrait:
+  price_band: premium
+  notes_for_writers: >
+    Lead with bokeh quality, sharpness at wide apertures, and subject separation.
+
+lenses-wide-angle:
+  price_band: mid
+  notes_for_writers: >
+    Cover distortion control, edge sharpness, and architecture/landscape use cases.
+
+lenses-general:
+  price_band: mid
+  notes_for_writers: >
+    Buying guide. Cover focal length, aperture, and mount system selection.
+
+# ── Bags & Cases ─────────────────────────────────────────────────────────────
+
+bags-backpacks:
+  price_band: budget
+  notes_for_writers: >
+    Cover carry capacity (bodies + lenses), laptop sleeve, and weather protection.
+
+bags-shoulder:
+  price_band: budget
+  notes_for_writers: >
+    Highlight quick-access design and urban carry comfort. Note weather sealing.
+
+bags-sling:
+  price_band: budget
+  notes_for_writers: >
+    Cover one-shoulder wear, rotation ease, and camera access speed.
+
+bags-hard-cases:
+  price_band: mid
+  notes_for_writers: >
+    Emphasise IP rating, pressure valves, and airline carry-on compliance.
+
+bags-general:
+  price_band: budget
+  notes_for_writers: >
+    Buying guide. Cover bag type (backpack vs shoulder vs sling) and fit for use case.
+
+# ── Tripods & Support ────────────────────────────────────────────────────────
+
+tripods:
+  price_band: mid
+  notes_for_writers: >
+    Cover max load, height range, material (carbon vs aluminium), and leg lock type.
+
+monopods:
+  price_band: budget
+  notes_for_writers: >
+    Note load capacity and sports/wildlife walking use cases. Cover feet/base options.
+
+gimbals:
+  price_band: mid
+  notes_for_writers: >
+    Cover stabilisation axes, payload, battery life, and app features.
+
+ballheads-plates:
+  price_band: mid
+  notes_for_writers: >
+    Cover clamp standard (Arca-Swiss vs proprietary), friction control, and max load.
+
+# ── Lighting & Studio ────────────────────────────────────────────────────────
+
+flash-speedlights:
+  price_band: mid
+  notes_for_writers: >
+    Cover GN, recycle time, HSS support, and TTL compatibility with camera brand.
+
+studio-lighting:
+  price_band: mid
+  notes_for_writers: >
+    Cover power output (Ws), modelling lamp, and wireless trigger system.
+
+light-modifiers:
+  price_band: budget
+  notes_for_writers: >
+    Cover size, light quality, ease of setup, and mount compatibility.
+
+reflectors-diffusers:
+  price_band: budget
+  notes_for_writers: >
+    Note surface options (gold/silver/white/diffuse) and collapsible storage size.
+
+# ── Accessories ──────────────────────────────────────────────────────────────
+
+memory-cards:
+  price_band: budget
+  notes_for_writers: >
+    Lead with read/write speed (MB/s), capacity, and camera compatibility (CFexpress vs SD).
+
+camera-batteries:
+  price_band: budget
+  notes_for_writers: >
+    State mAh capacity, compatible camera models, and decode cells (OEM vs third-party).
+
+lens-filters:
+  price_band: budget
+  notes_for_writers: >
+    Cover filter type (ND / CPL / UV), thread size, and coatings.
+
+cleaning-gear:
+  price_band: budget
+  notes_for_writers: >
+    Note sensor safe vs lens safe classification. Cover kit contents.
+
+accessories-general:
+  price_band: budget
+  notes_for_writers: >
+    General camera accessories buying guide.
+
+# ── Drones & Aerial ──────────────────────────────────────────────────────────
+
+drones:
+  price_band: premium
+  notes_for_writers: >
+    Cover camera sensor, flight time, obstacle avoidance, and regulatory class.
+
+drone-accessories:
+  price_band: budget
+  notes_for_writers: >
+    Specify compatible drone models. Cover ND filter sets, extra batteries, carry cases.
+
+# ── Editing & Workflow ───────────────────────────────────────────────────────
+
+editing-software:
+  price_band: budget
+  notes_for_writers: >
+    Cover subscription vs perpetual licence, RAW format support, and AI features.
+
+storage-backup:
+  price_band: mid
+  notes_for_writers: >
+    Cover capacity, read/write speed, and workflow (NAS vs portable vs cloud hybrid).
+
+monitors-displays:
+  price_band: premium
+  notes_for_writers: >
+    Cover colour gamut (DCI-P3/sRGB coverage), calibration support, and resolution.
+
+# ── Sauna Niche ───────────────────────────────────────────────────────────────
+
+sauna-infrared:
+  price_band: premium
+  notes_for_writers: >
+    Highlight heating technology (carbon vs ceramic vs full spectrum), interior space,
+    EMF rating if disclosed, and typical session duration. Note brand warranty terms.
+
+sauna-outdoor:
+  price_band: premium
+  notes_for_writers: >
+    Cover construction material (cedar, thermo wood, hemlock), weather rating, footprint
+    and installation requirements, and heater compatibility.
+
+sauna-indoor:
+  price_band: premium
+  notes_for_writers: >
+    Cover electrical requirements, space needed, ventilation considerations, and whether
+    a permit is typically required for indoor installation.
+
+sauna-traditional:
+  price_band: premium
+  notes_for_writers: >
+    Note heater type (electric vs wood), stone capacity, humidity range, and the
+    authentic löyly experience. Reference Finnish tradition where relevant.
+
+sauna-steam:
+  price_band: premium
+  notes_for_writers: >
+    Distinguish steam sauna (high humidity, lower temp) from dry Finnish sauna.
+    Cover steam generator specs, moisture management, and installation requirements.
+
+sauna-wood-fired:
+  price_band: premium
+  notes_for_writers: >
+    Cover wood consumption rate, heating time to temperature, and safety clearances.
+    Note that wood-fired saunas generally require no electricity.
+
+sauna-portable:
+  price_band: mid
+  notes_for_writers: >
+    Assess setup time, electrical requirements, capacity, and storage when not in use.
+    Note that heat distribution in portable units varies significantly by design.
+
+sauna-by-size:
+  price_band: premium
+  notes_for_writers: >
+    Assess interior bench layout, electrical requirements, typical session capacity,
+    and footprint. Note that "person" ratings are often optimistic for comfort.
+
+sauna-heaters:
+  price_band: mid
+  notes_for_writers: >
+    Cover power rating (kW), stone capacity, heating method (electric vs wood),
+    control type (manual vs digital), and room size compatibility.
+
+sauna-stones:
+  price_band: budget
+  notes_for_writers: >
+    Cover stone type (olivine, peridotite, etc.), size, and compatibility with heater.
+    Note replacement frequency and safe sourcing to avoid stones that crack under heat.
+
+sauna-components:
+  price_band: mid
+  notes_for_writers: >
+    Specify the component type (door, bench, vent, lighting, foil). Cover material
+    quality, compatibility with common sauna sizes, and installation complexity.
+
+sauna-materials:
+  price_band: mid
+  notes_for_writers: >
+    Cover wood species characteristics (durability, heat resistance, splintering risk),
+    typical use case, and treatment/finishing requirements.
+
+sauna-accessories:
+  price_band: budget
+  notes_for_writers: >
+    Note compatibility with major sauna brands/materials, build quality, and the specific
+    in-sauna experience the accessory improves (thermometer, bucket, ladle, etc.).
+
+sauna-diy:
+  price_band: mid
+  notes_for_writers: >
+    Cover material list, electrical and permit requirements, skill level required,
+    and total cost range. Be accurate about complexity — underestimating DIY is a
+    common reader pain point.
+
+sauna-prefab:
+  price_band: premium
+  notes_for_writers: >
+    Cover what's included vs what requires site prep, delivery method, assembly time,
+    and warranty. Note electrical connection requirements.
+
+sauna-installation:
+  price_band: budget
+  notes_for_writers: >
+    Focus on requirements (electrical, clearances, ventilation) rather than product
+    recommendations. Reference applicable building codes where known. Advise licensed
+    electrician for wiring work.
+
+sauna-maintenance:
+  price_band: budget
+  notes_for_writers: >
+    Cover specific maintenance task (cleaning, wood treatment, heater service, element
+    replacement). Cite manufacturer recommendations where available.
+
+sauna-health:
+  price_band: budget
+  notes_for_writers: >
+    Use qualified language only ("may support", "research suggests"). Cite specific
+    sources (ESPA Foundation, peer-reviewed studies). Never make definitive medical
+    claims. Marcus is NOT a wellness practitioner — frame as a curious researcher.
+
+sauna-how-to:
+  price_band: budget
+  notes_for_writers: >
+    Cover temperature, duration, frequency, and technique. Acknowledge individual
+    variation. Use sourced framing: "Finnish tradition recommends...", "r/Sauna
+    users report...". No medical advice.
+
+sauna-cold-plunge:
+  price_band: premium
+  notes_for_writers: >
+    Cover capacity, chiller power, cooling speed, and required electrical supply.
+    Frame as companion to sauna, not standalone wellness equipment.
+
+sauna-hot-tub-combo:
+  price_band: premium
+  notes_for_writers: >
+    Address space planning and electrical load (hot tub + sauna together are significant).
+    Cover brands that design specifically for sauna adjacency.
+
+sauna-blankets:
+  price_band: budget
+  notes_for_writers: >
+    Distinguish non-infrared sauna blankets from infrared versions. Cover material,
+    temperature range, and cleaning/hygiene considerations.
+
+sauna-infrared-blankets:
+  price_band: mid
+  notes_for_writers: >
+    Cover heating element type (carbon vs ceramic), EMF rating, temperature range,
+    and session duration guidance. Note portability vs full sauna comparison.
+
+sauna-infrared-mats:
+  price_band: mid
+  notes_for_writers: >
+    Cover heating element layout, EMF rating, temperature range, and surface area.
+    Note typical use cases (targeted recovery vs full-body infrared).
+
+sauna-budget:
+  price_band: budget
+  notes_for_writers: >
+    Be honest about tradeoffs at this price point — material quality, heating consistency,
+    warranty support. Help buyers understand what they're getting.
+
+sauna-mid-range:
+  price_band: mid
+  notes_for_writers: >
+    Position this tier as the sweet spot for most buyers. Cover what upgrades
+    justify mid-range pricing vs budget alternatives.
+
+sauna-premium:
+  price_band: premium
+  notes_for_writers: >
+    Cover what premium pricing buys: build quality, warranty, technology (e.g.
+    Sunlighten Solocarbon, Clearlight True Wave), and service/support.
+
+sauna-general:
+  price_band: mid
+  notes_for_writers: >
+    General sauna buying guide. Cover sauna type selection, sizing, budget tiers,
+    and key purchase decision factors from Marcus's research perspective.
+
+sauna-home:
+  price_band: premium
+  notes_for_writers: >
+    Cover whole-home sauna considerations: type selection, placement, electrical
+    requirements, and how to evaluate contractor-installed vs prefab options.
+
+sauna-reviews:
+  price_band: mid
+  notes_for_writers: >
+    Marcus's sourced review framing. Lead with Harvia/Sunlighten/Clearlight
+    specifications, r/Sauna community reports, and SaunaSeeker testing data.
+    Never claim personal hands-on testing for products not in the eeat-vault.
+
+sauna-commercial:
+  price_band: premium
+  notes_for_writers: >
+    Focus on capacity, durability, code compliance, and commercial-grade heater
+    specs. Note that commercial installation requirements differ from residential.
+
+# Brand hubs — generic template; individual brand notes in eeat-vault.json
+
+sauna-brand-harvia:
+  price_band: mid
+  notes_for_writers: >
+    Finnish brand, market leader in traditional sauna heaters. Cover specific model
+    within the Harvia lineup (Cilindro, Globe, Club, etc.), kW rating, and controls.
+
+sauna-brand-clearlight:
+  price_band: premium
+  notes_for_writers: >
+    Cover True Wave II carbon/ceramic hybrid heating technology and low-EMF claims.
+    Note specific model (Premier, Sanctuary, etc.) and interior dimensions.
+
+sauna-brand-sunlighten:
+  price_band: premium
+  notes_for_writers: >
+    Cover Solocarbon heating technology, published EMF testing, and specific model
+    (Solo, Amplify, Signature, mPulse). Note customisation and warranty terms.
+
+sauna-brand-almost-heaven:
+  price_band: mid
+  notes_for_writers: >
+    West Virginia brand, known for outdoor barrel and cabin saunas. Cover wood
+    species (hemlock standard), heater compatibility, and assembly requirements.
+
+sauna-brand-sun-home:
+  price_band: premium
+  notes_for_writers: >
+    Cover Solstice and other Sun Home lineup models. Note carbon heating panel
+    placement and low-EMF positioning.
+
+sauna-brand-dynamic:
+  price_band: mid
+  notes_for_writers: >
+    Budget-friendly infrared brand. Cover specific model, heating element type,
+    and honest assessment of build quality relative to price point.
+
+sauna-brand-saunum:
+  price_band: mid
+  notes_for_writers: >
+    Estonian brand known for Air series heaters with air equaliser. Cover specific
+    product, kW rating, and the air circulation technology differentiation.
+
+sauna-brand-saunalife:
+  price_band: mid
+  notes_for_writers: >
+    Outdoor sauna brand focused on barrel and cube designs. Cover specific model,
+    wood species, heater compatibility, and assembly requirements.
+
+sauna-brand-tylo:
+  price_band: premium
+  notes_for_writers: >
+    Swedish brand with extensive commercial and residential heater lineup. Cover
+    specific model, kW range, and Tylo's steam/sauna combination products.
+
+sauna-brand-huum:
+  price_band: premium
+  notes_for_writers: >
+    Estonian brand known for Drop and Hive heater designs. Cover stone capacity,
+    kW options, and aesthetic differentiation in the heater market.
+
+sauna-brand-auroom:
+  price_band: premium
+  notes_for_writers: >
+    Estonian design-focused sauna brand. Cover specific model, material quality,
+    and the architectural/design premium over functional competitors.
+
+sauna-brand-amerec:
+  price_band: mid
+  notes_for_writers: >
+    US-based commercial and residential sauna brand. Cover heater specs, room
+    size compatibility, and steam sauna product line.
+
+sauna-brand-redwood:
+  price_band: mid
+  notes_for_writers: >
+    US outdoor sauna brand. Cover specific model, redwood or cedar construction,
+    and assembly/delivery logistics.
+
+sauna-brand-therasage:
+  price_band: mid
+  notes_for_writers: >
+    Cover Therasage's full-spectrum infrared claims, 360° heating design, and
+    portable vs cabin format. Note EMF and ELF positioning in marketing.
+
+sauna-brand-lifepro:
+  price_band: budget
+  notes_for_writers: >
+    Budget infrared brand. Cover specific model, honest assessment of heating
+    consistency, and warranty support relative to premium alternatives.
+
+sauna-brand-bon-charge:
+  price_band: mid
+  notes_for_writers: >
+    Cover sauna blanket and infrared product line. Note EMF positioning, temperature
+    range, and session duration guidance. Distinguish from full-cabin sauna.
+
+sauna-brand-sharper-image:
+  price_band: budget
+  notes_for_writers: >
+    Retail/mass-market brand. Cover specific model, honest assessment of build
+    quality, and appropriate use case (entry-level, light use).
+
+sauna-retailer-costco:
+  price_band: mid
+  notes_for_writers: >
+    Cover specific Costco sauna SKUs (vary by season). Note that Costco carries
+    brand-name products at discount — identify the underlying brand and model.
+
+# ── Caregiving & Senior Living (fourfernscare.com) ───────────────────────────
+
+mobility-walkers:
+  price_band: mid
+  notes_for_writers: >
+    Highlight weight (unfolded), fold mechanism, seat height adjustability range,
+    and whether a seat is included. Note weight capacity. Flag if the walker
+    requires tools to adjust height. Qualified language throughout — individual
+    fit depends on user height and condition.
+
+mobility-scooters:
+  price_band: mid
+  notes_for_writers: >
+    Cover turning radius (critical for indoor use — measure against standard
+    32" doorways), disassembly weight for travel, battery range, and charger
+    included. Note 3-wheel vs 4-wheel stability trade-off.
+
+mobility-wheelchairs:
+  price_band: mid
+  notes_for_writers: >
+    Cover seat width and depth, seat-to-floor height, weight (for vehicle
+    transport), fold mechanism, and footrest type. Note whether Medicare/insurance
+    coverage applies. Distinguish transport vs self-propelled vs power wheelchair.
+
+mobility-canes:
+  price_band: budget
+  notes_for_writers: >
+    Cover handle style (crook, offset, quad), height adjustability range, grip
+    material, and tip type. Note that proper cane height requires fitting to
+    the user — recommend OT or PT confirmation.
+
+bedroom-mobility:
+  price_band: mid
+  notes_for_writers: >
+    Cover weight capacity, attachment method (frame clamp vs floor-standing),
+    height adjustability, and installation requirements. Note FDA guidance on
+    adult portable bed rail entrapment hazards for bed rails.
+
+bathroom-seating:
+  price_band: mid
+  notes_for_writers: >
+    Cover seat height adjustability range, weight capacity, back support (with
+    vs without), non-slip feet, and whether the product is a transfer bench
+    (straddles tub lip) vs shower chair. Note that seat height must match user
+    leg length — confirm adjustability range before recommending.
+
+bathroom-toilet:
+  price_band: mid
+  notes_for_writers: >
+    Cover seat height added (in inches), weight capacity, and whether the product
+    is a raised seat (no arms), a safety frame (arms only), or a combined unit.
+    Confirm compatibility with round vs elongated toilet bowls.
+
+bathroom-grab-bars:
+  price_band: mid
+  notes_for_writers: >
+    Emphasise weight rating, mounting method (stud vs toggle anchor — note load
+    ratings differ significantly), length, and finish. Explicitly note that
+    suction-cup grab bars are not recommended for primary use by fall prevention
+    organisations. Professional installation recommended.
+
+bathroom-fixtures:
+  price_band: mid
+  notes_for_writers: >
+    Cover the specific problem addressed (reach, grip, visibility). Note
+    installation requirements. For handheld showerheads, cover hose length and
+    bracket adjustability.
+
+bathroom-safety:
+  price_band: budget
+  notes_for_writers: >
+    Cover suction strength and whether it holds reliably on textured vs smooth
+    surfaces. Note drainage design and whether mat edges can curl (trip hazard).
+    Non-slip solutions complement but do not replace structural grab bars.
+
+dexterity-bath:
+  price_band: budget
+  notes_for_writers: >
+    Cover handle length, grip design, and whether the product accommodates
+    one-sided weakness. Note ease of cleaning. These are standard OT
+    self-care independence tools.
+
+safety-stairs:
+  price_band: premium
+  notes_for_writers: >
+    For stair lifts: cover stairway width requirement, straight vs curved
+    compatibility, weight capacity, power backup, and professional installation
+    requirement. For grab rail extensions: cover installation method and weight
+    rating.
+
+safety-fall-prevention:
+  price_band: mid
+  notes_for_writers: >
+    Position within a broader fall prevention plan (not a standalone solution).
+    Cover the specific hazard addressed. Note that the CDC cites falls as the
+    leading cause of injury hospitalisation in adults 65+.
+
+safety-access:
+  price_band: mid
+  notes_for_writers: >
+    Cover rise height handled, weight capacity, surface traction, and whether
+    the ramp is portable or permanent. Note ADA 1:12 slope ratio for wheelchair
+    use. Reference local building codes for permanent installations.
+
+safety-lighting:
+  price_band: budget
+  notes_for_writers: >
+    Cover lumen output, motion sensor range and sensitivity, battery vs plug-in,
+    and placement recommendations. Position as part of a nighttime fall prevention
+    strategy.
+
+safety-kitchen:
+  price_band: budget
+  notes_for_writers: >
+    Cover the specific hazard addressed (burns, cuts, reaching). Note whether the
+    product requires installation. Reference OT kitchen safety assessment context.
+
+bedroom-beds:
+  price_band: premium
+  notes_for_writers: >
+    Cover height adjustment range (critical for caregiver tasks), weight capacity,
+    rail compatibility, and Medicare coverage eligibility (skilled nursing need
+    required). Distinguish home hospital bed from adjustable base for existing
+    mattress.
+
+bedroom-safety:
+  price_band: mid
+  notes_for_writers: >
+    Cover the specific safety function (bed rail, floor mat, alarm). Note FDA
+    guidance on adult portable bed rail entrapment hazards. Cover weight capacity
+    and installation/attachment method.
+
+bedroom-incontinence:
+  price_band: mid
+  notes_for_writers: >
+    Cover waterproofing method (surface layer vs full encasement), breathability,
+    and wash durability. For bed pads, cover absorbency level and reusable vs
+    disposable cost trade-off.
+
+bedroom-comfort:
+  price_band: mid
+  notes_for_writers: >
+    Cover the specific positioning function (elevation angle, side support, etc.)
+    and the condition/use case it addresses. For overbed tables, cover height
+    range, tilt function, and caster quality.
+
+dexterity-dressing:
+  price_band: budget
+  notes_for_writers: >
+    Cover the specific dressing task addressed. Note which conditions benefit most
+    (arthritis, post-hip surgery reach restrictions, one-sided weakness). These
+    are standard OT adaptive dressing tools.
+
+dexterity-eating:
+  price_band: budget
+  notes_for_writers: >
+    Cover the specific mealtime challenge addressed (grip, tremor, reach, swallow).
+    Note that weighted utensils help with tremor; built-up handles help with grip.
+    Reference OT feeding assessment context.
+
+dexterity-kitchen:
+  price_band: budget
+  notes_for_writers: >
+    Cover the specific task addressed. These tools are commonly recommended in AARP
+    and OT kitchen guides. Note ergonomic handle design and ease of cleaning.
+
+dexterity-reach:
+  price_band: budget
+  notes_for_writers: >
+    Cover reach length, jaw/grip design, trigger mechanism ergonomics, and fold
+    for storage. Note that reachers are standard post-hip-replacement OT equipment.
+
+comfort-seating:
+  price_band: premium
+  notes_for_writers: >
+    For power lift chairs: cover seat width and depth, recline positions, weight
+    capacity, and Medicare coverage (lift mechanism only, not full chair cost).
+    Note that chair size must be matched to user dimensions.
+
+comfort-cushions:
+  price_band: mid
+  notes_for_writers: >
+    Distinguish pressure redistribution cushions (wheelchair users, injury
+    prevention) from comfort/postural cushions. Cover foam density vs gel vs
+    air cell design. Note seat dimensions and cover material.
+
+comfort-pillows:
+  price_band: mid
+  notes_for_writers: >
+    Cover the positioning function (elevation angle, side support, etc.) and the
+    specific condition addressed. Note firmness and cover material.
+
+medical-alert:
+  price_band: mid
+  notes_for_writers: >
+    Cover monitoring model (24/7 call centre vs direct-to-family), fall detection
+    accuracy (note that automatic fall detection has false positives), in-home range
+    vs GPS, monthly cost, and contract terms. Qualified language — no definitive
+    safety claims.
+
+medical-medication:
+  price_band: mid
+  notes_for_writers: >
+    Cover compartment count and schedule complexity handled, alarm volume and
+    snooze options, lockout features for cognitive safety, and ease of caregiver
+    setup. Note that automatic dispensers are recommended when manual adherence
+    is unreliable.
+
+medical-monitoring:
+  price_band: mid
+  notes_for_writers: >
+    Cover clinical validation and accuracy, ease of use for limited dexterity,
+    cuff size options for blood pressure monitors, and data storage/sharing
+    capability. Note that these do not replace clinical monitoring.
+
+incontinence-supplies:
+  price_band: budget
+  notes_for_writers: >
+    Cover absorbency rating (light/moderate/heavy/maximum), tab vs pull-on
+    style (affects caregiver-assisted changes), skin protection liner material,
+    and odor control. Note reusable vs disposable cost trade-off for regular use.
+
+hearing-aids:
+  price_band: mid
+  notes_for_writers: >
+    Distinguish OTC hearing aids (FDA 2022 category, mild-to-moderate loss) from
+    prescription devices and PSAPs. Cover amplification range, feedback handling,
+    battery type, and app connectivity. Note that significant hearing loss requires
+    audiological assessment. Qualified language throughout.
+
+vision-aids:
+  price_band: mid
+  notes_for_writers: >
+    Cover magnification level, lighting (built-in vs none), portability, and
+    whether the product is a handheld magnifier, stand magnifier, or video
+    magnifier (electronic). Note that these support low vision — they do not
+    substitute for an eye examination.
+
+cognitive-aids:
+  price_band: mid
+  notes_for_writers: >
+    Cover the specific cognitive challenge addressed (orientation, memory,
+    task sequencing). Note ease of setup and whether family/caregiver remote
+    configuration is available. Position within a broader cognitive support plan.
+
+# ── Home Cinema (homepicturescinema.com) ─────────────────────────────────────
+
+projectors:
+  price_band: mid
+  notes_for_writers: >
+    State throw distance, lumen output, native resolution, and HDR support up front.
+    Note lamp vs laser light source and longevity difference. Adrian's reference point
+    is the Epson 4010 (LCD, 4K-enhanced, ~$1900) — position relative to that tier.
+    Defer to Projector Central and Projector Reviews for flagships above $5K.
+
+av-receivers:
+  price_band: mid
+  notes_for_writers: >
+    State channel count, Atmos/DTS:X support, power rating, and HDMI 2.1 port count.
+    Adrian's reference point is the Denon AVR-X3700H (9.2ch, mid-tier). Note whether
+    Audyssey MultEQ or MultEQ XT32 is included — matters for calibration content.
+    Defers to Audioholics measurements for reference processors above $2K.
+
+speakers:
+  price_band: mid
+  notes_for_writers: >
+    State driver configuration, impedance, sensitivity, and recommended amplifier power.
+    Adrian's reference points are the Klipsch RP-600M (fronts), RP-500C (center),
+    RP-500M (surrounds). Note in-ceiling vs bookshelf vs floor-standing application.
+    Defers to Audioholics measurements for flagship tower speakers.
+
+subwoofers:
+  price_band: mid
+  notes_for_writers: >
+    State driver size, ported vs sealed, RMS power, and frequency extension.
+    Adrian owns the SVS PB-1000 Pro — use as the reference mid-tier benchmark.
+    Note that Adrian calibrates with REW + UMIK-1; mention integration methodology
+    where relevant. Defers to Rythmik and HSU owners for high-end sealed subs.
+
+soundbars:
+  price_band: mid
+  notes_for_writers: >
+    Adrian transitioned away from soundbars to a full 5.1 system. Frame soundbar
+    coverage honestly: "best option if you're not ready for discrete speakers."
+    Never dismissive — many readers live in apartments or rentals. State channel
+    count, Atmos/DTS:X decoding, and whether a separate sub is included or sold separately.
+
+screens:
+  price_band: mid
+  notes_for_writers: >
+    State gain, screen material (matte white vs ALR vs CLR), and viewing cone.
+    Adrian owns the Silver Ticket STR-169120 120-inch ALR. Note that ALR requires
+    projector positioned at or near viewer height. Always include throw distance
+    and screen size compatibility notes for projector content.
+
+sources:
+  price_band: budget
+  notes_for_writers: >
+    State 4K Dolby Vision support, Atmos passthrough, and app ecosystem.
+    Adrian owns Apple TV 4K (2024), Nvidia Shield TV Pro, Sony UBP-X800M2.
+    Note that Shield Pro is the preferred choice for Plex and Kodi users.
+    Physical media content: verify HDR format support and audio codec passthrough.
+
+accessories:
+  price_band: budget
+  notes_for_writers: >
+    Lead with the spec that matters (HDMI bandwidth tier, AWG for speaker cable,
+    panel thickness and NRC for acoustic treatment). Adrian's position on cables:
+    buy a bandwidth-certified cable from a reputable brand — do not pay premium
+    for marginal audible claims. State HDMI certification tier (48Gbps for 8K/4K@120).
+
+calibration:
+  price_band: budget
+  notes_for_writers: >
+    Adrian calibrates with Audyssey MultEQ XT32, REW, and a MiniDSP UMIK-1.
+    Calibration content should reference Adrian's actual workflow where applicable.
+    Note that REW is free; most cost is measurement mic. Defers to CEDIA-certified
+    calibrators for ISF/THX professional services.
+
+guides:
+  price_band: mid
+  notes_for_writers: >
+    Buyer guide or setup guide. Reference Adrian's room (14x18 ft, 9ft ceiling,
+    7.1.2 Atmos, ~$5K gear budget) as the worked example where relevant.
+    Honest about what mid-tier investment achieves vs flagship territory.
+
+learn:
+  price_band: budget
+  notes_for_writers: >
+    Educational/informational article. Products here are referenced illustratively
+    — the article is not primarily a buying recommendation. Include affiliate links
+    where a specific product naturally illustrates the concept, but do not force it.

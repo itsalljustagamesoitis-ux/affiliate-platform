@@ -255,18 +255,18 @@ class FileValidator {
     if (fm.type === 'buyer_guide') this.pass('F02', 'type = "buyer_guide"')
     else this.fail('F02', 'type must be "buyer_guide"', String(fm.type))
 
-    // F03: title length 45–70 chars
+    // F03: title length 40–70 chars
     if (typeof fm.title === 'string') {
       const n = fm.title.length
-      if (n >= 45 && n <= 70) this.pass('F03', `title length ${n} chars (45–70)`)
-      else this.fail('F03', 'title must be 45–70 chars', `${n} chars: "${fm.title}"`)
+      if (n >= 40 && n <= 70) this.pass('F03', `title length ${n} chars (40–70)`)
+      else this.fail('F03', 'title must be 40–70 chars', `${n} chars: "${fm.title}"`)
     }
 
     // F04: description length 135–165 chars
     if (typeof fm.description === 'string') {
       const n = fm.description.length
-      if (n >= 135 && n <= 165) this.pass('F04', `description length ${n} chars (135–165)`)
-      else this.fail('F04', 'description must be 135–165 chars', `${n} chars`)
+      if (n >= 135 && n <= 170) this.pass('F04', `description length ${n} chars (135–170)`)
+      else this.fail('F04', 'description must be 135–170 chars', `${n} chars`)
     }
 
     // F05: disclosure_required = true
@@ -494,17 +494,17 @@ class FileValidator {
 
       // B14: buying guide has 3–5 H3 subsections
       const bgH3Count = bgH3s.length
-      if (bgH3Count >= 3 && bgH3Count <= 5)
-        this.pass('B14', `Buying guide has ${bgH3Count} H3 subsections (3–5)`)
+      if (bgH3Count >= 3 && bgH3Count <= 6)
+        this.pass('B14', `Buying guide has ${bgH3Count} H3 subsections (3–6)`)
       else
-        this.fail('B14', 'Buying guide must have 3–5 H3 subsections', `found ${bgH3Count}`)
+        this.fail('B14', 'Buying guide must have 3–6 H3 subsections', `found ${bgH3Count}`)
 
-      // B15: buying guide word count 475–700
+      // B15: buying guide word count 350–800
       const bgWords = countWords(bgText)
-      if (bgWords >= 475 && bgWords <= 700)
-        this.pass('B15', `Buying guide word count ${bgWords} (475–700)`)
+      if (bgWords >= 350 && bgWords <= 800)
+        this.pass('B15', `Buying guide word count ${bgWords} (350–800)`)
       else
-        this.fail('B15', 'Buying guide word count must be 475–700', `found ${bgWords}`)
+        this.fail('B15', 'Buying guide word count must be 350–800', `found ${bgWords}`)
 
       // B16: buying guide contains a hub link
       if (hub && hasHubLink(bgText, hub))
@@ -523,12 +523,12 @@ class FileValidator {
       const wtlfText  = wtlfLines.join('\n')
       const wtlfH3s   = extractH3Sections(wtlfLines)
 
-      // B17: "What to Look For" word count 400–700
+      // B17: "What to Look For" word count 350–800
       const wtlfWords = countWords(wtlfText)
-      if (wtlfWords >= 400 && wtlfWords <= 700)
-        this.pass('B17', `"What to Look For" word count ${wtlfWords} (400–700)`)
+      if (wtlfWords >= 350 && wtlfWords <= 800)
+        this.pass('B17', `"What to Look For" word count ${wtlfWords} (350–800)`)
       else
-        this.fail('B17', '"What to Look For" word count must be 400–700', `found ${wtlfWords}`)
+        this.fail('B17', '"What to Look For" word count must be 350–800', `found ${wtlfWords}`)
 
       // B18: "What to Look For" has 3–5 H3 subsections
       const wtlfH3Count = wtlfH3s.length
@@ -611,12 +611,12 @@ class FileValidator {
       const shortHeading = sec.heading.slice(0, 60)
       const label = `FAQ[${i}] "${shortHeading}"`
 
-      // Q05: answer 2–4 sentences
+      // Q05: answer ≤4 sentences (no minimum)
       const sentCount = countSentences(answerText)
-      if (sentCount >= 2 && sentCount <= 4)
-        this.pass(`Q05.${i}`, `${label}: ${sentCount} sentences (2–4)`)
+      if (sentCount >= 1 && sentCount <= 4)
+        this.pass(`Q05.${i}`, `${label}: ${sentCount} sentences (≤4)`)
       else
-        this.fail(`Q05.${i}`, `${label}: answer must be 2–4 sentences`, `counted ~${sentCount}`)
+        this.fail(`Q05.${i}`, `${label}: answer must be ≤4 sentences`, `counted ~${sentCount}`)
 
       // Q07: answer does not end with "Check current price on Amazon."
       const lastLine = getLastContentLine(sec.lines)

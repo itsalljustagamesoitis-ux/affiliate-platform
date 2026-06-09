@@ -231,6 +231,37 @@ None. All findings are resolvable by Claude Code during Phase 4 setup.
 
 ---
 
+## VM Canonical Policy (updated 2026-06-05)
+
+**The VM (46.225.29.35) is the canonical content store for all sites.** Mac is the build machine; the VM holds the authoritative, patched article state.
+
+### Session sync protocol
+
+```bash
+# START OF SESSION — pull VM → Mac before any build or edit
+rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519" \
+  root@46.225.29.35:/root/<site>/content/ \
+  /Users/keithlacy/<site>/content/
+
+# END OF SESSION — push Mac edits → VM
+rsync -avz --delete -e "ssh -i ~/.ssh/id_ed25519" \
+  /Users/keithlacy/<site>/content/ \
+  root@46.225.29.35:/root/<site>/content/
+```
+
+### Reconciliation schedule
+
+Sites sync as they're touched (not bulk-forced). Sites with VM-side patches applied (V18/V20 cohort audit):
+
+| Site | VM articles | Mac articles | Status |
+|------|------------|--------------|--------|
+| strengthmill | 296 | 273 (pre-sync) | Sync VM→Mac 2026-06-05 |
+| All others | — | — | Sync on next touch |
+
+**Rule:** Never build from Mac-only state for a site that has VM-side patches. Always VM→Mac sync first.
+
+---
+
 ## Quick-reference: Phase 4 launch sequence (after setup)
 
 ```bash

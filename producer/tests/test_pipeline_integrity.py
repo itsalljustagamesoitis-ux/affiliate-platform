@@ -9,7 +9,6 @@ from collections import Counter
 
 VALID_TYPES = {
     "roundup", "review", "comparison", "informational", "buyer_guide",
-    "Roundup", "Review", "Comparison", "Informational", "Buyer Guide",
 }
 
 
@@ -107,13 +106,18 @@ class TestProductAssignment:
 
 class TestProductsCatalog:
     def test_all_products_have_required_fields(self, products):
-        required = ["name", "brand", "price_band", "default_pros", "default_cons"]
+        always_required = ["name", "brand", "price_band"]
         bad = []
         for key, p in products.items():
-            missing = [f for f in required if not p.get(f)]
+            missing = [f for f in always_required if not p.get(f)]
             # amazon_asin may be null for direct-to-consumer brands — check it's present as a key
             if "amazon_asin" not in p:
                 missing.append("amazon_asin (key missing entirely)")
+            # Older manually-curated products use notes_for_writers instead of default_pros/cons
+            has_pros_cons = p.get("default_pros") and p.get("default_cons")
+            has_notes = p.get("notes_for_writers")
+            if not has_pros_cons and not has_notes:
+                missing.append("default_pros/default_cons or notes_for_writers")
             if missing:
                 bad.append(f"'{key}': missing {missing}")
         assert not bad, f"{len(bad)} products missing required fields:\n" + "\n".join(bad[:10])

@@ -1,30 +1,86 @@
 #!/usr/bin/env node
 /**
- * launch-site.mjs — Flip a pre_launch site to live.
+ * launch-site.mjs — 21-point ritual orchestrator (v1.6)
  *
- * Runs gate checks (verify-site-shell --strict, deploy-and-verify), submits
- * IndexNow, flips portfolio status to live, commits + pushes. Refuses to
- * proceed if any gate fails. Does not prepare anything — that's the producer's
- * job. This is purely the flip-the-switch command.
+ * Manages a full site launch from Point 7 (site shell) through Point 21 (dashboard).
+ * Points 1–6 are Keith strategic inputs — supplied as CLI arguments or via state.yaml.
  *
  * Usage:
- *   node tools/launch-site.mjs --site <slug>
+ *   node tools/launch-site.mjs --site <slug> [options]
+ *   node tools/launch-site.mjs --resume <slug> [--amazon-tracking-id <id>] [--ga4-id <id>] [--bwt-txt <txt>] [--gsc-txt <txt>]
  *   node tools/launch-site.mjs --site <slug> --dry-run
  *
+ * Point 1–6 inputs (new launch):
+ *   --niche <niche>              Site niche (fly-fishing, audiophile, etc.)
+ *   --domain <domain>            Site domain (e.g. undisclosedsounds.com)
+ *   --xlsx <path>                Path to keyword XLSX (Point 2/3)
+ *   --persona <description>      Persona biographical context (Point 5)
+ *
+ * Identity-gate inputs (resume path):
+ *   --amazon-tracking-id <id>    Inject at Point 9 resume
+ *   --ga4-id <id>                Inject at Point 17 resume
+ *   --bwt-txt <string>           Inject at Point 18 resume
+ *   --gsc-txt <string>           Inject at Point 19 resume
+ *
  * Exit codes:
- *   0 — launched (or dry-run clean)
- *   1 — gate failed; portfolio NOT modified, no IndexNow submission
- *   2 — tool error (auth, missing files, bad state)
+ *   0 — complete or clean halt (awaiting Keith)
+ *   1 — hard failure — check state.yaml
+ *   2 — tool error (bad args, concurrency conflict, corrupt state)
  */
 
-import { readFileSync, writeFileSync, existsSync, renameSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { homedir } from 'os'
 import { fileURLToPath } from 'url'
 import { execSync } from 'child_process'
 import yaml from 'js-yaml'
 
-import { loadPortfolio } from './lib/portfolio.mjs'
+import {
+  loadState,
+  saveState,
+  initState,
+  markPointComplete,
+  markPointFailed,
+  addKeithPending,
+  resolveKeithPending,
+  isPointComplete,
+  statePath,
+  stateDir,
+} from './launch-site/state.mjs'
+
+import { dispatch, logDecision } from './launch-site/buckets.mjs'
+
+import { run as runP07, BUCKET as B07 } from './launch-site/points/p07-site-shell.mjs'
+import { run as runP08, BUCKET as B08 } from './launch-site/points/p08-furniture.mjs'
+import { run as runP09, BUCKET as B09 } from './launch-site/points/p09-amazon-tracking-id.mjs'
+import { run as runP10, BUCKET as B10 } from './launch-site/points/p10-source-products.mjs'
+import { run as runP10_5, BUCKET as B10_5 } from './launch-site/points/p10-5-generate-pros-cons.mjs'
+import { run as runP11, BUCKET as B11 } from './launch-site/points/p11-source-images.mjs'
+import { run as runP12, BUCKET as B12 } from './launch-site/points/p12-assign-images.mjs'
+import { run as runP12_5, BUCKET as B12_5 } from './launch-site/points/p12-5-brand-match.mjs'
+import { run as runP13, BUCKET as B13 } from './launch-site/points/p13-producer.mjs'
+import { run as runP13_5, BUCKET as B13_5 } from './launch-site/points/p13-5-persona-claim.mjs'
+import { run as runP13_5b, BUCKET as B13_5b } from './launch-site/points/p13-5b-persona-spec.mjs'
+import { run as runP13_6, BUCKET as B13_6 } from './launch-site/points/p13-6-image-markdown.mjs'
+import { run as runP13_7, BUCKET as B13_7 } from './launch-site/points/p13-7-meta-leakage.mjs'
+import { run as runP13_8, BUCKET as B13_8 } from './launch-site/points/p13-8-card-voice.mjs'
+import { run as runP13_9, BUCKET as B13_9 } from './launch-site/points/p13-9-product-slug.mjs'
+import { run as runP14, BUCKET as B14 } from './launch-site/points/p14-publish-staging.mjs'
+import { run as runP15, BUCKET as B15 } from './launch-site/points/p15-local-build.mjs'
+import { run as runP15_5, BUCKET as B15_5 } from './launch-site/points/p15-5-preflight.mjs'
+import { run as runP15_6, BUCKET as B15_6 } from './launch-site/points/p15-6-content-existence.mjs'
+import { run as runP16, BUCKET as B16 } from './launch-site/points/p16-push-live.mjs'
+import { run as runP17, BUCKET as B17 } from './launch-site/points/p17-ga4.mjs'
+import { run as runP18, BUCKET as B18 } from './launch-site/points/p18-bwt.mjs'
+import { run as runP19, BUCKET as B19 } from './launch-site/points/p19-gsc.mjs'
+import { run as runP20, BUCKET as B20 } from './launch-site/points/p20-indexnow.mjs'
+import { run as runP20_5, BUCKET as B20_5 } from './launch-site/points/p20-5-uat-furniture.mjs'
+import { run as runP21, BUCKET as B21 } from './launch-site/points/p21-dashboard.mjs'
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const PLATFORM_DIR       = join(dirname(fileURLToPath(import.meta.url)), '..')
+const ACTIVE_LAUNCHES    = join(PLATFORM_DIR, 'active-launches.yaml')
 
 // ── ANSI ──────────────────────────────────────────────────────────────────────
 
@@ -39,393 +95,299 @@ const c = {
   cyan:   s => esc(s, '36'),
 }
 
-// ── Args ──────────────────────────────────────────────────────────────────────
+// ── Arg parsing ───────────────────────────────────────────────────────────────
 
 const args   = process.argv.slice(2)
 const has    = flag => args.includes(flag)
 const get    = flag => { const i = args.indexOf(flag); return i !== -1 ? args[i + 1] : null }
 
-const slug   = get('--site')
-const dryRun = has('--dry-run')
+const slug       = get('--site') ?? get('--resume')
+const isResume   = has('--resume')
+const dryRun     = has('--dry-run')
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+const inputs = {
+  niche:               get('--niche'),
+  domain:              get('--domain'),
+  keyword_xlsx_path:   get('--xlsx'),
+  persona_context:     get('--persona'),
+  amazon_tracking_id:  get('--amazon-tracking-id'),
+  ga4_measurement_id:  get('--ga4-id'),
+  bwt_txt_record:      get('--bwt-txt'),
+  gsc_txt_record:      get('--gsc-txt'),
+}
 
-const PLATFORM_ROOT   = join(dirname(fileURLToPath(import.meta.url)), '..')
-const PORTFOLIO_PATH  = join(PLATFORM_ROOT, 'portfolio.yaml')
-const TOOL_SHELL      = join(PLATFORM_ROOT, 'tools', 'verify-site-shell.mjs')
-const TOOL_DEPLOY     = join(PLATFORM_ROOT, 'tools', 'deploy-and-verify.mjs')
+// ── Ordered point sequence (7–21) ─────────────────────────────────────────────
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+const POINTS = [
+  { id: '7',    bucket: B07,    run: runP07 },
+  { id: '8',    bucket: B08,    run: runP08 },
+  { id: '9',    bucket: B09,    run: runP09 },
+  { id: '10',   bucket: B10,    run: runP10 },
+  { id: '10.5', bucket: B10_5,  run: runP10_5 },
+  { id: '11',   bucket: B11,    run: runP11 },
+  { id: '12',   bucket: B12,    run: runP12 },
+  { id: '12.5', bucket: B12_5,  run: runP12_5 },
+  { id: '13',   bucket: B13,    run: runP13 },
+  { id: '13.5', bucket: B13_5,  run: runP13_5 },
+  { id: '13.5b',bucket: B13_5b, run: runP13_5b },
+  { id: '13.6', bucket: B13_6,  run: runP13_6 },
+  { id: '13.7', bucket: B13_7,  run: runP13_7 },
+  { id: '13.8', bucket: B13_8,  run: runP13_8 },
+  { id: '13.9', bucket: B13_9,  run: runP13_9 },
+  { id: '14',   bucket: B14,    run: runP14 },
+  { id: '15',   bucket: B15,    run: runP15 },
+  { id: '15.5', bucket: B15_5,  run: runP15_5 },
+  { id: '15.6', bucket: B15_6,  run: runP15_6 },
+  { id: '16',   bucket: B16,    run: runP16 },
+  { id: '17',   bucket: B17,    run: runP17 },
+  { id: '18',   bucket: B18,    run: runP18 },
+  { id: '19',   bucket: B19,    run: runP19 },
+  { id: '20',   bucket: B20,    run: runP20 },
+  { id: '20.5', bucket: B20_5,  run: runP20_5 },
+  { id: '21',   bucket: B21,    run: runP21 },
+]
 
-function execCmd(cmd, opts = {}) {
+// ── Logger ────────────────────────────────────────────────────────────────────
+
+function makeLogger(pointId) {
+  const prefix = c.dim(`[Point ${pointId}]`)
+  return {
+    info:  msg => console.log(`${prefix} ${msg}`),
+    warn:  msg => console.log(`${prefix} ${c.yellow(msg)}`),
+    error: msg => console.error(`${prefix} ${c.red(msg)}`),
+  }
+}
+
+// ── execTool helper ───────────────────────────────────────────────────────────
+
+function execTool(cmd, opts = {}) {
+  const { timeout = 300000, cwd } = opts
   try {
-    return { ok: true, stdout: execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', ...opts }).trim() }
+    const out = execSync(cmd, { encoding: 'utf-8', stdio: 'pipe', timeout, cwd })
+    return { ok: true, stdout: out?.trim() ?? '', stderr: '' }
   } catch (err) {
-    return {
-      ok: false,
-      stdout: err.stdout?.trim() ?? '',
-      stderr: err.stderr?.trim() ?? err.message,
-    }
+    return { ok: false, stdout: err.stdout?.trim() ?? '', stderr: err.stderr?.trim() ?? err.message }
   }
 }
 
-function readPortfolioRaw() {
-  try {
-    return readFileSync(PORTFOLIO_PATH, 'utf-8')
-  } catch (err) {
-    console.error(c.red(`Cannot read portfolio.yaml: ${err.message}`))
+// ── Concurrency lock ──────────────────────────────────────────────────────────
+
+function acquireLock(slug) {
+  if (dryRun) return
+  let active = {}
+  if (existsSync(ACTIVE_LAUNCHES)) {
+    try { active = yaml.load(readFileSync(ACTIVE_LAUNCHES, 'utf-8')) ?? {} } catch { }
+  }
+  if (active.current_slug && active.current_slug !== slug) {
+    console.error(c.red(`Concurrency conflict: ${active.current_slug} is already in progress.`))
+    console.error(c.dim(`  Only one site launches at a time (§16.7).`))
+    console.error(c.dim(`  If the prior launch is stale, remove active-launches.yaml manually.`))
     process.exit(2)
   }
+  active.current_slug = slug
+  active.started = new Date().toISOString()
+  writeFileSync(ACTIVE_LAUNCHES, yaml.dump(active), 'utf-8')
 }
 
-function parsePortfolio(raw) {
+function releaseLock() {
+  if (dryRun) return
   try {
-    const doc = yaml.load(raw)
-    if (!doc?.sites || !Array.isArray(doc.sites)) throw new Error('missing sites array')
-    return doc
-  } catch (err) {
-    console.error(c.red(`portfolio.yaml parse error: ${err.message}`))
-    process.exit(2)
-  }
+    writeFileSync(ACTIVE_LAUNCHES, yaml.dump({ current_slug: null }), 'utf-8')
+  } catch { }
 }
 
-function countPublishedArticles(siteDir) {
-  const pipelinePath = join(siteDir, 'data', 'pipeline.json')
-  if (!existsSync(pipelinePath)) return 0
-  try {
-    const pipeline = JSON.parse(readFileSync(pipelinePath, 'utf-8'))
-    const articles = pipeline.articles ?? []
-    return articles.filter(a => a.status === 'published' || a.wp_post_id).length
-  } catch {
-    return 0
-  }
+// ── State helpers ─────────────────────────────────────────────────────────────
+
+let _state
+let _slug
+
+function ctx_saveState() {
+  if (!dryRun) saveState(_slug, PLATFORM_DIR, _state)
 }
 
-// ── Phase 1 — Pre-flight ──────────────────────────────────────────────────────
-
-function phase1(siteDir) {
-  console.log(c.bold('\nPhase 1 — Pre-flight'))
-
-  // 1b: site directory
-  if (!existsSync(siteDir)) {
-    console.error(c.red(`  ✗ Site directory not found: ${siteDir}`))
-    console.error(c.dim('    Run initialise-site.mjs first.'))
-    process.exit(2)
-  }
-
-  // 1a/1c: portfolio entry + already-live check
-  const raw = readPortfolioRaw()
-  const doc = parsePortfolio(raw)
-  const entry = doc.sites.find(s => s.slug === slug)
-  if (!entry) {
-    console.error(c.red(`  ✗ "${slug}" not found in portfolio.yaml`))
-    process.exit(2)
-  }
-
-  if (entry.status === 'live') {
-    const raw = entry.launched
-    const launchedAt = raw instanceof Date ? raw.toISOString().slice(0, 10) : (raw ?? 'unknown date')
-    console.error(c.yellow(`  Site ${slug} is already live (launched: ${launchedAt}). Nothing to do.`))
-    process.exit(2)
-  }
-
-  // 1e: article count gate
-  const published = countPublishedArticles(siteDir)
-  if (published === 0) {
-    console.error(c.red('  ✗ No published articles. Launch requires at least 1 published article.'))
-    console.error(c.dim('    Run the producer pipeline first.'))
-    process.exit(1)
-  }
-
-  // 1d: launch context
-  console.log(c.green('  ✓ Site found in portfolio'))
-  console.log(c.dim(`\n  Site:             ${slug}`))
-  console.log(c.dim(`  Domain:           ${entry.domain}`))
-  console.log(c.dim(`  Current status:   ${entry.status}`))
-  console.log(c.dim(`  Articles:         ${published} published`))
-  if (dryRun) console.log(c.yellow('\n  DRY RUN — gates will run; portfolio + IndexNow will be skipped'))
-  console.log(c.dim('\n  About to: verify shell → verify deploy → submit IndexNow → flip portfolio to live'))
-
-  return { entry, doc }
-}
-
-// ── Phase 2 — Gate: verify-site-shell ────────────────────────────────────────
-
-function phase2() {
-  console.log(c.bold('\nPhase 2 — Gate: verify-site-shell --strict'))
-
-  const result = execCmd(`node ${TOOL_SHELL} --site ${slug} --strict --json`)
-
-  let parsed
-  try {
-    parsed = JSON.parse(result.stdout)
-  } catch {
-    console.error(c.red('  ✗ verify-site-shell returned unparseable output'))
-    if (result.stderr) console.error(c.dim(`    ${result.stderr}`))
-    process.exit(1)
-  }
-
-  const siteData = parsed?.sites?.[slug]
-  if (!siteData) {
-    console.error(c.red(`  ✗ Site "${slug}" not found in verify-site-shell JSON output`))
-    process.exit(1)
-  }
-
-  const blockerCount = siteData.blockers ?? 0
-  if (blockerCount > 0) {
-    console.error(c.red(`  ✗ Site shell verification failed — ${blockerCount} blocker(s):`))
-    const failedChecks = (siteData.checks ?? []).filter(ch => ch.status === 'fail')
-    for (const ch of failedChecks) {
-      const detail = ch.detail ? ` — ${ch.detail}` : ''
-      console.error(c.red(`      [${ch.id}] ${ch.label}${detail}`))
-    }
-    console.error(c.dim(`\n    Run: node tools/verify-site-shell.mjs --site ${slug} --strict`))
-    console.error(c.dim('    Resolve all blockers before launching.'))
-    process.exit(1)
-  }
-
-  const warnCount = siteData.warnings ?? 0
-  if (warnCount > 0) {
-    console.log(c.yellow(`  ⚠ ${warnCount} warning(s) (non-blocking in strict mode)`))
-    const warnChecks = (siteData.checks ?? []).filter(ch => ch.status === 'warn')
-    for (const ch of warnChecks) console.log(c.yellow(`      [${ch.id}] ${ch.label} — ${ch.detail}`))
-  }
-
-  console.log(c.green('  ✓ Site shell verification passed'))
-}
-
-// ── Phase 3 — Gate: deploy-and-verify ────────────────────────────────────────
-
-function phase3() {
-  console.log(c.bold('\nPhase 3 — Gate: deploy-and-verify'))
-
-  const result = execCmd(`node ${TOOL_DEPLOY} --site ${slug} --skip-push --json`)
-
-  let parsed
-  try {
-    // deploy-and-verify may emit multiple JSON objects; take the last complete one
-    const jsonBlocks = result.stdout.match(/\{[\s\S]*?\n\}/g) ?? [result.stdout]
-    parsed = JSON.parse(jsonBlocks[jsonBlocks.length - 1])
-  } catch {
-    console.error(c.red('  ✗ deploy-and-verify returned unparseable output'))
-    if (result.stderr) console.error(c.dim(`    ${result.stderr.slice(0, 200)}`))
-    process.exit(1)
-  }
-
-  const status = parsed?.overall_status
-  if (status === 'fail' || status === 'error') {
-    console.error(c.red(`  ✗ Deploy verification failed (overall_status: ${status})`))
-
-    const failedBindings = (parsed.bindings ?? []).filter(b => b.status === 'fail')
-    const failedSmoke    = (parsed.smoke_tests ?? []).filter(s => s.status === 'fail')
-    const failedContent  = (parsed.content_sanity?.results ?? []).filter(r => r.status === 'fail')
-
-    if (failedBindings.length) {
-      console.error(c.red('    Bindings:'))
-      for (const b of failedBindings) console.error(c.red(`      [${b.id}] ${b.name} — ${b.details}`))
-    }
-    if (failedSmoke.length) {
-      console.error(c.red('    Smoke tests:'))
-      for (const s of failedSmoke) console.error(c.red(`      [${s.id}] ${s.name} — ${s.details}`))
-    }
-    if (failedContent.length) {
-      console.error(c.red('    Content sanity:'))
-      for (const r of failedContent) console.error(c.red(`      ${r.url ?? r.slug} — ${r.issue ?? r.detail}`))
-    }
-
-    console.error(c.dim(`\n    Run: node tools/deploy-and-verify.mjs --site ${slug} --skip-push`))
-    console.error(c.dim('    Resolve all failures before launching.'))
-    process.exit(1)
-  }
-
-  if (status === 'pass_with_warnings') {
-    const warnBindings = (parsed.bindings ?? []).filter(b => b.status === 'warn')
-    const warnSmoke    = (parsed.smoke_tests ?? []).filter(s => s.status === 'warn')
-    if (warnBindings.length || warnSmoke.length) {
-      console.log(c.yellow(`  ⚠ Deploy verification passed with warnings (non-blocking):`))
-      for (const b of warnBindings) console.log(c.yellow(`      [${b.id}] ${b.name} — ${b.details}`))
-      for (const s of warnSmoke)    console.log(c.yellow(`      [${s.id}] ${s.name} — ${s.details}`))
-    }
-  }
-
-  console.log(c.green('  ✓ Deploy verification passed'))
-}
-
-// ── Phase 4 — IndexNow submission ─────────────────────────────────────────────
-
-function phase4(siteDir, published) {
-  console.log(c.bold('\nPhase 4 — IndexNow submission'))
-
-  const script = join(siteDir, 'producer', 'indexnow-submit.py')
-  if (!existsSync(script)) {
-    console.error(c.red('  ✗ IndexNow script missing — required for launch.'))
-    console.error(c.dim(`    Add ${siteDir}/producer/indexnow-submit.py before re-running.`))
-    process.exit(1)
-  }
-
-  if (dryRun) {
-    const result = execCmd(`cd ${siteDir} && python3 producer/indexnow-submit.py --all --dry-run`)
-    const urlLine = result.stdout.split('\n').find(l => /\d+.*url/i.test(l)) ?? `~${published} URLs`
-    console.log(c.dim(`  (dry-run: would submit — ${urlLine})`))
-    console.log(c.green('  ✓ IndexNow dry-run complete'))
-    return
-  }
-
-  const result = execCmd(`cd ${siteDir} && python3 producer/indexnow-submit.py --all`)
-  if (!result.ok) {
-    console.log(c.yellow('  ⚠ IndexNow submission returned non-zero. Site is live but search engines were not pinged.'))
-    console.log(c.dim(`    Retry: cd ${siteDir} && python3 producer/indexnow-submit.py --all`))
-    if (result.stderr) console.log(c.dim(`    Error: ${result.stderr.slice(0, 200)}`))
-    return  // non-blocking — proceed to portfolio flip
-  }
-
-  const urlLine = result.stdout.split('\n').find(l => /submitted|url/i.test(l)) ?? ''
-  console.log(c.green(`  ✓ IndexNow submitted${urlLine ? ' — ' + urlLine : ''}`))
-}
-
-// ── Phase 5 — Portfolio flip ──────────────────────────────────────────────────
-
-function phase5(doc) {
-  console.log(c.bold('\nPhase 5 — Portfolio flip'))
-
-  if (dryRun) {
-    console.log(c.dim('  (dry-run: would update portfolio.yaml — status=live, launched=<now>)'))
-    console.log(c.green('  ✓ Phase 5 skipped (dry-run)'))
-    return null
-  }
-
-  const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z')
-  const entry = doc.sites.find(s => s.slug === slug)
-  entry.status   = 'live'
-  entry.launched = now
-
-  const tmp = PORTFOLIO_PATH + '.tmp'
-  try {
-    writeFileSync(tmp, yaml.dump(doc, { lineWidth: 120 }), 'utf-8')
-    renameSync(tmp, PORTFOLIO_PATH)
-  } catch (err) {
-    console.error(c.red(`  ✗ Failed to write portfolio.yaml: ${err.message}`))
-    process.exit(1)
-  }
-
-  // Verify write
-  const verify = parsePortfolio(readPortfolioRaw())
-  const updated = verify.sites.find(s => s.slug === slug)
-  if (updated?.status !== 'live' || !updated?.launched) {
-    console.error(c.red('  ✗ Portfolio write verify failed — fields did not update correctly'))
-    process.exit(1)
-  }
-
-  console.log(c.green(`  ✓ Portfolio updated: status=live, launched=${now}`))
-  return now
-}
-
-// ── Phase 6 — Commit + push ───────────────────────────────────────────────────
-
-function phase6(entry, launchedAt) {
-  console.log(c.bold('\nPhase 6 — Commit + push'))
-
-  if (dryRun) {
-    console.log(c.dim(`  (dry-run: would commit "feat(portfolio): launch ${slug} (${entry.domain})")`))
-    console.log(c.green('  ✓ Phase 6 skipped (dry-run)'))
-    return null
-  }
-
-  // Confirm only portfolio.yaml is modified
-  const statusResult = execCmd('git status --porcelain', { cwd: PLATFORM_ROOT })
-  const modified = (statusResult.stdout ?? '').split('\n').filter(l => l.trim())
-  const unexpected = modified.filter(l => !l.includes('portfolio.yaml'))
-  if (unexpected.length > 0) {
-    console.error(c.red('  ✗ Unexpected staged changes in platform repo — aborting commit:'))
-    unexpected.forEach(l => console.error(c.red(`    ${l}`)))
-    console.error(c.dim('    Stash or commit unrelated changes first.'))
-    process.exit(1)
-  }
-
-  // Confirm portfolio.yaml is actually modified
-  const diffResult = execCmd('git diff --name-only portfolio.yaml', { cwd: PLATFORM_ROOT })
-  if (!diffResult.stdout.includes('portfolio.yaml')) {
-    console.error(c.red('  ✗ portfolio.yaml shows no diff — write may have failed silently'))
-    process.exit(2)
-  }
-
-  execCmd('git add portfolio.yaml', { cwd: PLATFORM_ROOT })
-  const msg = [
-    `feat(portfolio): launch ${slug} (${entry.domain})`,
-    '',
-    `Status flipped pre_launch → live.`,
-    `Launched: ${launchedAt}`,
-  ].join('\n')
-  execCmd(`git commit -m ${JSON.stringify(msg)}`, { cwd: PLATFORM_ROOT })
-  const sha = execCmd('git rev-parse --short HEAD', { cwd: PLATFORM_ROOT }).stdout
-  execCmd('git push origin main', { cwd: PLATFORM_ROOT })
-
-  console.log(c.green(`  ✓ Portfolio commit pushed: ${sha}`))
-  return sha
-}
-
-// ── Phase 7 — Final summary ───────────────────────────────────────────────────
-
-function phase7(entry, published, launchedAt, commitSha) {
-  if (dryRun) {
-    const shellLine  = c.green('  ✓ would pass (strict)')
-    const deployLine = c.green('  ✓ would pass')
-    console.log(c.bold('\n  ┌─ DRY RUN COMPLETE ────────────────────────────────────────────┐'))
-    console.log(`  │  Site shell:    ${shellLine}`)
-    console.log(`  │  Deploy:        ${deployLine}`)
-    console.log(`  │  IndexNow:      (dry-run submitted)`)
-    console.log(`  │  Portfolio:     (dry-run: would flip to live)`)
-    console.log(`  │  Commit:        (dry-run: "feat(portfolio): launch ${slug}")`)
-    console.log(`  │`)
-    console.log(`  │  Re-run without --dry-run to actually launch.`)
-    console.log(c.bold('  └───────────────────────────────────────────────────────────────┘'))
-    return
-  }
-
-  console.log(c.bold('\n  ┌─ SITE LAUNCHED ───────────────────────────────────────────────┐'))
-  console.log(`  │`)
-  console.log(`  │  Site:         ${slug}`)
-  console.log(`  │  Domain:       ${c.cyan(`https://${entry.domain}`)}`)
-  console.log(`  │  Launched:     ${launchedAt}`)
-  console.log(`  │  Articles:     ${published} published`)
-  console.log(`  │  Portfolio:    ${commitSha}`)
-  console.log(`  │`)
-  console.log(`  │  Next checks (run in 5-15 min):`)
-  console.log(`  │    1. Verify https://${entry.domain} resolves and renders`)
-  console.log(`  │    2. Confirm GA4 events flowing in real-time view`)
-  console.log(`  │    3. Test affiliate links — should redirect with ?tag=${entry.tracking_id}`)
-  console.log(`  │    4. Submit XML sitemap to Google Search Console if not already`)
-  console.log(`  │`)
-  console.log(`  │  Monitor:`)
-  console.log(`  │    node tools/dashboard.mjs --health --site ${slug}`)
-  console.log(c.bold('  └───────────────────────────────────────────────────────────────┘'))
-}
-
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Main orchestrator ─────────────────────────────────────────────────────────
 
 async function main() {
   if (!slug) {
     console.error(c.red('Usage: node tools/launch-site.mjs --site <slug> [--dry-run]'))
+    console.error(c.red('       node tools/launch-site.mjs --resume <slug> [--ga4-id <id>] …'))
     process.exit(2)
   }
 
+  _slug = slug
   const siteDir = join(homedir(), slug)
 
-  const { entry, doc } = phase1(siteDir)
-  const published = countPublishedArticles(siteDir)
+  console.log(c.bold(`\nlaunch-site.mjs — v1.6 ritual orchestrator`))
+  console.log(c.dim(`  Site:    ${slug}`))
+  console.log(c.dim(`  Mode:    ${isResume ? 'resume' : 'new launch'}${dryRun ? ' (DRY RUN)' : ''}`))
+  console.log(c.dim(`  Time:    ${new Date().toISOString()}\n`))
 
-  phase2()
-  phase3()
-  phase4(siteDir, published)
+  // Concurrency check
+  acquireLock(slug)
 
-  const launchedAt = phase5(doc)
-  const commitSha  = phase6(entry, launchedAt)
+  // Load or init state
+  let state
+  if (isResume) {
+    state = loadState(slug, PLATFORM_DIR)
+    if (!state) {
+      console.error(c.red(`No state.yaml found for "${slug}" — cannot resume. Start with --site instead.`))
+      releaseLock()
+      process.exit(2)
+    }
+    // Inject any Keith-provided inputs
+    const resumeInputs = Object.fromEntries(
+      Object.entries(inputs).filter(([, v]) => v !== null),
+    )
+    if (Object.keys(resumeInputs).length > 0) {
+      Object.assign(state.inputs, resumeInputs)
+      console.log(c.dim(`  Injected: ${Object.keys(resumeInputs).join(', ')}`))
+    }
+    // Resolve any Keith pending for points that now have their inputs
+    const pendingPoints = state.keith_pending.map(r => r.point)
+    for (const pp of pendingPoints) {
+      const inputKey = { '9': 'amazon_tracking_id', '17': 'ga4_measurement_id', '18': 'bwt_txt_record', '19': 'gsc_txt_record' }[pp]
+      if (inputKey && state.inputs[inputKey]) {
+        resolveKeithPending(state, pp)
+      }
+    }
+    if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+  } else {
+    const existing = loadState(slug, PLATFORM_DIR)
+    if (existing && existing.status !== 'complete') {
+      console.error(c.yellow(`Warning: state.yaml already exists for "${slug}" (status: ${existing.status}).`))
+      console.error(c.dim(`  Use --resume ${slug} to continue, or delete sites/${slug}/state.yaml to restart.`))
+      releaseLock()
+      process.exit(2)
+    }
+    state = initState(slug, inputs)
+    if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+  }
 
-  phase7(entry, published, launchedAt, commitSha)
-  process.exit(0)
+  _state = state
+
+  // Build shared context
+  const ctx = {
+    slug,
+    siteDir,
+    platformDir: PLATFORM_DIR,
+    state,
+    dryRun,
+    execTool,
+    log: makeLogger('?'),  // replaced per-point below
+    saveState: ctx_saveState,
+  }
+
+  // Run points in sequence
+  let halted = false
+  for (const point of POINTS) {
+    const pointId = point.id
+
+    if (isPointComplete(state, pointId)) {
+      console.log(c.dim(`  [Point ${pointId}] ${c.green('✓')} already complete — skipping`))
+      continue
+    }
+
+    // Skip points prior to the current state point on resume (belt-and-suspenders)
+    // (isPointComplete covers this, but guard here too)
+
+    const pointCtx = {
+      ...ctx,
+      log: makeLogger(pointId),
+    }
+
+    const header = `Point ${pointId} (Bucket ${point.bucket})`
+    console.log(c.bold(`\n── ${header} ${'─'.repeat(Math.max(0, 56 - header.length))}`))
+
+    const result = await dispatch(pointCtx, pointId, point.bucket, point.run)
+
+    if (result.status === 'pass' || result.status === 'preview_required') {
+      markPointComplete(state, pointId)
+      if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+      console.log(c.green(`  ✓ Point ${pointId} complete`))
+
+      if (result.status === 'preview_required') {
+        console.log(c.yellow(`\n  Preview review required (Bucket B).`))
+        console.log(c.dim(`  Review preview URL in state.yaml, then resume to promote to production.`))
+        state.status = 'awaiting_keith'
+        if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+        halted = true
+        break
+      }
+    } else if (result.status === 'halt') {
+      if (result.haltRequest) {
+        addKeithPending(state, result.haltRequest)
+      } else {
+        state.status = 'awaiting_keith'
+      }
+      if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+      halted = true
+      break
+    } else if (result.status === 'fail') {
+      markPointFailed(state, pointId, result.message ?? 'unknown failure')
+      if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+      console.error(c.red(`\n  ✗ Point ${pointId} failed: ${result.message ?? 'unknown'}`))
+      releaseLock()
+      process.exit(1)
+    }
+  }
+
+  releaseLock()
+
+  if (!halted) {
+    state.status = 'complete'
+    if (!dryRun) saveState(slug, PLATFORM_DIR, state)
+    printCompleteSummary(state)
+    process.exit(0)
+  } else {
+    printHaltSummary(state)
+    process.exit(0)  // clean halt — not an error
+  }
 }
 
+// ── Summary printers ──────────────────────────────────────────────────────────
+
+function printCompleteSummary(state) {
+  const domain = state.inputs?.domain ?? `${state.slug}.com`
+  console.log(c.bold('\n  ┌─ RITUAL COMPLETE ─────────────────────────────────────────────┐'))
+  console.log(`  │  Site:         ${state.slug}`)
+  console.log(`  │  Domain:       ${c.cyan(`https://${domain}`)}`)
+  console.log(`  │  Points:       ${state.points_complete.length}/25 complete`)
+  console.log(`  │  Status:       ${c.green('live')}`)
+  if (dryRun) {
+    console.log(`  │  `)
+    console.log(`  │  This was a dry run. No APIs were called.`)
+    console.log(`  │  Re-run without --dry-run to launch for real.`)
+  } else {
+    console.log(`  │  `)
+    console.log(`  │  State: ~/affiliate-platform/sites/${state.slug}/state.yaml`)
+    console.log(`  │  Log:   ~/affiliate-platform/sites/${state.slug}/decisions.log`)
+  }
+  console.log(c.bold('  └───────────────────────────────────────────────────────────────┘'))
+}
+
+function printHaltSummary(state) {
+  const pending = state.keith_pending ?? []
+  console.log(c.bold('\n  ┌─ RITUAL HALTED ───────────────────────────────────────────────┐'))
+  console.log(`  │  Site:         ${state.slug}`)
+  console.log(`  │  Status:       ${c.yellow(state.status)}`)
+  console.log(`  │  At point:     ${state.current_point}`)
+  console.log(`  │  Complete:     ${state.points_complete.join(', ') || '(none)'}`)
+  if (pending.length > 0) {
+    console.log(`  │  `)
+    console.log(`  │  Keith actions required:`)
+    for (const r of pending) {
+      console.log(`  │    Point ${r.point}: ${r.title}`)
+    }
+  }
+  console.log(`  │  `)
+  console.log(`  │  Resume: node tools/launch-site.mjs --resume ${state.slug} [--<input> <value>]`)
+  console.log(c.bold('  └───────────────────────────────────────────────────────────────┘'))
+}
+
+// ── Entry ─────────────────────────────────────────────────────────────────────
+
 main().catch(err => {
+  releaseLock()
   console.error(c.red(`\nFatal: ${err.message}`))
   if (process.env.DEBUG) console.error(err.stack)
   process.exit(1)

@@ -493,9 +493,24 @@ function runSiteChecks(site) {
     return hits.length === 0 ? pass() : fail(`placeholder tokens in: ${hits.slice(0, 3).join(', ')}${hits.length > 3 ? ` (+${hits.length - 3} more)` : ''}`)
   })())
 
+  add(33, 'G4', 'SVG brand assets free of {{ placeholder tokens (v1.6)', (() => {
+    const brandDir = join(siteDir, 'public', 'images', 'brand')
+    if (!fileExists(brandDir)) return skip('public/images/brand/ not present')
+    const files = (lsDir(brandDir) ?? []).filter(f => f.endsWith('.svg'))
+    if (files.length === 0) return skip('no SVG files in public/images/brand/')
+    const hits = []
+    for (const f of files) {
+      const text = readText(join(brandDir, f)) ?? ''
+      if (text.includes('{{')) hits.push(f)
+    }
+    return hits.length === 0
+      ? pass(`${files.length} SVG(s) clean`)
+      : fail(`unsubstituted placeholder tokens in: ${hits.join(', ')}`)
+  })())
+
   // ── GROUP 5: Producer tests ───────────────────────────────────────────────
 
-  add(33, 'G5', 'conftest.py: no hardcoded hub slugs', (() => {
+  add(34, 'G5', 'conftest.py: no hardcoded hub slugs', (() => {
     const cfPath = join(siteDir, 'producer', 'tests', 'conftest.py')
     if (!fileExists(cfPath)) return skip('conftest.py missing — see check 7')
     if (!navConfig) return skip('navigation.yaml missing — cannot verify hubs')
@@ -516,7 +531,7 @@ function runSiteChecks(site) {
 
 // ── Severity resolution (strict mode) ────────────────────────────────────────
 
-const STRICT_ELEVATE = new Set([7, 29, 30, 31, 33])
+const STRICT_ELEVATE = new Set([7, 29, 30, 31, 34])
 
 function resolvedStatus(check) {
   if (strict && check.status === 'warn' && STRICT_ELEVATE.has(check.id)) return 'fail'

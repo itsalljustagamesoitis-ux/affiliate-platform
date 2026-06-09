@@ -260,7 +260,8 @@ if (INDEXNOW_KEY) {
 const PRODUCTS_YAML = resolve(SITE_ROOT, 'content/products/products.yaml')
 if (existsSync(PRODUCTS_YAML)) {
   const productsRaw = readFileSync(PRODUCTS_YAML, 'utf8')
-  if (/VERIFY-|TODO-|PLACEHOLDER-/.test(productsRaw)) {
+  const productsFiltered = productsRaw.split('\n').filter(l => !l.includes('source_url:')).join('\n')
+  if (/VERIFY-|TODO-|PLACEHOLDER-/.test(productsFiltered)) {
     fail('placeholder-asin-source', 'content/products/products.yaml', 'Placeholder ASIN (VERIFY-/TODO-/PLACEHOLDER-) found in source — fix before building')
   }
   if (/7[01]Q[0-9Q]{6,}[A-Z0-9]L/.test(productsRaw)) {

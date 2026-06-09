@@ -343,3 +343,22 @@ All components live in `affiliate-platform/src/components/`. No site may have a 
 **Item 1 finding:** BottomLineCTA rel fix was already applied during Day 3 consolidation. The bug described in the Day 7 brief did not exist in the canonical version. Confirmed in dist/ output: Amazon → `rel="nofollow sponsored"`, retailer → `rel="nofollow"`.
 
 **Item 2 finding:** Doubled-brand baseline: 0 WARNs across all 6 sites' built dist/. Regex `/(\b[\w-]{2,}\b)\s+\1\b/i` catches single-word repetitions (Lodge Lodge, KitchenAid KitchenAid) but misses multi-word brand repetitions (EGO Power EGO Power). No such multi-word patterns exist in any current products.yaml. One TCD product ("miele-descaling-tablets") has "Ovens" twice in a comma-separated list — the comma separator correctly prevents the regex from matching. Regex is calibrated correctly for the current catalog; no changes made.
+
+
+---
+
+## 9. v1.6 enforcement note (2026-06-01)
+
+PIPELINE.md has been updated to v1.6. The following rules from v1.6 are operative in all Claude Code sessions immediately:
+
+**Persona lock is a hard gate.** Producer must not run without `persona_locked: true` in persona YAML AND content hash match. Empirical evidence from Sites 13/14/15 establishes that persona-lock timing directly determines fabrication rate (Site 13: locked after generation = multiple fabrications; Sites 14/15: locked before = zero).
+
+**Deploy pattern:** Sites 11+ use `wrangler pages deploy dist --project-name <slug> --branch main`. Not git push. `portfolio.yaml` entries for Sites 11+ have `github_repo: null` and `deploy_pattern: direct_upload`.
+
+**Cloudflare automation:** Custom domain attachment, DNS TXT records (GSC/BWT), and env vars are Claude Code's responsibility via `tools/cloudflare-pages-config.mjs`. These are not Keith manual steps. Keith provides credentials/strings; Claude Code does the wiring.
+
+**Build script:** All sites must have `rm -f node_modules/.astro/data-store.json &&` prepended to the `astro build` invocation in `package.json`. Missing this step risks the Site 15 class of 91-empty-article failure.
+
+**portfolio.yaml writeback:** Every phase transition (Points 16, 17, 18, 19, 21) writes back to portfolio.yaml via `tools/portfolio-update.mjs`. portfolio.yaml must never be left stale.
+
+**Six new validators queued (V17–V22):** NOT YET BUILT. Required before Site 16 autonomous launch. See VALIDATORS.md §13 for specs. The pipeline sequence (Points 12.5b, 13.5b, 13.7, 13.8, 13.9, 15.6) is in PIPELINE.md v1.6 but validators must be built before they can gate.

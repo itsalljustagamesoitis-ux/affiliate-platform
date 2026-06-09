@@ -132,19 +132,35 @@ const articles = loadPipeline(pipelinePath)
  * @param {string} slug
  * @returns {string}
  */
-function deriveNicheKeyword(categories, slug) {
-  const joined = categories.join(' ').toLowerCase()
-  const candidates = [
-    { word: 'coffee',    test: /coffee|espresso|brew|roast|grind|cappuccino|latte/i },
-    { word: 'cooking',  test: /cooking|kitchen|recipe|food|meal|chef|baking/i },
-    { word: 'garden',   test: /garden|plant|grow|soil|lawn|outdoor|flower/i },
-    { word: 'pet',      test: /pet|dog|cat|animal|paw|veterinary/i },
-    { word: 'home',     test: /home|decor|furniture|interior|living/i },
+function deriveNicheKeyword(categories, slug, siteConfigNiche) {
+  // Prefer explicit override from site.config.yaml images.pexels_niche_keyword
+  if (siteConfigNiche) return siteConfigNiche
+
+  // Match against site slug first (more reliable than category names)
+  const slugWords = slug.toLowerCase()
+  const slugCandidates = [
+    { word: 'overlanding', test: /overlanding|offroad|off-road|4x4|overland/ },
+    { word: 'coffee',      test: /coffee|espresso|cafe/ },
+    { word: 'garden',      test: /garden|gardening/ },
+    { word: 'barbecue',    test: /barbecue|bbq|grill/ },
   ]
-  for (const { word, test } of candidates) {
+  for (const { word, test } of slugCandidates) {
+    if (test.test(slugWords)) return word
+  }
+
+  // Category-based fallback — use word-boundary matching to avoid partial hits
+  const joined = categories.join(' ').toLowerCase()
+  const categoryCandidates = [
+    { word: 'coffee',    test: /\bcoffee\b|\bespresso\b|\bbrew\b|\broast\b/ },
+    { word: 'cooking',   test: /\bcooking\b|\bkitchen\b|\brecipe\b|\bfood\b|\bbaking\b/ },
+    { word: 'garden',    test: /\bgarden\b|\bplant\b|\bgrow\b|\blawn\b/ },
+    { word: 'pet',       test: /\bpet\b|\bdog\b|\bcat\b|\banimal\b/ },
+    { word: 'home',      test: /\bhome\b|\bdecor\b|\bfurniture\b|\binterior\b/ },
+  ]
+  for (const { word, test } of categoryCandidates) {
     if (test.test(joined)) return word
   }
-  // Fallback: first word of slug
+
   return slug.split('-')[0]
 }
 
@@ -172,7 +188,16 @@ for (const a of articles) {
 }
 
 const categories = [...new Set(articles.map(a => a.category).filter(Boolean))]
-const nicheKeyword = deriveNicheKeyword(categories, siteSlug)
+
+// Read optional niche override from site.config.yaml images.pexels_niche_keyword
+let siteConfigNiche = null
+try {
+  const { load } = await import('js-yaml')
+  const siteConfig = load(readFileSync(join(siteDir, 'site.config.yaml'), 'utf-8'))
+  siteConfigNiche = siteConfig?.images?.pexels_niche_keyword ?? null
+} catch {}
+
+const nicheKeyword = deriveNicheKeyword(categories, siteSlug, siteConfigNiche)
 
 const pexelsKey = getPexelsKey(siteDir)
 

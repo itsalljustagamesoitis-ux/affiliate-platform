@@ -17,7 +17,7 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
     <a
       href={product.affiliate_link.url}
       class={isAmazon ? 'btn btn--amazon' : 'btn btn--primary'}
-      rel={isAmazon ? 'nofollow sponsored' : 'nofollow'}
+      rel={isAmazon ? 'nofollow sponsored noopener' : 'nofollow noopener'}
       target="_blank"
     >
       {isAmazon

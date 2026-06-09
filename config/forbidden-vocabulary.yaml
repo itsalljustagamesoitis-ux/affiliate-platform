@@ -85,7 +85,7 @@ photography:
     - "micro four thirds"
     - "lens mount"
     - "f-stop"
-    - "depth of field"
+    # depth of field removed: too broad — applies to any optical product (magnifiers, binoculars, microscopes)
 
 cycling:
   niche_keywords:
@@ -104,7 +104,7 @@ cycling:
     - "groupset"
     - "bottom bracket"
     - "cadence sensor"
-    - "drivetrain"
+    # drivetrain removed: too broad — electric scooters, wheelchairs, and e-bikes all use this term
     - "crankset"
     - "rear derailleur"
     - "front derailleur"
@@ -119,7 +119,7 @@ cycling:
     - "Shimano Steps"
     - "torque sensor ebike"
     - "pedal assist system"
-    - "watt-hour battery"
+    # watt-hour battery removed: too broad — standard electrical unit across all rechargeable devices
 
 overlanding:
   niche_keywords:
@@ -296,3 +296,17 @@ caregiving:
     - "medication dispenser"
     - "transfer belt"
     - "rollator walker"
+
+fitness:
+  niche_keywords:
+    - fitness
+    - home gym
+    - gym equipment
+    - strength training
+    - workout equipment
+    - exercise equipment
+  terms:
+    - "anabolic steroid"
+    - "testosterone booster"
+    - "SARM"
+    - "peptide supplement"

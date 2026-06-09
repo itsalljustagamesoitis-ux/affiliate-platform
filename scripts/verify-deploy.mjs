@@ -13,6 +13,7 @@
  * Check 6:  Homepage structural elements (nav, footer, article card, disclosure)
  * Check 7:  Disclosure on sample article
  * Check 8:  Custom 404 page
+ * Check 9:  Nav-target reachability (all navigation.yaml entries + furniture links → HTTP 200)
  */
 
 import { readFileSync, existsSync, readdirSync } from 'fs'
@@ -49,6 +50,34 @@ function pass(check, msg) {
   console.log(`  ✓ [${check}] ${msg}`)
 }
 
+// ── Propagation retry helper ──────────────────────────────────────────────────
+// CDN edge invalidation is async; the first post-deploy request may hit a stale
+// edge node. One retry after a short delay handles the common case without
+// masking real failures (which persist on the second attempt).
+//
+// Apply to:  freshness check, redirect status checks.
+// Do not apply to:  homepage/SSL (served from origin, always current),
+//                   static content (already-cached assets).
+//
+// Three incidents confirming the pattern (2026-05-26, MED dedup batch):
+//   FFC: /life-line-medical-alert-system/ returned 200 (expected 301), resolved after ~10s
+//   NWO: /hardshell-rooftop-tent/ returned 200 (expected 301), resolved after ~10s
+//   BCB: /build-info.json returned stale timestamp, resolved after ~15s
+const PROPAGATION_RETRY_DELAY_MS = 10_000
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+// probeFn returns: true (pass), false (fail — retryable), null (skip — side effects already handled)
+async function retryOnce(checkName, probeFn) {
+  const first = await probeFn()
+  if (first !== false) return first
+  console.log(`  ↻ [retry] ${checkName} — propagation lag detected, retrying in ${PROPAGATION_RETRY_DELAY_MS / 1000}s`)
+  await sleep(PROPAGATION_RETRY_DELAY_MS)
+  return probeFn()
+}
+
 async function fetchPage(url) {
   const res = await fetch(url, { redirect: 'follow' })
   const text = await res.text()
@@ -80,27 +109,35 @@ if (!existsSync(BUILD_INFO_LOCAL)) {
   warn('freshness', `dist/build-info.json not found — rebuild with updated build script to enable this check`)
 } else {
   const localInfo = JSON.parse(readFileSync(BUILD_INFO_LOCAL, 'utf8'))
-  try {
-    const { status, text } = await fetchPage(`${BASE_URL}/build-info.json?_=${Date.now()}`)
-    if (status !== 200) {
-      warn('freshness', `/build-info.json returned ${status} — site may predate build-info support`)
-    } else {
+  let prodTimestamp = null
+
+  const result = await retryOnce('freshness', async () => {
+    try {
+      const { status, text } = await fetchPage(`${BASE_URL}/build-info.json?_=${Date.now()}`)
+      if (status !== 200) {
+        warn('freshness', `/build-info.json returned ${status} — site may predate build-info support`)
+        return null
+      }
       let prodInfo
       try { prodInfo = JSON.parse(text) } catch {
         fail('freshness', `/build-info.json is not valid JSON`)
+        return null
       }
-      if (prodInfo) {
-        if (prodInfo.build_timestamp !== localInfo.build_timestamp) {
-          fail('freshness',
-            `Stale deploy — production build_timestamp (${prodInfo.build_timestamp}) ≠ local (${localInfo.build_timestamp})`)
-        } else {
-          pass('freshness', `build_timestamp matches: ${localInfo.build_timestamp}`)
-        }
-      }
+      prodTimestamp = prodInfo?.build_timestamp ?? null
+      return prodTimestamp === localInfo.build_timestamp
+    } catch (e) {
+      warn('freshness', `Could not fetch /build-info.json: ${e.message}`)
+      return null
     }
-  } catch (e) {
-    warn('freshness', `Could not fetch /build-info.json: ${e.message}`)
+  })
+
+  if (result === true) {
+    pass('freshness', `build_timestamp matches: ${localInfo.build_timestamp}`)
+  } else if (result === false) {
+    fail('freshness',
+      `Stale deploy — production build_timestamp (${prodTimestamp}) ≠ local (${localInfo.build_timestamp})`)
   }
+  // result === null: warn or fail already registered inside probe
 }
 
 // ── Check 4: Article count ────────────────────────────────────────────────────
@@ -214,8 +251,13 @@ try {
     ['disclosure',   homeText.includes('As an Amazon Associate'),     'Amazon disclosure'],
   ]
   for (const [name, ok, label] of checks) {
-    if (!ok) fail('homepage-elements', `Missing: ${label}`)
-    else pass('homepage-elements', label)
+    if (!ok) {
+      if (name === 'article-card' && localSlugs.length === 0)
+        warn('homepage-elements', `Missing: ${label} (skeleton site — no articles yet)`)
+      else fail('homepage-elements', `Missing: ${label}`)
+    } else {
+      pass('homepage-elements', label)
+    }
   }
 } catch (e) {
   fail('homepage-elements', `Homepage fetch failed: ${e.message}`)
@@ -257,6 +299,73 @@ try {
   }
 } catch (e) {
   fail('custom-404', `Request failed: ${e.message}`)
+}
+
+// ── Check 9: Nav-target reachability ─────────────────────────────────────────
+console.log(`\nCheck 9    Nav targets — all navigation.yaml entries + furniture links`)
+try {
+  const navPath = resolve(SITE_ROOT, 'config', 'navigation.yaml')
+  const navTargets = new Set()
+
+  // Extract from navigation.yaml
+  if (existsSync(navPath)) {
+    const nav = yaml.load(readFileSync(navPath, 'utf8')) || {}
+    for (const cat of (nav.categories || [])) {
+      if (cat.slug) navTargets.add(`/${cat.slug}/`)
+      for (const hub of (cat.hubs || [])) {
+        if (hub.slug) navTargets.add(`/${hub.slug}/`)
+      }
+    }
+    // Flat-nav format (hubs at root level)
+    for (const hub of (nav.hubs || [])) {
+      if (hub.slug) navTargets.add(`/${hub.slug}/`)
+    }
+  }
+
+  // Add standard furniture-page links (from Footer.astro)
+  for (const path of ['/how-we-research/', '/about/', '/privacy-policy/', '/disclaimer/', '/contact/', '/affiliate-disclosure/']) {
+    navTargets.add(path)
+  }
+
+  if (navTargets.size === 0) {
+    warn('nav-targets', 'No navigation targets found — config/navigation.yaml missing or empty')
+  } else {
+    // Parallelize with concurrency cap of 6
+    const targets = [...navTargets]
+    const CONCURRENCY = 6
+    const results = []
+
+    for (let i = 0; i < targets.length; i += CONCURRENCY) {
+      const batch = targets.slice(i, i + CONCURRENCY)
+      const batchResults = await Promise.all(batch.map(async (path) => {
+        const url = `${BASE_URL}${path}`
+        try {
+          // Use retryOnce for the same CDN-propagation-lag resilience as other checks
+          const outcome = await retryOnce(`nav-targets:${path}`, async () => {
+            const { status } = await fetchPage(url)
+            return status === 200 ? true : false
+          })
+          return { path, ok: outcome !== false }
+        } catch (e) {
+          return { path, ok: false, error: e.message }
+        }
+      }))
+      results.push(...batchResults)
+    }
+
+    const failed = results.filter(r => !r.ok)
+    const passed = results.filter(r => r.ok)
+
+    if (failed.length === 0) {
+      pass('nav-targets', `All ${passed.length} nav targets returned HTTP 200`)
+    } else {
+      for (const r of failed) {
+        fail('nav-targets', `${r.path} — not HTTP 200${r.error ? ` (${r.error})` : ''}`)
+      }
+    }
+  }
+} catch (e) {
+  warn('nav-targets', `Nav-target check failed: ${e.message}`)
 }
 
 // ── Summary ───────────────────────────────────────────────────────────────────

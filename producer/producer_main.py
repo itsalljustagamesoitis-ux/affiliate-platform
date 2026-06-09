@@ -107,6 +107,27 @@ def select_articles(pipeline: list, args) -> list:
     return pending[:count]
 
 
+def verify_coverage(site_root: Path, min_products: int = 4) -> bool:
+    """Run verify-coverage.py as a pre-flight check. Returns True if OK."""
+    import subprocess
+    tool = Path(__file__).parent.parent / "tools/verify-coverage.py"
+    if not tool.exists():
+        print("  WARNING: verify-coverage.py not found, skipping coverage check")
+        return True
+    site_slug = site_root.name
+    result = subprocess.run(
+        [sys.executable, str(tool),
+         "--site", site_slug,
+         "--min-products", str(min_products),
+         "--pipeline", str(site_root / "data/pipeline.json"),
+         "--products", str(site_root / "content/products/products.yaml"),
+         "--report", f"/tmp/coverage-report-{site_slug}.json",
+         "--strict"],
+        capture_output=False,
+    )
+    return result.returncode == 0
+
+
 def run(args, site_root: Path):
     pipeline = load_pipeline(site_root)
     all_products = load_products(site_root)
@@ -129,6 +150,17 @@ def run(args, site_root: Path):
         print("No matching pending articles found.")
         return
 
+    # Pre-flight coverage check — refuse to run if products are insufficient
+    if not args.dry_run and not args.skip_verification:
+        print("Running pre-flight coverage check...")
+        if not verify_coverage(site_root):
+            print(
+                "\nERROR: Coverage check failed. Fix product gaps before producing."
+                "\n  Pass --skip-verification to override (emergency use only)."
+            )
+            sys.exit(3)
+        print("Coverage: OK\n")
+
     print(f"Producing {len(articles)} article(s)...\n")
 
     client = None
@@ -137,9 +169,26 @@ def run(args, site_root: Path):
         client = anthropic.Anthropic(api_key=get_api_key(site_root))
 
     errors = 0
+    skip_counts = {"dupe": 0, "drop": 0, "unknown_status": 0,
+                   "already_staged": 0, "no_products": 0, "fail_count": 0}
+    generated = 0
 
     for i, article in enumerate(articles):
         slug = article["slug"]
+        status = article.get("status", "")
+
+        # Gate on article status before spending time on it
+        if status == "dupe":
+            skip_counts["dupe"] += 1
+            continue
+        if status == "drop":
+            skip_counts["drop"] += 1
+            continue
+        if status and status not in ("live", "pending", "staged", "skip"):
+            print(f"  SKIP — {slug}: unknown status={status!r}")
+            skip_counts["unknown_status"] += 1
+            continue
+
         print(
             f"[{i+1}/{len(articles)}] {article['type']} — "
             f"{article['keyword']} (id: {article['id']})"
@@ -147,18 +196,22 @@ def run(args, site_root: Path):
 
         if already_staged(slug, staging_dir, articles_dir) and not args.force:
             print(f"  SKIP — {slug}.md already staged. Use --force to regenerate.\n")
+            skip_counts["already_staged"] += 1
             continue
 
         if article.get("fail_count", 0) >= 3 and not args.force:
             print(f"  SKIP — {slug} has failed {article['fail_count']} times. Use --force to retry.\n")
+            skip_counts["fail_count"] += 1
             continue
 
         if "products" not in article:
             print(f"  SKIP — no product assignment. Run: python3 data/assign-products.py\n")
+            skip_counts["no_products"] += 1
             continue
 
         if article.get("products") == [] and article.get("assignment_notes"):
             print(f"  SKIP — product gap: {article['assignment_notes'][:100]}\n")
+            skip_counts["no_products"] += 1
             continue
 
         # Load prompt for this article type
@@ -253,6 +306,7 @@ def run(args, site_root: Path):
                 tmp_path.rename(out_path)
                 article["published"] = True
                 print(f" done. {word_count} words → content/articles/{slug}.md")
+                generated += 1
             else:
                 # Staging path: write .md, run R7 validator, route to staging/ or staging/failed/
                 md_path = staging_dir / f"{slug}.md"
@@ -274,6 +328,7 @@ def run(args, site_root: Path):
                     )
                 else:
                     print(f" done. {word_count} words → staging/{slug}.md")
+                    generated += 1
 
                 article["staged"] = True
 
@@ -288,8 +343,21 @@ def run(args, site_root: Path):
         if i < len(articles) - 1:
             time.sleep(8)
 
+    # Skip + generation summary
+    total_skipped = sum(skip_counts.values())
+    if total_skipped or generated:
+        print("\n=== Producer Summary ===")
+        print(f"  Total selected:        {len(articles)}")
+        if skip_counts["dupe"]:          print(f"  Skipped (dupe):        {skip_counts['dupe']}")
+        if skip_counts["drop"]:          print(f"  Skipped (drop):        {skip_counts['drop']}")
+        if skip_counts["unknown_status"]:print(f"  Skipped (bad status):  {skip_counts['unknown_status']}")
+        if skip_counts["already_staged"]:print(f"  Skipped (staged):      {skip_counts['already_staged']}")
+        if skip_counts["no_products"]:   print(f"  Skipped (no products): {skip_counts['no_products']}")
+        if skip_counts["fail_count"]:    print(f"  Skipped (fail limit):  {skip_counts['fail_count']}")
+        print(f"  Generated:             {generated}")
+
     if args.publish:
-        print(f"\nDone. {len(articles)} article(s) written to content/articles/")
+        print(f"\nDone. {generated} article(s) written to content/articles/")
     else:
         print(f"\nDone. Review files in {staging_dir}/")
         if not args.dry_run:
@@ -328,6 +396,11 @@ def main():
         "--publish",
         action="store_true",
         help="Write directly to content/articles/ (skips staging)",
+    )
+    parser.add_argument(
+        "--skip-verification",
+        action="store_true",
+        help="Skip pre-flight coverage check (emergency override only)",
     )
     args = parser.parse_args()
 

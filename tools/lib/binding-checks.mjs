@@ -238,7 +238,9 @@ export async function runChecks(site, allGa4Ids, token, opts = {}) {
 
   // 6. GA4 ID unique across portfolio
   const duplicates = allGa4Ids.filter(id => id === site.ga4_id)
-  if (duplicates.length <= 1) {
+  if (!site.ga4_id) {
+    check(6, 'GA4 ID unique across portfolio', 'warn', 'ga4_id is null — set after GA4 property created')
+  } else if (duplicates.length <= 1) {
     check(6, 'GA4 ID unique across portfolio', 'pass', site.ga4_id)
   } else {
     check(6, 'GA4 ID unique across portfolio', 'fail',

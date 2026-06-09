@@ -13,6 +13,7 @@ import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { basename, resolve } from 'path'
 import { fileURLToPath } from 'url'
 import XLSX from 'xlsx'
+import yaml from 'js-yaml'
 import { classifyKeyword } from './lib/classify-keyword.mjs'
 
 // ── ANSI helpers ──────────────────────────────────────────────────────────────
@@ -33,12 +34,13 @@ const args = process.argv.slice(2)
 const get = flag => { const i = args.indexOf(flag); return i !== -1 ? args[i + 1] : null }
 const has = flag => args.includes(flag)
 
-const inputPath  = get('--input')
-const outputPath = get('--output')
-const jsonMode   = has('--json')
+const inputPath         = get('--input')
+const outputPath        = get('--output')
+const rejectPatternsPath = get('--reject-patterns')
+const jsonMode          = has('--json')
 
 if (!inputPath || !outputPath) {
-  console.error('Usage: node tools/xlsx-to-pipeline.mjs --input <xlsx> --output <pipeline.json>')
+  console.error('Usage: node tools/xlsx-to-pipeline.mjs --input <xlsx> --output <pipeline.json> [--reject-patterns <yaml>]')
   process.exit(2)
 }
 
@@ -434,6 +436,44 @@ const articles = isSimpleSchema
       hero_image:             null,
       body_images:            [],
     }))
+
+// ── B34: Reject-pattern filter ────────────────────────────────────────────────
+// Optional --reject-patterns <yaml> adds site-specific keyword filters.
+// Keywords matching any pattern (case-insensitive substring) are marked
+// status:"skip" with skip_reason before B45 dedup runs.
+
+let rejectPatterns = []
+if (rejectPatternsPath) {
+  const absRejectPath = resolve(rejectPatternsPath)
+  if (!existsSync(absRejectPath)) {
+    console.error(c.red(`  [B34] Reject-patterns file not found: ${absRejectPath}`))
+    process.exit(1)
+  }
+  const rpDoc = yaml.load(readFileSync(absRejectPath, 'utf8'))
+  rejectPatterns = Array.isArray(rpDoc?.reject_patterns) ? rpDoc.reject_patterns : []
+  console.log(c.yellow(`  [B34] Loaded ${rejectPatterns.length} reject pattern(s) from ${basename(absRejectPath)}`))
+}
+
+if (rejectPatterns.length > 0) {
+  let skipCount = 0
+  for (const a of articles) {
+    if (a.status) continue
+    const kw = (a.keyword || a.slug.replace(/-/g, ' ')).toLowerCase()
+    for (const pattern of rejectPatterns) {
+      if (kw.includes(pattern.toLowerCase())) {
+        a.status = 'skip'
+        a.skip_reason = `reject-pattern: ${pattern}`
+        skipCount++
+        break
+      }
+    }
+  }
+  if (skipCount > 0) {
+    console.log(c.yellow(`  [B34] ${skipCount} article(s) marked status:skip by reject patterns`))
+  } else {
+    console.log(`  [B34] No articles matched reject patterns`)
+  }
+}
 
 // ── B45: Semantic slug dedup ──────────────────────────────────────────────────
 // Strip common modifier words from keyword tokens; within each hub, any two

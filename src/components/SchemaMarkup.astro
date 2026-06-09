@@ -12,7 +12,8 @@ const { data } = article
 const cfg = getSiteConfig()
 const persona = getPersona()
 
-const imageUrl = `${cfg.images.base_url}/${data.hero_image}`
+const siteUrl = `https://${cfg.site.domain}`
+const imageUrl = `${siteUrl}${cfg.images.base_url}/${data.hero_image}`
 const isReview = data.type === 'review'
 
 // Primary product for review schema
@@ -30,13 +31,13 @@ const articleSchema: Record<string, unknown> = {
   author: {
     '@type': 'Person',
     name: persona.name_formal,
-    url: `${cfg.site.domain}/about/`,
+    url: `${siteUrl}/about/`,
   },
   publisher: {
     '@type': 'Organization',
     name: cfg.site.brand_name,
-    url: cfg.site.domain,
-    logo: { '@type': 'ImageObject', url: cfg.visual.logo_paths.header_png },
+    url: siteUrl,
+    logo: { '@type': 'ImageObject', url: `${siteUrl}${cfg.visual.logo_paths.header_svg}` },
   },
   image: { '@type': 'ImageObject', url: imageUrl },
   mainEntityOfPage: { '@type': 'WebPage', '@id': url },
@@ -63,9 +64,9 @@ const breadcrumbSchema = {
   '@context': 'https://schema.org',
   '@type': 'BreadcrumbList',
   itemListElement: [
-    { '@type': 'ListItem', position: 1, name: 'Home', item: cfg.site.domain },
-    { '@type': 'ListItem', position: 2, name: data.category, item: `${cfg.site.domain}/${categorySlug}/` },
-    { '@type': 'ListItem', position: 3, name: hubLabel, item: `${cfg.site.domain}/${data.hub}/` },
+    { '@type': 'ListItem', position: 1, name: 'Home', item: siteUrl },
+    { '@type': 'ListItem', position: 2, name: data.category, item: `${siteUrl}/${categorySlug}/` },
+    { '@type': 'ListItem', position: 3, name: hubLabel, item: `${siteUrl}/${data.hub}/` },
     { '@type': 'ListItem', position: 4, name: data.title, item: url },
   ],
 }

@@ -25,10 +25,11 @@ _PROMPT_MAP = {
 
 # Platform-level product_count limits (not site-overridable per CATALOG-BEHAVIOUR.md)
 _PRODUCT_COUNT = {
-    "roundup":     {"min": 6, "max": 8},
-    "buyer_guide": {"min": 3, "max": 5},
-    "comparison":  {"min": 2, "max": 5},
-    "review":      {"min": 1, "max": 3},
+    "roundup":      {"min": 6, "max": 6},
+    "buyer_guide":  {"min": 3, "max": 5},
+    "comparison":   {"min": 2, "max": 5},
+    "review":       {"min": 1, "max": 3},
+    "informational": {"min": 0, "max": 3},
 }
 
 _BUYING_GUIDE_REMINDER = (
@@ -43,15 +44,16 @@ _BUYING_GUIDE_REMINDER = (
 def _normalise_type(article_type: str) -> str:
     """Map raw pipeline type strings to prompt keys."""
     mapping = {
-        "roundup":    "roundup",
-        "Roundup":    "roundup",
-        "buyer_guide":"buyer_guide",
-        "Buyer Guide":"buyer_guide",
-        "buyer guide":"buyer_guide",
-        "comparison": "comparison",
-        "Comparison": "comparison",
-        "review":     "review",
-        "Review":     "review",
+        "roundup":     "roundup",
+        "Roundup":     "roundup",
+        "buyer_guide": "buyer_guide",
+        "buyer-guide": "buyer_guide",
+        "Buyer Guide": "buyer_guide",
+        "buyer guide": "buyer_guide",
+        "comparison":  "comparison",
+        "Comparison":  "comparison",
+        "review":      "review",
+        "Review":      "review",
     }
     return mapping.get(article_type, article_type.lower().replace(" ", "_"))
 

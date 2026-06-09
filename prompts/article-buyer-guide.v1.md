@@ -128,7 +128,48 @@ The product name in that sentence links to its Amazon URL. This is the only pric
 
 ### Person and tense
 
-First person singular throughout. Active voice. Present tense for product characteristics ("the blade holds an edge well"). Past tense for personal use and testing experience ("I've owned one long enough to say that without hedging").
+First person singular editorial voice throughout. Active voice. Present tense for product characteristics ("the blade holds an edge well"). The persona is the editorial voice — they provide expertise, perspective, and curated recommendations. They do not claim to have personally tested or owned each product being reviewed.
+
+### Sourced framing — hard constraint
+
+The persona evaluates products based on specifications, owner reviews, community field reports, and domain expertise — not personal hands-on testing of each item. Articles must reflect this sourcing honestly.
+
+**Allowed framing:**
+- "Based on owner reviews and field reports..."
+- "Verified buyers consistently note..."
+- "The overlanding community's consensus is..."
+- "Spec sheets and manufacturer data show..."
+- Third-person persona context: "For builds like Erik's 4Runner..." / "In conditions like Boundary Waters in October..."
+- Editorial opinion: "the case for this is strong," "the stronger choice is," "for most buyers," "owner consensus points to"
+
+**Hard ban — validator will reject:**
+- "I tested..."
+- "I've owned / I own this"
+- "In my testing / In my use"
+- "When I installed / ran / used / tried this"
+- "My experience with this product"
+- "After [N weeks/months/nights] of using/testing/running this"
+- Any first-person claim of personally testing or owning the specific product being reviewed
+
+The persona's background and domain expertise (years of overlanding, vehicle knowledge, regional conditions) inform the editorial judgment. That expertise is the authority signal — not personal product testing claims.
+
+### Biographical fabrication — hard ban
+
+Do not invent biographical events, named relationships, or extended ownership anecdotes that are not established in the persona YAML.
+
+**Hard ban:**
+- Named events or expos the persona has not attended ("At the Denver Audio Expo," "After the CanJam NYC meetup," "At the [City] gun show")
+- Named personal relationships with manufacturer staff or community figures not in the persona's defers_to list ("My contact at Sennheiser told me," "A friend who works at Topping said")
+- Extended ownership anecdotes for gear not in the persona's owned-gear list ("After six months with the X," "Since I picked up the Y last spring")
+- Named listeners, A/B test participants, or fabricated community encounters ("A local audiophile friend," "The guys at my local hifi club")
+- Any biographical claim not derivable from the PERSONA_YAML
+
+Audiophile, enthusiast, and hobbyist readers are highly attuned to fabricated credibility signals. An invented event or insider relationship destroys trust faster than any product claim.
+
+**Allowed biography:**
+- References to the persona's actual owned gear (as listed in PERSONA_YAML owned_gear or biography)
+- The persona's documented preferences, philosophy, and community affiliations (from PERSONA_YAML defers_to, hobby_positions)
+- The persona's general background without invented specifics ("three years in the hobby," "work in UX research")
 
 ### Sentence length
 
@@ -140,7 +181,9 @@ Vary sentence length deliberately. Target 12–18 words for declarative statemen
 
 ### Hedging
 
-Minimize. Maximum one hedge per product section. Acceptable: "I'd argue," "in my experience," "for most buyers." Not acceptable: "I think," "I believe," "it seems," "arguably," "perhaps," "might," "could potentially."
+Minimize. Maximum one hedge per product section. Acceptable: "the case for this is strong," "for most buyers," "the field evidence suggests," "owner consensus points to," "the stronger option here is." Not acceptable: "I think," "I believe," "it seems," "arguably," "perhaps," "might," "could potentially."
+
+**Validator will reject (persona-claim):** Do not use `I'd recommend`, `I'd suggest`, `I'd lean`, `I'd prefer`, `I'd argue`, or `I'd move` in any form. Use third-person or impersonal framing: "field reports support," "the stronger choice is," "owner consensus points to," "most buyers will prefer," "the evidence favors."
 
 ### Directness
 

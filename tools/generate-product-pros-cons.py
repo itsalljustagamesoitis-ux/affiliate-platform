@@ -294,6 +294,20 @@ def main():
     print(f"  Est. cost:     ${total_cost:.4f}")
     print(f"  State file:    {state_file}")
 
+    if processed > 0:
+        try:
+            import sys as _sys
+            _sys.path.insert(0, str(Path(__file__).parent))
+            from cost_logger import log_haiku_run
+            log_haiku_run(
+                site=args.site,
+                script="generate-product-pros-cons",
+                input_tokens=total_input,
+                output_tokens=total_output,
+            )
+        except Exception:
+            pass  # cost logging is non-critical
+
 
 if __name__ == "__main__":
     main()

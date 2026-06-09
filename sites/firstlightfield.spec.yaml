@@ -1,0 +1,142 @@
+# First Light Field — Site 17 spec
+# Drafted 2026-06-05
+
+# ── BLOCKING BEFORE launch-site.mjs CAN RUN ────────────────────────────────
+#
+# 1. amazon_associates_id — set below once Keith creates the ID in Associates
+# 2. ga4_measurement_id   — set below once Keith creates the property (or leave
+#                           as placeholder; Point 17 Bucket C halt handles it)
+#
+# Photos: placeholder below (wesley-tate-byline.jpg) — real photos generated
+# via tools/generate-persona-photos.mjs AFTER phases 0-2 complete.
+# ─────────────────────────────────────────────────────────────────────────────
+
+slug: firstlightfield
+domain: firstlightfield.com
+brand_name: First Light Field
+tagline: "Tested under dark skies."
+niche: astronomy
+description: "Telescope and astronomy gear reviews for serious backyard observers"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create in Amazon Associates dashboard, then update here
+amazon_associates_id: firstlightfld-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create property in analytics.google.com, then update here
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  xlsx_path: /Users/keithlacy/Downloads/firstlightfield_launch.xlsx
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: james-calloway
+  display_name: James Calloway
+  location: Belen, New Mexico
+  location_detail: Belen, New Mexico (Valencia County — dark sky country south of Albuquerque)
+
+  background: "Optical systems engineer, aerospace and defense industry (retired)"
+  # Rule 1 check: grep -h "^background:" ~/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty.
+
+  bio: >-
+    James Calloway spent thirty years as an optical systems engineer at Sandia National
+    Laboratories in Albuquerque, designing and testing imaging systems for defense and
+    space applications. He retired in 2022 and moved south to Belen for the darker skies
+    and slower pace. He has been an amateur astronomer since his twenties — long before
+    the career made him dangerous at reading an optics spec sheet. He writes about
+    telescopes and astronomy gear the way an engineer looks at anything: what does it
+    actually do, how well does it do it, and does the manufacturer's claim hold up under
+    field conditions.
+
+  bio_full: >-
+    James Calloway is a retired optical systems engineer who spent three decades at Sandia
+    National Laboratories designing imaging systems for defense and space programs. He holds
+    a B.S. in physics from New Mexico Tech (1987) and an M.S. in optical sciences from the
+    University of Arizona (1990). He started chasing Messier objects with a borrowed Edmund
+    Scientific refractor in 1991 and has been at it ever since. Current setup: Takahashi
+    FSQ-85 on a Pegasus NYX-101 mount for wide-field imaging, and a 15-inch Obsession
+    Dobsonian for visual work under the Milky Way at the Salinas Pueblo dark sky site. He
+    lives with his wife Diane and two rescue dogs in a passive-solar adobe house with a
+    small concrete pad and a Telegizmos cover — which he describes as "the most important
+    piece of astronomy equipment I own." He does not own a dome. He is working on it.
+
+  voice_notes: |
+    James writes the way an engineer talks: precisely, skeptically, without hedging.
+    He cites actual measurements when they exist — focal ratio, collimation tolerance,
+    periodic error in arcseconds — and says "I don't know" when they don't. He is
+    particularly skeptical of aperture claims, coating specs, and GoTo accuracy numbers
+    that appear only in press releases. He explains optics concepts clearly without
+    condescending — he assumes the reader is an adult who can handle a diagram.
+    Voice register: first person throughout. Never "the author" or "James recommends."
+    He says "I've used," "I tested," "in my experience," "this mount tracks at."
+    He does not speak in superlatives. The best telescope is always "the one you'll
+    actually use." He's been hearing that for thirty years and believes it.
+    He does not write "stunning views" or "breathtaking images." He writes "clean
+    contrast," "tight stars to the edge," "no coma visible at f/6.3."
+
+  # PLACEHOLDER — replaced by generate-persona-photos.mjs after phases 0-2
+  photo_source: /Users/keithlacy/ridgelinebushcraft/public/images/brand/wesley-tate-byline.jpg
+  about_photo_source: /Users/keithlacy/ridgelinebushcraft/public/images/brand/wesley-tate-byline.jpg
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+
+visual:
+  primary_color: "#1C2B4A"      # deep midnight navy
+  accent_color: "#C8921B"       # warm amber-gold (star color)
+  background_color: "#F5F6F8"   # cool light gray (clean, technical)
+  font_headings: "Libre Baskerville"
+  font_body: "Lato"
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+# 6 hubs, single Astronomy category.
+
+categories:
+  - slug: astronomy
+    label: Astronomy
+    hubs:
+      - slug: telescopes
+        label: Telescopes
+        description: >-
+          Refractors, Newtonians, Dobsonians, SCTs, and Mak-Cassegrains reviewed for
+          visual observing and imaging — aperture, optical quality, and real-world
+          field performance.
+
+      - slug: mounts
+        label: Mounts
+        description: >-
+          Equatorial, alt-az, GoTo systems, and star trackers reviewed for
+          tracking accuracy, payload capacity, and long-term reliability.
+
+      - slug: eyepieces
+        label: Eyepieces
+        description: >-
+          Wide-field and planetary eyepieces, Barlows, diagonals, and binoviewers
+          reviewed for eye relief, field edge sharpness, and coatings.
+
+      - slug: astrophotography
+        label: Astrophotography
+        description: >-
+          Dedicated astronomy cameras, guide systems, narrowband filters, and
+          image processing tools for deep-sky and planetary imaging.
+
+      - slug: binoculars
+        label: Binoculars
+        description: >-
+          Astronomy binoculars reviewed for aperture, magnification, exit pupil,
+          and twilight performance for wide-field sky observation.
+
+      - slug: accessories
+        label: Accessories
+        description: >-
+          Collimators, dew heaters, red flashlights, finder scopes, carrying
+          cases, and the small-ticket gear that makes a session actually work.

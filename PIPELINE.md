@@ -1,7 +1,6 @@
-# PIPELINE.md — v1.6
+# PIPELINE.md — v1.8
 
-**Version:** v1.6 — updated 2026-06-01. Codifies autonomous launch enforcement, locks persona-before-producer discipline, and identifies the tooling backlog required to operate from spec.
-See section 15 (v1.6 changelog) for full change log. Previous version: v1.5 (2026-05-28, pre-site-13 platform cleanup, Section 14). Previous to that: v1.4 (2026-05-24, SaunasSoSimple UAT hardening, Section 13). Previous to that: v1.2 (2026-05-20, Ten27 UAT hardening, Section 12).
+**Version:** v1.8 — updated 2026-06-08. Platform v2.3.0 fixes: closes B62a/B62b/B62c/B62d (sourcer completion, coverage pre-flight, round-robin ordering, producer dupe guard). Adds `verify-coverage.py`. See section 18 for full changelog. Previous version: v1.7 (2026-06-07, SITE-LAUNCH-PROTOCOL.md + Site 18 + B59/B60).
 
 The complete operational specification for building, launching, and operating affiliate sites in the portfolio.
 
@@ -27,6 +26,7 @@ This document is the source of truth. Every site follows the same sequence. No s
 14. v1.5 changelog — Pre-site-13 platform cleanup
 15. v1.6 changelog — Autonomous launch hardening
 16. Autonomous launch enforcement
+17. v1.7 changelog — Day 18 close (SITE-LAUNCH-PROTOCOL.md + Site 18 LAUNCHED + B59/B60)
 
 ---
 
@@ -2153,6 +2153,54 @@ Products in `products.yaml` were limited to a single `hub: slug` field. Articles
 **B50 — `already_staged()` checks .docx extension instead of .md — CLOSED 2026-06-06**
 `producer/producer_main.py` `already_staged()` checked `staging/{slug}.docx` which is never written (staging files are `.md`). This caused the skip gate to miss articles that were already staged, allowing re-production of completed articles. Fix shipped (Day 15): removed the `.docx` branch. Function now checks `staging/{slug}.md`, `staging/failed/{slug}.md`, and `articles/{slug}.md`.
 
+**B54 — `initialise-site.mjs` destructively overwrites pipeline.json (2026-06-06)**
+`initialise-site.mjs` writes an empty `data/pipeline.json` as part of Phase 1 scaffolding, without checking whether a non-empty pipeline already exists. If pipeline generation runs before scaffold (a reasonable workflow order), the scaffold silently destroys the pipeline. Discovered on Site 18: pipeline was generated in Phase 3, then scaffold ran in Phase 4 and overwrote it. Recovery required regenerating from intermediate `/tmp/site18_keywords_clean.json`. Nothing was permanently lost, but the ordering dependency is non-obvious.
+- Fix: scaffold should check `existsSync(pipelinePath) && JSON.parse(readFileSync(pipelinePath)).articles?.length > 0` before writing. If true, skip overwrite and log a warning: `[INFO] pipeline.json already populated (N articles) — skipping empty scaffold`. Operator can pass `--reset-pipeline` to force overwrite if intentional.
+- Priority: Medium — affects any site where pipeline generation precedes scaffold. Silent data loss in the common case where /tmp intermediates have been cleared.
+- Status: **OPEN**
+
+**B57 — `generate-product-pros-cons.py` not called as part of new site setup workflow (2026-06-07)**
+`generate-product-pros-cons.py` exists in canonical platform tools and was used for Site 17 (FLF), but is not included in the Day 16 scaffold or Day 17 pre-producer checklist. When not run, `products.yaml` has `default_pros: []` / `default_cons: []` for every product. The `_derive_pros_cons` fallback in `article_builder.py` existed for AV/home theater hubs only — working-dog hubs fell through to empty arrays, causing 100% F09 validator failures on Site 18 (TWC). Producer killed after 3 articles to avoid burning API budget on content with identical hub-level fallback text for all products.
+- Root cause: workflow gap, not script regression. The tool was already in canonical but was never added to the Day 16–17 checklist. `source-products-rainforest.py` always hardcodes `default_pros: []` by design — enrichment is a separate intentional step.
+- Fix (process): Add `python3 affiliate-platform/tools/generate-product-pros-cons.py --site <slug>` as a required step before the producer run. Add to Phase 5 (pre-production) in §13.3. Cost: ~$0.0007/product (Haiku). Runtime: ~20–25 min for 1,000+ product catalogs.
+- Fix (platform — fail-fast): Add pre-flight check at producer startup: if catalog has ≥10 products with `default_pros: []`, raise `WorkflowError("generate-product-pros-cons.py not run — stop and run enrichment before producing")`. Surfaces this failure in 5 seconds rather than after 3 failed articles.
+- Fix (platform — safety net): Added hub-specific fallbacks to `_derive_pros_cons` in `article_builder.py` for all TWC working-dog hubs, and added `[WARN]` print to stderr when the fallback fires — visible in producer logs as a workflow-gap signal. Applied 2026-06-07.
+- Portfolio audit (2026-06-07): Checked all 10 sites with `products.yaml` on VM. Result: 10/10 have `0 empty` — generate-product-pros-cons.py ran successfully for all prior sites. TWC is the only miss. Not a systemic gap across the portfolio.
+- Scope: Any new site with Rainforest-sourced catalog. Expected to affect all pet/outdoor/sporting-goods niches on first launch.
+- Priority: High — causes 100% producer failure rate on affected sites. Low detection cost once fail-fast check is added.
+- Status: **OPEN** (process fix documented in SITE-LAUNCH-PROTOCOL.md §5 Phase 4 Point 10.5; TWC enrichment complete 2026-06-07; fail-fast check not yet built — platform v2.3)
+- Note: B56 Mac-side patch applied 2026-06-07. B56 status updated below.
+
+**B58 — `producer_main.py` processes `status: drop` articles instead of skipping them (2026-06-07)**
+`producer_main.py` iterates over all articles in `data/pipeline.json` without checking the `status` field before processing. Articles with `status: drop` proceed through the full pipeline and fail at product-count validation (minimum 3 products required), logging errors identical to real article failures. On Site 18 (TWC), 24 `status: drop` articles inflated the failure count by 24 across Passes 1 and 2, masking the true failure rate in producer logs.
+- Root cause: No status gate at the top of the article processing loop. The `status: drop` field is honoured by sourcing tools but not by the producer.
+- Fix: Add early-exit check at top of article loop in `producer_main.py`: `if article.get("status") == "drop": continue`. Alternatively, filter the article list before the loop: `articles = [a for a in articles if a.get("status") != "drop"]`.
+- Impact: Log noise only — `status: drop` articles produce no output. Zero content risk. But inflated fail counts make triage harder (operators see "35 failed" when only 11 are real failures).
+- Priority: Low — cosmetic/diagnostic impact only. No content correctness risk.
+- Status: **OPEN**
+
+**B56 — `source-products-rainforest.py` appends duplicate product keys within article's assigned_keys (2026-06-07)**
+When Rainforest API returns the same ASIN twice in a single product search result, the script appended the same key twice to `assigned_keys`, producing duplicate `id:` entries in `products:` frontmatter. Affected 93 of 316 TWC articles on the initial source pass. `article_builder.py` deduplicates at runtime (`valid = [k for k in assigned if k in products]`) preventing duplicate render, but the duplicate keys remained in `pipeline.json` and caused roundups to appear short on first validation.
+- Fix (VM): Added dedup check on line ~472 in `/root/affiliate-platform/tools/source-products-rainforest.py`: `if asin_to_key[asin] in assigned_keys: continue` before appending.
+- Fix (Mac): Applied 2026-06-07 — `/Users/keithlacy/affiliate-platform/tools/source-products-rainforest.py` patched with same dedup check.
+- Recovery: Deduplicated 93 affected `pipeline.json` entries in-place; re-sourced 45 articles that fell below roundup minimum (6 products) after dedup.
+- Status: **CLOSED** (both VM and Mac patched 2026-06-07)
+
+**B55 — B45 semantic dedup misses brand-anchored qualifier variants (2026-06-07)**
+B45 strips `MODIFIER_WORDS` from keyword tokens and sorts, then groups within hub. This collapses `best-gps-tracker-for-dogs` → `gps-tracker-dogs` and catches modifiers like `top`/`best`/`review`. It misses variants where the brand name itself is the qualifier: `tractive-gps-tracker-for-dogs` vs `tractive-gps-tracker` vs `tractive-smart-gps-tracker` all normalize to different token sets because `tractive` is not in `MODIFIER_WORDS`. Discovered on TWC: three Tractive variants and one Garmin variant escaped B45, requiring manual drop after sourcing.
+- Root cause: B45 doesn't treat brand names as anchor tokens for variant consolidation. The brand token causes distinctness even when the base product concept is identical.
+- Fix (tooling): Brand-anchored consolidation pass in B45. After standard dedup, group remaining slugs that share a brand name (from product title or a brand registry) and identical base product token set. Keep one canonical slug per brand+product combination.
+- Scope: Affects all sites in niches where brand names are common in keyword variants (pet/sporting goods/outdoor gear). Less relevant for home theater where brand variants are less common.
+- Priority: Medium — upstream issue (keyword research) mitigates most cases; B45 escape rate ~1-2% in practice. B53 (word-order sensitivity) and B55 together represent the remaining B45 coverage gap.
+- Status: **OPEN**
+
+**B53 — B34 reject patterns are word-order sensitive (2026-06-06)**
+`config/reject-patterns.yaml` entries are case-insensitive substring matches. A pattern like `dog car seat` rejects keywords containing that exact phrase, but `car seat for dogs` — the same product, different word order — passes through. This affects all sites using B34 reject patterns going forward. Discovered during Site 18 pipeline generation: `dog car seat` was an explicit reject pattern, but `car seat for dogs` (3,600 vol) passed through and required manual review.
+- Root cause: substring matching is phrase-order sensitive; no token normalization or set matching.
+- Fix (tooling): Add a `reject_patterns_token` mode to `xlsx-to-pipeline.mjs` alongside the existing substring mode. In token mode, both the keyword and pattern are split into token sets; a keyword matches if its token set is a superset of the pattern's token set. Example: pattern tokens `{dog, car, seat}` would match `car seat for dogs` (tokens: `{car, seat, for, dogs}` — `dog`→`dogs` still fails exact match). May need stemming or a token-synonym layer.
+- Scope: Affects all sites using `--reject-patterns`. Not blocking Site 18 (the specific `car seat for dogs` case was reviewed and kept intentionally — Derek owns Kurgo vehicle transport gear). Priority: Medium — applies to next new site's pipeline generation.
+- Status: **OPEN**
+
 **B47 — New site scaffold lands on Mac only; VM sync is manual (2026-06-05)**
 `tools/initialise-site.mjs` creates the site directory on whichever machine Claude Code runs on (Mac). The VM is the canonical content store for production runs, but there is no automatic rsync step at the end of scaffold. Operator must manually rsync Mac→VM before launching the producer. This caused a delayed discovery on Site 17 (firstlightfield): full rsync + npm install + debug cycle added ~20 minutes to first launch.
 - Fix (process): Add Mac→VM rsync as the final step in Phase 5 (pre-production) for any new site. Document in §13.3 session-start/end protocol.
@@ -2354,6 +2402,192 @@ Added to Section 1.13:
 - Preview review gate default (graduation requires explicit unlock)
 - Audit trail per site in decisions.log
 - State.yaml as source of truth for ritual progress
+
+---
+
+## 17. v1.8 changelog — Day 15-16 platform work (2026-06-06)
+
+### 17.1 Day 15 platform fixes (B45/B48/B49/B50/Header.astro) — package v2.2.0
+
+See `V1_8_RELEASE_NOTES.md` for full details.
+
+- **B50 CLOSED:** `already_staged()` dead `.docx` check removed
+- **B49 CLOSED:** Multi-hub product schema (`hubs: [list]` support)
+- **B48 CLOSED:** Rainforest sourcing adds `category_id=283155` for book-keyword articles
+- **B45 CLOSED:** `xlsx-to-pipeline.mjs` marks semantic near-dups (modifier-stripped token-set grouping) as `status:"dupe"`
+- **Header.astro:** Single-category sites flatten hubs to top-level nav
+- **V18/V20 portfolio verification:** 18 possessive-place violations fixed (SM 15, NWO 1, SSS 2); 0 HARD V18 / 0 V20 portfolio-wide
+- **Site 17 (firstlightfield.com):** LIVE, 245 articles, 0 HARD V18, GA4 G-MEQ56RP85W
+
+### 17.2 Day 16 new tooling
+
+- **B34 CLOSED (new feature):** `xlsx-to-pipeline.mjs` now accepts `--reject-patterns <yaml>` flag. Site-level `config/reject-patterns.yaml` lists case-insensitive substring patterns; matching keywords are marked `status:"skip"` before B45 dedup runs. First deployed on Site 18 (The Working Coat) with 81 working-dog-specific patterns.
+
+- **B53 OPEN:** B34 reject patterns are phrase-order sensitive. Pattern `dog car seat` rejects but `car seat for dogs` (same product, different word order) passes. Needs token-set matching for word-order variant detection. Affects all sites using `--reject-patterns`. Not blocking Site 18.
+
+### 17.3 Site 18 — The Working Coat (theworkingcoat.com)
+
+**Status: LAUNCHED 2026-06-07** — 315 articles live. Deployed to CF Pages. Custom domain active. GA4 firing. IndexNow submitted (315 URLs, 200 OK). verify-site-shell: 0 blockers.
+
+- Persona: Derek Foss (derek-foss) — field wildlife manager, state wildlife agency, central PA. 48 years old, 30 years working dogs. Dutch Shepherd (IPO2) + GWP (NAVHDA-tested) + young Malinois.
+- Background: "Field wildlife manager, state wildlife agency, central Pennsylvania" — Rule 1 compliant (unique portfolio-wide)
+- Persona locked: 2026-06-06 (hash: a105a7a6)
+- Pipeline: 337 articles (315 live / 22 status:drop) / 9 hubs
+- Visual identity: primary #3D2A1E (field brown), accent #9C7025 (brass gold), DM Serif Display / Source Sans 3
+- Amazon tag: theworkingcoat-20 ✓
+- GA4: G-YYXQ7XLEWQ ✓
+- IndexNow: submitted 2026-06-07, 315 URLs (key: 96652ffcff1b2bac495f766e80c49766)
+- Persona photos: placeholder JPEGs deployed (DALL-E generation deferred)
+
+**Pending (Keith):**
+- GSC property setup + TXT verification (hand TXT value to Claude Code → CF DNS TXT record)
+- BWT (Bing Webmaster Tools)
+
+---
+
+### 17.4 v1.7 changelog — Day 18 close (2026-06-07)
+
+#### New platform artifact
+
+**SITE-LAUNCH-PROTOCOL.md** added at `/root/affiliate-platform/SITE-LAUNCH-PROTOCOL.md` (2026-06-07, 407 lines). This document supersedes the ad-hoc checklists in §13 as the authoritative launch reference. It contains:
+- §1 Tool Inventory: all 25 tools with purpose, launch point, inputs, outputs, failure modes
+- §2 Scaffold Artifacts: what initialise-site.mjs creates, what requires replacement, verification gates
+- §3 Config File Requirements: all required site.config.yaml fields including the two that broke Site 18 (`visual.logo_paths`, `deployment`)
+- §4 External Integration Points: all 15 services, division of labor (Keith vs Claude Code)
+- §5 Canonical Launch Checklist: 12 phases, each with tools, verification commands, and failure mode notes
+- §6 Gap Cross-Reference: every Day 17 postmortem bug mapped to its §5 verification gate
+
+PIPELINE.md §15 checklists remain the source of truth for validator calibration and platform decisions. SITE-LAUNCH-PROTOCOL.md is the launch execution reference.
+
+#### B59 — Brand asset generation + Pexels image sourcing omitted from launch workflow (2026-06-07)
+
+Two tools existed in the platform but were never documented as required launch steps:
+- `generate-brand-assets.mjs`: outputs all 9 logo/favicon variants. Scaffold creates placeholder SVGs with `fill="none"` empty rects. Without this tool, logo is invisible in production (verified on Site 18: header showed blank space).
+- `source-images-pexels.mjs` + `assign-article-images.mjs`: downloads hub-keyed images; assigns to pipeline.json. Without this pair, all article hero images are null → 404 broken images in production (verified on Site 18: all article cards showed broken image placeholder).
+
+Root cause: both tools were discovered retroactively — neither appeared in any daily brief or checklist before Day 18.
+
+Fix (process): Both are now explicit steps in SITE-LAUNCH-PROTOCOL.md §5 Phase 3 (brand assets) and Phase 5 (image sourcing), each with verification commands (`grep -c 'fill="none"' logo-header.svg` → 0; `ls public/images/articles/ | wc -l` → N > 0).
+
+Recovery (Site 18 TWC): `generate-brand-assets.mjs` was not available (niche-palettes.yaml lacked `working-dog` entry) — hand-crafted SVG coat collar mark logos in brand colors via Python; committed to VM. `source-images-pexels.mjs --per-hub 20` run on VM: 180 images downloaded (9 hubs × 20). `assign-article-images.mjs` run: 315 articles assigned. Rebuild + redeploy: 336 pages built, all article images live.
+
+- Scope: Any site where both tools were skipped. Site 18 is the only affected site — all prior sites had images and logos in production.
+- Status: **CLOSED** (process fix via SITE-LAUNCH-PROTOCOL.md; niche-palettes.yaml `working-dog` entry still pending for retroactive generate-brand-assets support)
+
+#### B60 — IndexNow URL construction missing hub prefix (2026-06-07)
+
+`producer/indexnow-submit.py` `get_all_slugs()` returned bare slugs (`martingale-collar-dog`) and constructed URLs as `https://{domain}/{slug}/`. All platform sites serve articles at `/{hub}/{slug}/` (e.g., `/collars-and-leashes/martingale-collar-dog/`). Bare-slug URLs are 404. When submitted in bulk (315 URLs), IndexNow returned 403 (key validation failed against 404 URL list). Single-URL test with correct path returned 200.
+
+Fix: Updated `get_all_slugs()` in `/root/the-working-coat/producer/indexnow-submit.py` to read both `slug` and `hub` fields from article frontmatter and return `{hub}/{slug}` paths. URL construction now produces `https://{domain}/{hub}/{slug}/`. Re-submit: 315 URLs, 200 OK (2026-06-07).
+
+- Scope: All sites using `indexnow-submit.py`. Per-site copies need this fix applied. The fix should be propagated to the platform template for new sites.
+- Status: **CLOSED on TWC** (fix applied to `/root/the-working-coat/producer/indexnow-submit.py`); platform template propagation pending.
+
+#### B62a — `source-products-rainforest.py` doesn't verify completion (2026-06-08)
+
+`source-products-rainforest.py` runs until it exhausts its candidate list but provides no post-run verification that all articles in the pipeline received the minimum required product count. The sourcer exits 0 even when large hub segments (e.g., sleep-optimization, stretching-and-mobility) received 0 products due to pipeline ordering — the tail-loaded hubs were never reached because the sourcer stopped at the default article limit.
+
+- Root cause: No coverage gate is evaluated before the sourcer declares success. Exit 0 conflates "ran to completion" with "sourcing was adequate."
+- Fix (tooling): Add a post-run coverage report and optional `--assert-min-coverage N` flag. Exit non-zero if any hub has fewer than N articles with products.
+- Scope: All sites using `source-products-rainforest.py`. Discovered on Site 19 (The Back Pain Notebook) — 80 articles in the last two hubs received 0 products on the first sourcing pass.
+- Status: **CLOSED 2026-06-08** — `source-products-rainforest.py` now (a) warns at startup when a partial state file exists but `--resume` was not passed, and (b) runs a post-completion report comparing processed slugs against all live pipeline articles; exits 1 with per-hub breakdown if any live articles still have no products. Fix in `tools/source-products-rainforest.py`.
+
+#### B62b — Producer runs without pre-flight product coverage verification (2026-06-08)
+
+`producer_main.py` begins article generation immediately without first checking that the product catalog covers the pending article list adequately. When called with `--count 200 --publish`, the producer encounters product shortfall errors for ~55% of articles and skips them silently. No pre-run gate prevents this expensive generation attempt when sourcing coverage is known to be incomplete.
+
+- Root cause: No pre-flight step validates that each pending article has ≥ min_products before the LLM is called.
+- Fix (tooling): Add a `--preflight` flag (or auto-run before generation) that prints a per-hub coverage table and exits non-zero if any article in the batch has fewer than `min_products` assigned. Mirrors the manual coverage check currently done by hand.
+- Scope: All sites. Discovered on Site 19 — 110 of 200 producer attempts failed with product shortfall.
+- Status: **CLOSED 2026-06-08** — New tool `tools/verify-coverage.py` added. Checks every live pipeline article for ≥ N products with non-empty `default_pros`, classifies as ok/shortfall/zero, prints per-hub table and overall verdict. `producer_main.py` now calls this as a pre-flight gate before any LLM spend; exits 3 on failure with instructions. Override available via `--skip-verification` for emergency use. Fix in `tools/verify-coverage.py` + `producer/producer_main.py`.
+
+#### B62c — Pipeline ordering can starve tail-loaded hubs (2026-06-08)
+
+`xlsx-to-pipeline.mjs` writes articles in hub-sequential order (all articles from hub 1, then hub 2, ..., hub N). `source-products-rainforest.py` processes articles in pipeline index order and stops when it hits its limit. If the last 2-3 hubs are large and the sourcer limit is set to the total article count minus those hubs, the tail hubs receive 0 products. On Site 19, hubs 6 (sleep-optimization, 54 articles) and 7 (stretching-and-mobility, 10 articles) both started at index 275+; the original sourcer stopped at 255.
+
+- Root cause: Sequential hub ordering combined with index-ordered sourcing and a finite limit creates a deterministic starvation pattern for the last hubs in the pipeline.
+- Fix (tooling): Source in hub-round-robin order (one article per hub per pass) rather than sequential hub order. Guarantees minimum coverage across all hubs before any hub is fully saturated.
+- Scope: All new sites where article count approaches the sourcer's per-run limit. Site 19 is the discovered case; earlier sites (smaller pipeline counts) were not affected.
+- Status: **CLOSED 2026-06-08** — `source-products-rainforest.py` now processes articles in round-robin hub order via `get_processing_order()`. Each pass takes one article from each hub in alphabetical hub order before cycling back. Guarantees proportional coverage across all hubs even when processing is cut short by time or cost limits. Fix in `tools/source-products-rainforest.py`.
+
+#### B62d — Producer publishes `status: dupe` articles (2026-06-08)
+
+`producer_main.py` calls `get_pending_articles(pipeline)` which correctly filters `status: dupe` articles from the queue. However, 31 articles marked `status: dupe` were found in `content/articles/` after the repair production run on Site 19. These articles were generated during an earlier producer run when the dupe status was not yet applied, or when `already_staged()` (which checks only for the `.md` file on disk) short-circuited the dupe check by finding no file. The producer's `already_staged` guard and the `get_pending_articles` filter are not equivalent — an article can be dupe-flagged in pipeline.json but still reach generation if it was first generated before the dupe flag was set.
+
+- Root cause: Producer generation and dupe-flagging are not atomic. Articles generated before B45 dedup runs escape the dupe filter.
+- Fix (tooling): Add an explicit `status: dupe` guard in the producer loop (after `select_articles`, before generation) that skips any article with `status: dupe` regardless of disk state. Also add a `preflight.py` check that detects published dupe articles.
+- Scope: Any site where B45 dedup runs after an initial production pass. Site 19 had 31 dupe articles on disk at launch cleanup.
+- Status: **CLOSED 2026-06-08** — `producer_main.py` now checks `article.get("status")` at the top of the article loop before any generation attempt; silently skips `dupe` and `drop` articles, warns on unknown statuses. End-of-run summary now shows skip counts broken down by reason (dupe, drop, bad-status, already-staged, no-products, fail-limit, generated). Fix in `producer/producer_main.py`.
+
+#### B62e — No iterative coverage convergence (repair runs are one-shot) (2026-06-08)
+
+The current repair workflow for product shortfall is: (1) identify zero-product articles, (2) re-source with `--resume`, (3) re-run producer. This is one-shot — if the second producer pass still has shortfall articles (because sourced products don't match the validity filter), there is no automatic third pass. On Site 19, the repair re-source achieved 0 zero-product articles per pipeline.json, but the producer still failed on 110/200 articles because `_ensure_products_in_catalog` filtered sourced products down below min threshold at generation time. The gap between "has products in pipeline" and "has valid products at generation time" is invisible until the producer runs.
+
+- Root cause: The pipeline's product count (raw sourced products) and the producer's valid product count (filtered by topic match, ASIN validity, etc.) can diverge significantly. No pre-generation visibility into this divergence.
+- Fix (tooling): Surface valid_product_count per article in the coverage gate check. After sourcing, run a dry-pass of `_ensure_products_in_catalog` for each pending article and report shortfall counts before any LLM spend occurs. This gives a real coverage number, not a misleading "articles still empty: 0."
+- Scope: All sites using `source-products-rainforest.py` + `producer_main.py`. Discovered on Site 19 — repair re-source showed 0 empty articles but 55% of producer attempts still failed.
+- Status: **OPEN** — platform v2.3 backlog.
+
+---
+
+## 18. v1.8 changelog — Platform v2.3.0 fixes (2026-06-08)
+
+Triggered by Site 19 (The Back Pain Notebook) launch postmortem. Four bugs (B62a–B62d) caused 36% article loss (111 of 305 planned articles not produced). All four fixed before Site 20 launch.
+
+### 18.1 New tool: verify-coverage.py
+
+**Location:** `tools/verify-coverage.py`
+
+Pre-producer product coverage gate. Checks every live pipeline article for ≥ N products with non-empty `default_pros`. Outputs per-hub table, overall verdict, optional JSON report.
+
+```
+Usage:
+  python3 tools/verify-coverage.py --site <slug>
+  python3 tools/verify-coverage.py --site <slug> --min-products 3
+  python3 tools/verify-coverage.py --site <slug> --accept-skips skip-list.txt --strict
+  python3 tools/verify-coverage.py --site <slug> --report /tmp/coverage.json
+
+Exit codes:
+  0 = all articles meet threshold (or all shortfalls accepted)
+  1 = shortfalls exist without accepted skip list
+  2 = configuration error
+```
+
+**Integration:** `producer_main.py` calls this automatically before any LLM spend. Override with `--skip-verification` (emergency only). Coverage gate requires ≥4 usable products per article by default.
+
+### 18.2 producer_main.py changes
+
+- **Status guard (B62d):** Explicit `status == "dupe"` / `status == "drop"` check at the top of the article loop, before generation. Silently skips. Unknown statuses (`not in live/pending/staged/skip`) log a warning and skip.
+- **Skip summary:** End-of-run summary now shows counts by skip reason: dupe, drop, bad-status, already-staged, no-products, fail-limit, and generated.
+- **Coverage pre-flight (B62b):** Calls `verify-coverage.py --strict` before article generation begins. Exits 3 on failure. Override: `--skip-verification`.
+- **New flag:** `--skip-verification` — bypasses coverage gate for emergency use.
+
+### 18.3 source-products-rainforest.py changes
+
+- **Partial state warning (B62a):** At startup, if a state file exists but `--resume` was not passed, emits a stderr warning listing the count of previously processed articles and instructions to use `--resume`.
+- **Completion report (B62a):** After the final save, compares all processed slugs against live pipeline articles (status not in dupe/drop/skip). If any live articles still have no products: prints per-hub breakdown of unprocessed articles and exits 1. If complete: prints success line and exits 0.
+- **Round-robin ordering (B62c):** New `get_processing_order(pipeline_articles, already_processed, dtc_brands)` function. Interleaves articles across hubs in alphabetical hub order — one article per hub per pass. Guarantees all hubs get proportional coverage even when a run is cut short.
+
+### 18.4 Canonical platform nav (Fix 5)
+
+`affiliate-platform/src/components/Header.astro` already contains `flatNav` logic (added in v2.2.0): single-category sites have their hubs promoted to top-level nav items automatically. Site 19's submodule had an older version; patched manually. Site 20+ will pick up the canonical fix via fresh scaffold.
+
+Portfolio-wide submodule refresh for Sites 1–18 is a separate tracked task (not Site 20 blocker).
+
+### 18.5 Test results
+
+Run against Site 19 (The Back Pain Notebook):
+
+| Test | Expected | Result |
+|------|----------|--------|
+| `verify-coverage --site the-back-pain-notebook` | 5 shortfall, FAILED | PASSED — 5 shortfall articles (theragun × 2, homedics, teeter × 2; DTC/low-pros) |
+| `producer --dry-run --slug best-massage-gun-uk` (dupe) | Skip with summary | PASSED — `Skipped (dupe): 1` |
+| `source-products --site bpn --dry-run` (state exists, no --resume) | Stderr warning | PASSED — warning fires |
+| Round-robin ordering | Hub-interleaved order | Code verified; not run live (Site 19 fully sourced) |
+
+### 18.6 Version bump
+
+Platform: v2.2.0 → v2.3.0. No breaking changes. All Sites 1–19 unaffected (producer `--skip-verification` not needed for already-complete sites; coverage gate passes immediately when all articles are published).
 
 ---
 

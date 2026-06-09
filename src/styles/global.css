@@ -213,6 +213,10 @@ main { padding-top: 64px; }
 .product-card__actions { margin-top: 1rem; }
 .product-card__no-link { font-size: 0.8rem; color: var(--color-text-muted); font-style: italic; }
 
+/* Suppress CTA-style "Check price on Amazon" text for DTC/unavailable products.
+   data-cta is set by rehype-product-links only for CTA phrases, not prose name mentions. */
+[data-unavailable="true"][data-cta="true"] { display: none; }
+
 /* ── Pros/Cons ───────────────────────────────────────────────────────────── */
 .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.25rem 0; }
 .pros-cons__box { padding: 1rem; border-radius: var(--radius); }

@@ -275,7 +275,13 @@ function buildNavigationYaml(spec) {
     categories: spec.categories.map(cat => ({
       slug:  cat.slug,
       label: cat.label,
-      hubs:  cat.hubs.map(hub => ({ slug: hub.slug, label: hub.label, articles: [] })),
+      ...(cat.description && { description: cat.description }),
+      hubs:  cat.hubs.map(hub => ({
+        slug:  hub.slug,
+        label: hub.label,
+        ...(hub.description && { description: hub.description }),
+        articles: [],
+      })),
     })),
   }
 }

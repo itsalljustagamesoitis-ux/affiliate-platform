@@ -1,0 +1,176 @@
+# Ridgeline Bushcraft — Site 16 spec
+# Drafted 2026-06-01
+
+# ── BLOCKING BEFORE launch-site.mjs CAN RUN ────────────────────────────────
+#
+# 1. amazon_associates_id — set below once Keith creates the ID in Associates
+# 2. ga4_measurement_id   — set below once Keith creates the property (or leave
+#                           as placeholder; Point 17 Bucket C halt handles it)
+#
+# Photos: DONE. Both byline and about use the same image (Wesley.png).
+# Everything else is complete and ready.
+# ─────────────────────────────────────────────────────────────────────────────
+
+slug: ridgelinebushcraft
+domain: ridgelinebushcraft.com
+brand_name: Ridgeline Bushcraft
+tagline: "Gear guides for the woods behind your house"
+niche: bushcraft
+description: "Bushcraft and woodland skills gear guides for practical outdoor use"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create in Amazon Associates dashboard, then update here
+# Suggested string: ridgelinebush-20  (16 chars, within 20-char limit)
+amazon_associates_id: ridgelinebush-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create property in analytics.google.com, then update here
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  # Update path if you move the file to Desktop before launch
+  xlsx_path: /Users/keithlacy/Downloads/ridgelinebushcraft_launch.xlsx
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: wesley-tate
+  display_name: Wesley Tate
+  location: Lexington, Virginia
+  location_detail: Lexington, Virginia (Rockbridge County)
+
+  background: "Finish carpenter, sole proprietor, Lexington Virginia"
+  # Rule 1 check: grep -h "^background:" ~/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty.
+
+  bio: >-
+    Wesley Tate has been packing into the George Washington and Jefferson National Forests
+    most weekends for twenty-two years. He runs a one-man finish-carpentry shop in Lexington,
+    Virginia, which is what pays for the gear and gives him the schedule freedom to disappear
+    into the ridges. He writes about bushcraft from the perspective of a working tradesman
+    who learned by doing — not by teaching, not by selling courses.
+
+  bio_full: >-
+    Wesley Tate is a 44-year-old finish carpenter and sole proprietor of a one-man trim
+    and finish business in Lexington, Virginia. He has been practicing bushcraft in the
+    George Washington and Jefferson National Forests for twenty-two years — since 2003,
+    when a Mora Companion and a dog-eared copy of Mors Kochanski got him started. His
+    kit is built around gear he has actually worn out and replaced: the Mora Companion
+    (carbon, Scandi grind), the Council Tool Hudson Bay axe, the Bahco Laplander saw,
+    the Filson Mackinaw cruiser jacket. He lives in Lexington with his wife Holly and
+    two teenagers, Caleb and Anna. On weekends he is usually somewhere in the Blue Ridge
+    or Allegheny ranges, carrying more than he should and enjoying all of it.
+
+  voice_notes: |
+    Wesley writes the way a working tradesman talks: short sentences, no flourishes,
+    concrete examples over abstractions, willing to say "I don't know" or "this didn't
+    work for me." He uses specific place names (the GW, Jefferson, Shenandoah) rather
+    than "the wilderness." He references gear by manufacturer and specific model.
+    He's allergic to gear-of-the-month hype and tactical-coded language. When he
+    doesn't have personal experience with something, he says so and points to Mors
+    Kochanski, Ray Mears, or Lars Fält for what they've written.
+    Voice register: first person throughout. Never "the author" or "Wesley recommends."
+    He says "I've owned," "I've carried," "I keep," "in my kit," "in my pack."
+    He does not claim to be ex-military, a survival instructor, a prepper, or
+    a professional bushcrafter. He is a carpenter who goes into the woods on weekends.
+
+  photo_source: /Users/keithlacy/Downloads/wesley-tate-byline.jpg
+  about_photo_source: /Users/keithlacy/Downloads/wesley-tate-byline.jpg
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+# Colors sourced from config/niche-palettes.yaml bushcraft entry.
+# Review these at the --dry-run / brand asset preview step and override if desired.
+
+visual:
+  primary_color: "#2C3919"      # deep forest olive
+  accent_color: "#8B6533"       # warm leather brown
+  background_color: "#F8F6F0"   # parchment off-white
+  font_headings: "Merriweather"
+  font_body: "Source Serif 4"
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+# 12 hubs, single Bushcraft category. 306 launch articles, 836 reserve pool.
+# Hub descriptions taken from Hub Strategy sheet notes.
+
+categories:
+  - slug: bushcraft
+    label: Bushcraft
+    hubs:
+      - slug: knives
+        label: Knives
+        description: >-
+          Research-based guides on bushcraft and fixed-blade knives, from Mora
+          and ESEE to premium brand-direct makers.
+
+      - slug: axes
+        label: Axes
+        description: >-
+          Gransfors Bruks, Hults Bruk, Council Tool, and Fiskars — axes for
+          camp use, felling, and traditional woodcraft.
+
+      - slug: saws
+        label: Saws
+        description: >-
+          Folding saws and bow saws for field use: Silky, Bahco, Corona,
+          and how to choose between them.
+
+      - slug: fire
+        label: Fire Making
+        description: >-
+          Ferro rods, fire starters, char cloth, tinders, and everything
+          needed to make fire in the field.
+
+      - slug: shelter
+        label: Shelter
+        description: >-
+          Tarps, bedrolls, bivy bags, and hammocks for woodland camping
+          and overnight bushcraft trips.
+
+      - slug: cooking
+        label: Camp Cooking
+        description: >-
+          Billy cans, kuksas, tin cups, tripods, and lightweight stoves
+          for cooking over fire.
+
+      - slug: water
+        label: Water Treatment
+        description: >-
+          LifeStraw, Sawyer, Katadyn, and other filtration and purification
+          options for backcountry water.
+
+      - slug: packs
+        label: Packs
+        description: >-
+          Duluth Pack, Frost River, Savotta, Fjallraven, and canvas and
+          frame packs built for woodland travel.
+
+      - slug: clothing
+        label: Clothing
+        description: >-
+          Wool layers, waxed cotton, Filson, Fjallraven, and boonie hats
+          for durability and weather protection in the field.
+
+      - slug: cordage
+        label: Cordage
+        description: >-
+          Paracord, bank line, tarred twine, and natural cordage for
+          bushcraft lashing, binding, and camp use.
+
+      - slug: navigation
+        label: Navigation
+        description: >-
+          Suunto and Silva baseplate compasses, map reading, and traditional
+          land navigation for woodland travel.
+
+      - slug: skills
+        label: Core Skills
+        description: >-
+          How-to guides on fire lighting, shelter building, knife skills,
+          and foundational bushcraft technique.

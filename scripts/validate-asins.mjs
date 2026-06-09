@@ -33,8 +33,15 @@ const productsPath = resolve(SITE_ROOT, 'content/products/products.yaml')
 const products = load(readFileSync(productsPath, 'utf8'))
 
 const entries = Object.entries(products)
-  .filter(([, p]) => p.amazon_asin && p.amazon_asin !== 'NOT_ON_AMAZON')
-  .map(([id, p]) => ({ id, asin: p.amazon_asin, name: `${p.brand} ${p.name}` }))
+  .filter(([, p]) => {
+    const asin = p.amazon_asin || p.asin
+    return asin && asin !== 'NOT_ON_AMAZON'
+  })
+  .map(([id, p]) => ({
+    id,
+    asin: p.amazon_asin || p.asin,
+    name: `${p.brand || ''} ${p.name || p.title || ''}`.trim(),
+  }))
 
 console.log(`\nValidating ${entries.length} ASINs (concurrency=${CONCURRENCY}, timeout=${TIMEOUT_MS}ms)\n`)
 

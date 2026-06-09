@@ -2,7 +2,9 @@
 """
 Pre-flight checklist for affiliate sites before launch or deploy.
 
-9 checks derived from the SaunasSoSimple UAT post-mortem (2026-05-24).
+18 checks. Checks 1–9 derived from the SaunasSoSimple UAT post-mortem (2026-05-24);
+checks 10–14 added from V8/V9/V14/V15/V16 validators (2026-05-26–27);
+checks 15–18 added from V2/V3/V5/V12 validators (2026-05-28).
 All 7 UAT critical issues would have been caught by this script.
 
 Usage:
@@ -25,6 +27,15 @@ Checks (in order):
   7  url-slug-dedup          — no near-duplicate slugs in content/articles/
   8  ymyl-hub-check          — no health/medical hub labels or slugs
   9  product-topic-match     — products.yaml hub matches referencing articles
+  10 brand-niche             — no fabricated brand framing; no brand/niche contamination (V8)
+  11 spec-consistency        — article body specs match products.yaml ground truth (V16)
+  12 hub-consistency         — product hub matches article hub (V14)
+  13 product-coherence       — product tokens have semantic overlap with article (V15)
+  14 dollar-figures          — no Amazon product prices in article content (V9)
+  15 furniture-pages         — required static pages present; no placeholders (V2)
+  16 amazon-tag              — tracking ID format valid; not a placeholder (V3)
+  17 brand-collision         — no foreign persona/brand names in article content (V5)
+  18 ymyl-endorsement        — no unqualified clinical claims on YMYL sites (V12)
 
 UAT issue coverage:
   Issue 1 (scaffold contamination)    → check 1
@@ -34,9 +45,12 @@ UAT issue coverage:
   Issue 5 (URL duplicates)            → check 7
   Issue 6 (product mismatches)        → check 9
   Issue 7 (persona photo/bio/og:locale) → checks 5, 6
+  V8 FFC findings (fabricated VW/Chevy articles) → check 10
+  V16 LogHog brand-swap spec mismatch → check 11
 """
 
 import argparse
+import importlib.util
 import json
 import os
 import re
@@ -180,7 +194,7 @@ def check_scaffold_contamination(site_root: Path, cfg: dict, verbose: bool) -> C
 
     # Priority 2: site.config.yaml forbidden_vocabulary list
     if not forbidden:
-        for term in cfg.get("content", {}).get("forbidden_vocabulary", []):
+        for term in (cfg.get("content") or {}).get("forbidden_vocabulary", []):
             forbidden.append(str(term).lower())
         if forbidden:
             source_label = "site.config.yaml content.forbidden_vocabulary"
@@ -188,6 +202,7 @@ def check_scaffold_contamination(site_root: Path, cfg: dict, verbose: bool) -> C
     # Priority 3: platform master vocabulary file (all sections except this site's vertical)
     if not forbidden:
         own_vertical = detect_vertical(cfg)
+        exempt_sections = set(cfg.get("scaffold_contamination", {}).get("exempt_sections", []))
         master = load_master_vocab()
         if master:
             skipped_sections = []
@@ -195,10 +210,14 @@ def check_scaffold_contamination(site_root: Path, cfg: dict, verbose: bool) -> C
                 if section_key == own_vertical:
                     skipped_sections.append(section_key)
                     continue
+                if section_key in exempt_sections:
+                    skipped_sections.append(f"{section_key} (exempt — intentional cross-coverage)")
+                    continue
                 for term in section.get("terms", []):
                     forbidden.append(str(term).lower())
             if own_vertical:
-                r.info(f"Using master vocabulary ({len(master)} sections); skipping own vertical '{own_vertical}'")
+                r.info(f"Using master vocabulary ({len(master)} sections); skipping own vertical '{own_vertical}'"
+                       + (f"; exempt: {', '.join(exempt_sections)}" if exempt_sections else ""))
             else:
                 r.info(f"Using master vocabulary ({len(master)} sections); vertical undetected — scanning all sections")
             source_label = f"affiliate-platform/config/forbidden-vocabulary.yaml"
@@ -271,8 +290,8 @@ def check_state_sync(site_root: Path, verbose: bool) -> CheckResult:
     pipeline_count = len(pipeline_articles)
 
     if article_count == 0 and pipeline_count > 0:
-        r.fail(f"content/articles/ is empty but pipeline.json has {pipeline_count} articles")
-        r.info("  Likely cause: build ran from a machine that never had articles rsync'd")
+        r.warn(f"content/articles/ is empty but pipeline.json has {pipeline_count} articles")
+        r.info("  Fresh setup: articles not yet generated. Run producer before Phase 2.")
         return r
 
     if pipeline_count == 0:
@@ -420,7 +439,7 @@ def check_persona_consistency(site_root: Path, verbose: bool) -> CheckResult:
             photo_rel = photo_path_str.lstrip("/")
             photo_abs = site_root / "public" / photo_rel
             if not photo_abs.exists():
-                r.fail(f"{slug}: {photo_field} → {photo_path_str} does not exist on disk")
+                r.warn(f"{slug}: {photo_field} → {photo_path_str} does not exist on disk (add before launch)")
             else:
                 size = photo_abs.stat().st_size
                 if size < 5000:
@@ -458,6 +477,59 @@ def check_persona_consistency(site_root: Path, verbose: bool) -> CheckResult:
 def check_url_slug_dedup(site_root: Path, verbose: bool) -> CheckResult:
     r = CheckResult("url-slug-dedup")
 
+    v1_path = Path(__file__).parent / "validate-slug-dedup.py"
+    if not v1_path.exists():
+        r.warn("validate-slug-dedup.py not found in scripts/ — falling back to legacy check")
+        return _legacy_check_url_slug_dedup(site_root, verbose)
+
+    spec = importlib.util.spec_from_file_location("validate_slug_dedup", v1_path)
+    v1_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v1_mod)
+
+    result = v1_mod.scan_site(site_root, verbose=verbose)
+    if result is None:
+        r.warn("content/articles/ not found — skipping slug dedup check")
+        return r
+
+    high   = result["high"]
+    medium = result["medium"]
+    low    = result["low"]
+    total  = result["total_slugs"]
+
+    if high:
+        r.fail(f"{len(high)} HIGH-confidence near-duplicate pair(s) — canonical decision required")
+        for p in high[:10]:
+            r.info(f"  [{p['detection_method']}] {p['slug_a']} ↔ {p['slug_b']}"
+                   f" (canonical: {p['suggested_canonical']})")
+        if len(high) > 10:
+            r.info(f"  ... and {len(high) - 10} more (run validate-slug-dedup.py --report for full list)")
+
+    if medium:
+        r.warn(f"{len(medium)} MEDIUM-confidence near-duplicate pair(s) — editorial review needed")
+        for p in medium[:5]:
+            note = f" — {p['editorial_note']}" if p.get("editorial_note") else ""
+            r.info(f"  [{p['detection_method']}] {p['slug_a']} ↔ {p['slug_b']}{note}")
+        if len(medium) > 5:
+            r.info(f"  ... and {len(medium) - 5} more MEDIUM pairs")
+
+    if not high and not medium:
+        r.info(f"No HIGH/MEDIUM near-duplicate slugs found ({total} articles) ✓")
+
+    if low and verbose:
+        r.info(f"  {len(low)} LOW-confidence review candidate(s) (Jaccard ≥ 0.75):")
+        for p in low[:3]:
+            score = p.get("jaccard_score", "?")
+            r.info(f"    [j={score}] {p['slug_a']} ↔ {p['slug_b']}")
+        if len(low) > 3:
+            r.info(f"    ... and {len(low) - 3} more LOW candidates")
+
+    return r
+
+
+def _legacy_check_url_slug_dedup(site_root: Path, verbose: bool) -> CheckResult:
+    """Legacy word-set dedup check (fallback when validate-slug-dedup.py is absent)."""
+    r = CheckResult("url-slug-dedup")
+
     articles_dir = site_root / "content/articles"
     if not articles_dir.exists():
         r.warn("content/articles/ not found — skipping slug dedup check")
@@ -470,14 +542,12 @@ def check_url_slug_dedup(site_root: Path, verbose: bool) -> CheckResult:
 
     slugs = [f.stem for f in md_files]
 
-    # Group slugs by their word set
     wordset_to_slugs: dict[frozenset, list[str]] = defaultdict(list)
     for slug in slugs:
         ws = slug_wordset(slug)
         wordset_to_slugs[ws].append(slug)
 
     duplicates = {ws: sl for ws, sl in wordset_to_slugs.items() if len(sl) > 1}
-
     if duplicates:
         total_dup = sum(len(v) - 1 for v in duplicates.values())
         r.fail(f"{total_dup} redundant slug(s) found ({len(duplicates)} duplicate group(s))")
@@ -488,23 +558,20 @@ def check_url_slug_dedup(site_root: Path, verbose: bool) -> CheckResult:
     else:
         r.info(f"No duplicate slug word-sets among {len(slugs)} articles ✓")
 
-    # Also check plural/singular pairs
-    plural_pairs = []
     slug_set = set(slugs)
-    for slug in slugs:
-        # simple trailing-s plural check
-        if slug.endswith("s") and slug[:-1] in slug_set:
-            plural_pairs.append((slug[:-1], slug))
-        if not slug.endswith("s") and slug + "s" in slug_set:
-            plural_pairs.append((slug, slug + "s"))
-
-    seen_pairs = set()
+    seen_pairs: set = set()
     unique_plural = []
-    for a, b in plural_pairs:
-        key = tuple(sorted([a, b]))
-        if key not in seen_pairs:
-            seen_pairs.add(key)
-            unique_plural.append((a, b))
+    for slug in slugs:
+        if slug.endswith("s") and slug[:-1] in slug_set:
+            key = (slug[:-1], slug)
+            if key not in seen_pairs:
+                seen_pairs.add(key)
+                unique_plural.append(key)
+        elif slug + "s" in slug_set:
+            key = (slug, slug + "s")
+            if key not in seen_pairs:
+                seen_pairs.add(key)
+                unique_plural.append(key)
 
     if unique_plural:
         r.warn(f"{len(unique_plural)} plural/singular slug pair(s) — review for canonicalization")
@@ -516,8 +583,14 @@ def check_url_slug_dedup(site_root: Path, verbose: bool) -> CheckResult:
     return r
 
 
-def check_ymyl_hubs(site_root: Path, verbose: bool) -> CheckResult:
+def check_ymyl_hubs(site_root: Path, cfg: dict, verbose: bool) -> CheckResult:
     r = CheckResult("ymyl-hub-check")
+
+    # If the entire site is declared YMYL, medical/health hub names are intentional.
+    # The check is designed for non-YMYL sites that accidentally include health hubs.
+    if cfg.get("ymyl", {}).get("vertical", False):
+        r.info("ymyl.vertical: true — entire site is YMYL-aware; hub name check skipped ✓")
+        return r
 
     nav_path = site_root / "config/navigation.yaml"
     if not nav_path.exists():
@@ -645,6 +718,424 @@ def check_product_topic_match(site_root: Path, verbose: bool) -> CheckResult:
     return r
 
 
+def check_brand_niche(site_root: Path, cfg: dict, verbose: bool) -> CheckResult:
+    r = CheckResult("brand-niche")
+
+    v8_path = Path(__file__).parent / "validate-brand-niche.py"
+    if not v8_path.exists():
+        r.warn("validate-brand-niche.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_brand_niche", v8_path)
+    v8_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v8_mod)
+
+    result = v8_mod.scan_site(site_root, verbose=False)
+    if result is None:
+        r.warn("content/articles/ not found — skipping V8 brand-niche check")
+        return r
+
+    h1 = result["h1_fails"]
+    h2 = result["h2_warns"]
+
+    if h1:
+        r.fail(f"{len(h1)} article(s) have fabricated brand framing (brand in title, absent from body)")
+        for finding in h1[:8]:
+            r.info(f"  {finding['slug']}: brand={finding['brand']!r} — {finding['verdict']}")
+        if len(h1) > 8:
+            r.info(f"  ... and {len(h1) - 8} more")
+
+    if h2:
+        r.warn(f"{len(h2)} article(s) have potential brand/niche contamination")
+        for finding in h2[:5]:
+            r.info(f"  {finding['slug']}: brand={finding['brand']!r} ({finding['brand_category']}) hub={finding['hub']!r}")
+        if len(h2) > 5:
+            r.info(f"  ... and {len(h2) - 5} more")
+
+    if not h1 and not h2:
+        niche = result["niche"]
+        r.info(f"No fabricated brands or niche contamination in {result['total']} articles [{niche}] ✓")
+
+    return r
+
+
+def check_spec_consistency(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("spec-consistency")
+
+    v16_path = Path(__file__).parent / "validate-spec-consistency.py"
+    if not v16_path.exists():
+        r.warn("validate-spec-consistency.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_spec_consistency", v16_path)
+    v16_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v16_mod)
+
+    result = v16_mod.scan_site(site_root, verbose=False)
+    if result is None:
+        r.warn("content/articles/ not found — skipping V16 spec-consistency check")
+        return r
+
+    mismatches = result["mismatches"]
+    refs       = result["total_refs"]
+
+    if mismatches:
+        r.fail(f"{len(mismatches)} spec mismatch(es) between article body and products.yaml")
+        for finding in mismatches[:8]:
+            r.info(f"  {finding['article']}: [{finding['location']}] claims {finding['claim']!r}, yaml has {finding['actual']!r}")
+            if verbose:
+                r.info(f"    excerpt: {finding['excerpt']}")
+        if len(mismatches) > 8:
+            r.info(f"  ... and {len(mismatches) - 8} more (run validate-spec-consistency.py --verbose for full list)")
+    else:
+        r.info(f"No spec mismatches across {refs} product references ✓")
+
+    return r
+
+
+def check_hub_consistency(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("hub-consistency")
+
+    v14_path = Path(__file__).parent / "validate-hub-consistency.py"
+    if not v14_path.exists():
+        r.warn("validate-hub-consistency.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_hub_consistency", v14_path)
+    v14_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v14_mod)
+
+    result = v14_mod.scan_site(site_root, verbose=False)
+    if result is None:
+        r.warn("content/articles/ not found — skipping V14 hub-consistency check")
+        return r
+
+    fails = result["fails"]
+    warns = result["warns"]
+    refs  = result["total_refs"]
+
+    if fails:
+        r.fail(f"{len(fails)} product(s) have unrelated hub vs article hub")
+        for f in fails[:8]:
+            r.info(f"  {f['article']}: {f['product_key']!r}  article_hub={f['article_hub']!r}  product_hub={f['product_hub']!r}")
+            if verbose:
+                r.info(f"    suggestion: {f['suggestion']}")
+        if len(fails) > 8:
+            r.info(f"  ... and {len(fails) - 8} more (run validate-hub-consistency.py --verbose for full list)")
+    elif warns:
+        r.warn(f"{len(warns)} product(s) have sibling hub placement (cross-hub, not cross-category)")
+        for f in warns[:5]:
+            r.info(f"  {f['article']}: {f['product_key']!r}  article_hub={f['article_hub']!r}  product_hub={f['product_hub']!r}")
+        if len(warns) > 5:
+            r.info(f"  ... and {len(warns) - 5} more")
+    else:
+        r.info(f"No hub inconsistencies across {refs} product references ✓")
+
+    return r
+
+
+def check_dollar_figures(site_root: Path, cfg: dict, verbose: bool) -> CheckResult:
+    r = CheckResult("dollar-figures")
+
+    v9_path = Path(__file__).parent / "validate-dollar-figures.py"
+    if not v9_path.exists():
+        r.warn("validate-dollar-figures.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_dollar_figures", v9_path)
+    v9_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v9_mod)
+
+    result = v9_mod.scan_site(site_root, verbose=False)
+    if result is None:
+        r.warn("content/articles/ not found — skipping V9 dollar-figures check")
+        return r
+
+    findings = result["findings"]
+    total    = result["total_articles"]
+    instances = result["total_instances"]
+
+    # Read enforcement mode from site.config.yaml
+    # "warn"  → downgrade to non-blocking WARN (sites actively remediating)
+    # "fail"  → hard FAIL, blocks launch (default for all new sites)
+    enforcement = (
+        (cfg.get("content") or {}).get("dollar_figures_enforcement", "fail") or "fail"
+    ).lower()
+
+    if findings:
+        msg = (
+            f"{len(findings)} article(s) with {instances} dollar-figure instance(s) "
+            f"(Amazon ToS Section 5v — prices must come from PA-API)"
+        )
+        for f in findings[:8]:
+            title_note = f"  [{len(f['title_hits'])} in title]" if f["title_hits"] else ""
+            r.info(f"  {f['article']}: {f['total']} instance(s){title_note}")
+        if len(findings) > 8:
+            r.info(f"  ... and {len(findings) - 8} more (run validate-dollar-figures.py --verbose for full list)")
+
+        if enforcement == "warn":
+            r.warn(msg + " [enforcement=warn — remediation in progress]")
+        else:
+            r.fail(msg)
+    else:
+        r.info(f"No dollar-figure violations across {total} articles ✓")
+
+    return r
+
+
+def check_product_coherence(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("product-coherence")
+
+    v15_path = Path(__file__).parent / "validate-product-coherence.py"
+    if not v15_path.exists():
+        r.warn("validate-product-coherence.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_product_coherence", v15_path)
+    v15_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v15_mod)
+
+    result = v15_mod.scan_site(site_root, verbose=False)
+    if result is None:
+        r.warn("content/articles/ not found — skipping V15 product-coherence check")
+        return r
+
+    mismatches = result["mismatches"]
+    refs        = result["total_refs"]
+    fails       = [m for m in mismatches if m.get("severity") == "FAIL"]
+    warns       = [m for m in mismatches if m.get("severity") == "WARN"]
+
+    if fails:
+        r.fail(f"{len(fails)} product(s) have zero topical token overlap with their article")
+        for m in fails[:8]:
+            r.info(f"  {m['article']}: {m['product_key']!r} — no shared tokens")
+            if verbose:
+                r.info(f"    article tokens: {m['article_tokens']}")
+                r.info(f"    product tokens: {m['product_tokens']}")
+        if len(fails) > 8:
+            r.info(f"  ... and {len(fails) - 8} more (run validate-product-coherence.py --verbose for full list)")
+    if warns:
+        r.warn(f"{len(warns)} product(s) have zero overlap but share a hub parent category (non-blocking)")
+    if not fails and not warns:
+        r.info(f"No incoherent product placements across {refs} product references ✓")
+
+    return r
+
+
+def check_furniture_pages(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("furniture-pages")
+
+    v2_path = Path(__file__).parent / "validate-furniture-pages.py"
+    if not v2_path.exists():
+        r.warn("validate-furniture-pages.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_furniture_pages", v2_path)
+    v2_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v2_mod)
+
+    result = v2_mod.scan_site(site_root, verbose=False)
+
+    missing      = result["missing_pages"]
+    placeholders = result["placeholder_hits"]
+    overclaims   = result["overclaim_hits"]
+    stale_refs   = result["stale_test_refs"]
+    stale_hwt    = result["stale_how_we_test"]
+    checked      = result["total_pages_checked"]
+
+    if missing:
+        r.fail(f"{len(missing)} required furniture page(s) missing: {', '.join(missing)}")
+    for p in placeholders:
+        r.fail(f"{p['page']}: unsubstituted token {p['match']!r} ({p['label']})")
+    if stale_hwt:
+        r.warn("how-we-test.astro still present alongside how-we-research.astro — delete stale copy")
+    for s in stale_refs:
+        r.warn(f"{s['page']}: stale 'how we test' reference in page text")
+    for o in overclaims:
+        r.warn(f"{o['page']}: FTC-risk phrasing ({o['label']})")
+
+    if not missing and not placeholders and not stale_hwt and not stale_refs and not overclaims:
+        r.info(f"All {checked} required furniture pages present, no placeholder tokens ✓")
+
+    return r
+
+
+def check_amazon_tag(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("amazon-tag")
+
+    v3_path = Path(__file__).parent / "validate-amazon-tag.py"
+    if not v3_path.exists():
+        r.warn("validate-amazon-tag.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_amazon_tag", v3_path)
+    v3_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v3_mod)
+
+    result = v3_mod.scan_site(site_root, verbose=False)
+
+    tag           = result["tag"]
+    valid_format  = result["valid_format"]
+    is_placeholder = result["is_placeholder"]
+    format_errors = result["format_errors"]
+    collision_with = result["collision_with"]
+
+    blocking = [e for e in format_errors if not e.startswith("WARN:")]
+    warns    = [e for e in format_errors if e.startswith("WARN:")]
+
+    if not valid_format or is_placeholder or collision_with:
+        for e in blocking:
+            r.fail(e)
+        for c in collision_with:
+            r.fail(f"tag {tag!r} also used by {c} — commission tracking collision")
+    else:
+        if tag:
+            r.info(f"amazon_tracking_id {tag!r} valid ✓")
+
+    for w in warns:
+        r.warn(w[5:].lstrip())
+
+    return r
+
+
+def check_brand_collision(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("brand-collision")
+
+    v5_path = Path(__file__).parent / "validate-brand-collision.py"
+    if not v5_path.exists():
+        r.warn("validate-brand-collision.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_brand_collision", v5_path)
+    v5_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v5_mod)
+
+    result = v5_mod.scan_site(site_root, verbose=False)
+
+    if result.get("error"):
+        r.warn(f"V5 brand-collision: {result['error']}")
+        return r
+
+    persona_hits = result["persona_hits"]
+    brand_hits   = result["brand_hits"]
+    niche_hits   = result["niche_hits"]
+    total        = result["total_articles"]
+
+    if persona_hits:
+        r.fail(f"{len(persona_hits)} article(s) contain foreign persona name(s)")
+        for h in persona_hits[:6]:
+            r.info(f"  {h['article']}: name {h['name']!r} from {h['foreign_site']}")
+        if len(persona_hits) > 6:
+            r.info(f"  ... and {len(persona_hits) - 6} more")
+    if brand_hits:
+        r.warn(f"{len(brand_hits)} article(s) mention a foreign site brand name")
+        for h in brand_hits[:4]:
+            r.info(f"  {h['article']}: brand {h['brand']!r} from {h['foreign_site']}")
+    if niche_hits:
+        r.warn(f"{len(niche_hits)} article(s) contain cross-niche vocabulary")
+        for h in niche_hits[:4]:
+            r.info(f"  {h['article']}: term {h['term']!r} from {h['foreign_site']}")
+
+    if not persona_hits and not brand_hits and not niche_hits:
+        r.info(f"No cross-site brand/persona contamination across {total} articles ✓")
+
+    return r
+
+
+def check_ymyl_endorsement(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("ymyl-endorsement")
+
+    v12_path = Path(__file__).parent / "validate-ymyl-endorsement.py"
+    if not v12_path.exists():
+        r.warn("validate-ymyl-endorsement.py not found in scripts/ — check skipped")
+        return r
+
+    spec = importlib.util.spec_from_file_location("validate_ymyl_endorsement", v12_path)
+    v12_mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(v12_mod)
+
+    result = v12_mod.scan_site(site_root, verbose=False)
+
+    if result.get("skipped"):
+        r.info(f"Not a YMYL site ({result.get('reason', 'skipped')}) — check skipped")
+        return r
+
+    clinical_fails  = result["clinical_fails"]
+    category_b_warns = result["category_b_warns"]
+    total           = result["total_articles"]
+
+    unhedged = [f for f in clinical_fails if not f.get("hedged")]
+    hedged   = [f for f in clinical_fails if f.get("hedged")]
+
+    if unhedged:
+        r.fail(
+            f"{len(unhedged)} unqualified clinical claim(s) — persona must not make "
+            f"professional medical judgments without hedging"
+        )
+        for f in unhedged[:6]:
+            r.info(f"  {f['article']}: {f['phrase']}")
+        if len(unhedged) > 6:
+            r.info(f"  ... and {len(unhedged) - 6} more")
+    if hedged:
+        r.warn(f"{len(hedged)} clinical claim(s) with hedge language nearby (review recommended)")
+        for f in hedged[:4]:
+            r.info(f"  {f['article']}: {f['phrase']}")
+    if category_b_warns:
+        r.warn(
+            f"{len(category_b_warns)} article(s) reference prescription-adjacent products "
+            f"without framing context"
+        )
+        for w in category_b_warns[:4]:
+            r.info(f"  {w['article']}: {w['term']!r}")
+
+    if not unhedged and not hedged and not category_b_warns:
+        r.info(f"No unqualified clinical claims across {total} YMYL articles ✓")
+
+    return r
+
+
+def check_placeholder_strings(site_root: Path, verbose: bool) -> CheckResult:
+    r = CheckResult("placeholder-strings")
+
+    articles_dir = site_root / "content/articles"
+    if not articles_dir.exists():
+        r.info("No content/articles directory — check skipped")
+        return r
+
+    # Bracket-form patterns only — must not match natural prose.
+    # \bPLACEHOLDER\b and \bFILL_IN\b are intentionally omitted (false-positive prone).
+    PLACEHOLDER_PATTERNS = [
+        r"\[write one product-specific",
+        r"\[insert ",
+        r"\[add ",
+        r"\[replace this",
+        r"\[TODO",
+        r"\[PLACEHOLDER",
+    ]
+    combined = re.compile("|".join(PLACEHOLDER_PATTERNS), re.IGNORECASE)
+
+    leaks = []
+    for path in sorted(articles_dir.glob("*.md")):
+        text = path.read_text(encoding="utf-8", errors="ignore")
+        hits = combined.findall(text)
+        if hits:
+            leaks.append((path.name, hits[:3]))
+
+    if leaks:
+        r.fail(
+            f"{len(leaks)} article(s) contain unsubstituted placeholder strings "
+            f"— producer output was not fully completed"
+        )
+        for fname, hits in leaks[:10]:
+            r.info(f"  {fname}: {hits[0]!r}")
+        if len(leaks) > 10:
+            r.info(f"  ... and {len(leaks) - 10} more")
+    else:
+        r.info(f"No placeholder strings found in {len(list(articles_dir.glob('*.md')))} articles ✓")
+
+    return r
+
+
 # ── Main ─────────────────────────────────────────────────────────────────────
 
 ALL_CHECKS = [
@@ -657,6 +1148,16 @@ ALL_CHECKS = [
     "url-slug-dedup",
     "ymyl-hub-check",
     "product-topic-match",
+    "brand-niche",
+    "spec-consistency",
+    "hub-consistency",
+    "product-coherence",
+    "dollar-figures",
+    "furniture-pages",
+    "amazon-tag",
+    "brand-collision",
+    "ymyl-endorsement",
+    "placeholder-strings",
 ]
 
 STATUS_ICON = {"PASS": "✓", "WARN": "⚠", "FAIL": "✗"}
@@ -694,7 +1195,7 @@ def run_preflight(args) -> int:
 
     print(f"\n{'─' * 60}")
     print(f"  Pre-flight: {brand} ({domain})")
-    print(f"  Checks:     {len(checks_to_run)}/{len(ALL_CHECKS)}")
+    print(f"  Checks:     {len(checks_to_run)}/{len(ALL_CHECKS)}  (v2: furniture-pages  v3: amazon-tag  v5: brand-collision  v8: brand-niche  v9: dollar-figures  v12: ymyl-endorsement  v14: hub-consistency  v15: product-coherence  v16: spec-consistency  v19: placeholder-strings)")
     print(f"  Site root:  {site_root}")
     print(f"{'─' * 60}\n")
 
@@ -716,9 +1217,29 @@ def run_preflight(args) -> int:
         elif check_name == "url-slug-dedup":
             res = check_url_slug_dedup(site_root, args.verbose)
         elif check_name == "ymyl-hub-check":
-            res = check_ymyl_hubs(site_root, args.verbose)
+            res = check_ymyl_hubs(site_root, cfg, args.verbose)
         elif check_name == "product-topic-match":
             res = check_product_topic_match(site_root, args.verbose)
+        elif check_name == "brand-niche":
+            res = check_brand_niche(site_root, cfg, args.verbose)
+        elif check_name == "spec-consistency":
+            res = check_spec_consistency(site_root, args.verbose)
+        elif check_name == "hub-consistency":
+            res = check_hub_consistency(site_root, args.verbose)
+        elif check_name == "product-coherence":
+            res = check_product_coherence(site_root, args.verbose)
+        elif check_name == "dollar-figures":
+            res = check_dollar_figures(site_root, cfg, args.verbose)
+        elif check_name == "furniture-pages":
+            res = check_furniture_pages(site_root, args.verbose)
+        elif check_name == "amazon-tag":
+            res = check_amazon_tag(site_root, args.verbose)
+        elif check_name == "brand-collision":
+            res = check_brand_collision(site_root, args.verbose)
+        elif check_name == "ymyl-endorsement":
+            res = check_ymyl_endorsement(site_root, args.verbose)
+        elif check_name == "placeholder-strings":
+            res = check_placeholder_strings(site_root, args.verbose)
         else:
             continue
 

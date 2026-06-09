@@ -1,0 +1,36 @@
+# DTC brands for the fly-fishing niche.
+#
+# Brands listed here do not sell through Amazon.com in their primary product
+# categories. The sourcing tool intercepts keyword searches containing these
+# brand names and creates NOT_ON_AMAZON placeholder entries instead of
+# backfilling with competitor products from Amazon search results.
+#
+# Format: plain list of brand name strings. Matched case-insensitively as
+# whole words against the article search keyword.
+#
+# When to add a brand:
+#   - Brand sells exclusively through its own website or dealer network
+#   - Brand's Amazon presence is third-party grey-market only (no official storefront)
+#   - Adding the brand prevents Amazon from returning a competitor for branded queries
+#
+# When NOT to add a brand:
+#   - Brand has an official Amazon storefront (Orvis, Redington, RIO, Cortland,
+#     Patagonia, Scientific Anglers — all sell on Amazon)
+#   - Brand appears on Amazon but sourcing decisions are made per-ASIN
+#
+# Reference: affiliate-platform/tools/source-products-rainforest.py (load_dtc_brands)
+
+- Scott         # Scott Fly Rod Co — dealer-network only (scottflyrod.com)
+- Sage          # Sage Rod Co — dealer-network only (sageflyfish.com)
+- Winston       # R.L. Winston Rod Co — dealer-network only (winstonrods.com)
+- Hatch         # Hatch Outdoors reels — DTC only (hatchoutdoors.com)
+- Abel          # Abel Reels — DTC only (abelreels.com)
+- Simms         # Simms Fishing Products waders/outerwear — dealer-network only
+- Tibor         # Tibor Reel Corp — DTC only (tiborreel.com)
+- Nautilus      # Nautilus Reels — DTC only (nautilusreels.com)
+- Galvan        # Galvan Fly Reels — DTC only (galvanreels.com)
+- Fishpond      # Fishpond packs/bags/nets — DTC only (fishpondusa.com)
+- Tenkara Rod Co # Tenkara Rod Co — DTC only (tenkarausa.com)
+- Hardy         # Hardy Fishing UK — limited Amazon presence; official channel is hardfishing.com
+- Waterworks Lamson # Waterworks-Lamson reels — dealer-network only
+- Ross          # Ross Reels — dealer-network only (rossreels.com)

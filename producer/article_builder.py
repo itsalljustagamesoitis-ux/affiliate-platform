@@ -794,6 +794,43 @@ def build_frontmatter(
                 ["Provides structured approach to a common home theater setup or upgrade decision"],
                 ["Results vary based on room acoustics and existing equipment baseline"],
             ),
+            # Working dog / pet hubs
+            "tracking-gear": (
+                ["Real-time GPS location removes the guesswork of running dogs off-lead in variable terrain"],
+                ["Cellular coverage requires an ongoing subscription fee beyond the hardware purchase"],
+            ),
+            "training-equipment": (
+                ["Consistent, repeatable output gives the handler a predictable communication tool for distance work"],
+                ["Tool effectiveness depends entirely on handler timing and conditioning skill"],
+            ),
+            "sports-equipment": (
+                ["Built to handle the force and frequency demands of sport training rather than casual use"],
+                ["Sport-grade construction sets a higher price floor than equivalent recreational equipment"],
+            ),
+            "collars-and-leashes": (
+                ["Rated for the load and use patterns of working dogs rather than casual daily wear"],
+                ["Heavier gauge construction adds material weight compared to lifestyle collars"],
+            ),
+            "harnesses": (
+                ["Distributes pressure across the chest and shoulders rather than the throat during active work"],
+                ["Fit requires careful girth and chest-width measurement — sizing varies significantly between breeds"],
+            ),
+            "crates-and-transport": (
+                ["Structural integrity sufficient for a dog that tests or pushes against the enclosure"],
+                ["Heavier gauge construction increases total weight, which matters for travel and vehicle loading"],
+            ),
+            "outdoor-gear": (
+                ["Purpose-built protection for working conditions rather than pet fashion or casual use"],
+                ["Fit requires accurate breed-specific measurements to avoid slippage or restriction under load"],
+            ),
+            "chews-and-treats": (
+                ["Single-ingredient natural options provide chew duration without the artificial binders in processed alternatives"],
+                ["Caloric load and chew duration vary significantly by dog size and chewing intensity"],
+            ),
+            "training-treats": (
+                ["High-value reinforcer maintains motivation through extended sessions without satiation drop-off"],
+                ["Requires a proper fade strategy to avoid food-lure dependence in finished behaviors"],
+            ),
         }
 
         pros, cons = HUB_FALLBACKS.get(hub, ([], []))
@@ -818,6 +855,8 @@ def build_frontmatter(
         if not pros and _buying_type:
             hub_slug = article.get("hub_slug", article.get("hub", ""))
             pros, cons_derived = _derive_pros_cons(p, hub_slug)
+            if pros:
+                print(f"[WARN] hub-fallback pros/cons fired for {key} (hub={hub_slug}) — generate-product-pros-cons.py may not have run", file=sys.stderr)
             if not cons:
                 cons = cons_derived
 

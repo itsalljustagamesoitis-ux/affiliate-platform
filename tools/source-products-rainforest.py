@@ -306,6 +306,30 @@ def save_state(done: set, state_file: Path) -> None:
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def get_processing_order(pipeline_articles: list, already_processed: set, dtc_brands: list) -> list:
+    """Return articles to process in round-robin hub order.
+
+    Guarantees proportional hub coverage even when processing stops early.
+    Articles with no existing products and not yet processed are interleaved
+    hub-by-hub so no single hub can be starved by a run cutoff.
+    """
+    from collections import defaultdict
+    candidates = [
+        a for a in pipeline_articles
+        if not a.get("products") and a["slug"] not in already_processed
+    ]
+    by_hub = defaultdict(list)
+    for a in candidates:
+        by_hub[a.get("hub", "unknown")].append(a)
+    hubs = sorted(by_hub.keys())
+    result = []
+    while any(by_hub[h] for h in hubs):
+        for hub in hubs:
+            if by_hub[hub]:
+                result.append(by_hub[hub].pop(0))
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Bulk product sourcing via Rainforest API",
@@ -347,6 +371,18 @@ def main():
 
     done = load_state(state_file) if args.resume else set()
 
+    # Warn if a partial state exists but --resume wasn't passed
+    if not args.resume and not args.reset_state and state_file.exists():
+        partial = load_state(state_file)
+        if partial:
+            print(
+                f"WARNING: state file found with {len(partial)} processed articles "
+                f"but --resume was not passed. Starting fresh and IGNORING prior state.\n"
+                f"  Pass --resume to continue from where you left off.\n"
+                f"  Pass --reset-state to suppress this warning.",
+                file=sys.stderr,
+            )
+
     print(f"Site:       {args.site}")
     print(f"Site root:  {site_root}")
     if args.dry_run:
@@ -373,7 +409,7 @@ def main():
     products = load_products(products_path)
     articles = pipeline_data.get("articles", [])
 
-    candidates = [a for a in articles if not a.get("products") and a["slug"] not in done]
+    candidates = get_processing_order(articles, done, dtc_brands)
     if args.limit:
         candidates = candidates[:args.limit]
 
@@ -471,6 +507,8 @@ def main():
             if not asin:
                 continue
             if asin in asin_to_key:
+                if asin_to_key[asin] in assigned_keys:
+                    continue
                 assigned_keys.append(asin_to_key[asin])
                 continue
 
@@ -524,6 +562,28 @@ def main():
     print(f"  Total in catalog:     {len(products)}")
     print(f"  Articles still empty: {remaining}")
     print(f"  State file:           {state_file}")
+
+    # Completion check: compare processed slugs vs all expected live articles
+    from collections import defaultdict
+    live_articles = [
+        a for a in articles
+        if a.get("status") not in ("dupe", "drop") and a.get("status") != "skip"
+    ]
+    all_done = load_state(state_file)  # re-read to include this run
+    unprocessed = [a for a in live_articles if a["slug"] not in all_done and not a.get("products")]
+
+    if unprocessed:
+        by_hub = defaultdict(list)
+        for a in unprocessed:
+            by_hub[a.get("hub", "unknown")].append(a["slug"])
+        print(f"\n\u26a0\ufe0f  INCOMPLETE: {len(unprocessed)} live articles still have no products")
+        for hub in sorted(by_hub):
+            print(f"  {hub}: {len(by_hub[hub])} unprocessed")
+        print(f"\n  To resume: re-run with --resume flag")
+        sys.exit(1)
+    else:
+        print(f"\n\u2713 COMPLETE: all {len(live_articles)} live articles have products")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

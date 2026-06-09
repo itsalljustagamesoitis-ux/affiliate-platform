@@ -193,3 +193,19 @@ sites:
     github_repo: itsalljustagamesoitis-ux/firstlightfield
     status: pre_launch
     launched: null
+  - slug: the-working-coat
+    domain: theworkingcoat.com
+    persona: derek-foss
+    tracking_id: theworkingcoat-20
+    ga4_id: null
+    cloudflare_project: the-working-coat
+    github_repo: null
+    deploy_pattern: direct_upload
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 18. Working/sporting/training dog equipment affiliate. Persona: Derek Foss, 48, field wildlife
+      manager, central PA. Dutch Shepherd (IPO2) + GWP (NAVHDA-tested) + young Malinois. 9 hubs: outdoor-gear,
+      collars-and-leashes, crates-and-transport, chews-and-treats, training-equipment, harnesses, tracking-gear,
+      training-treats, sports-equipment. 337 articles. Amazon tag theworkingcoat-20 (placeholder — needs real
+      Associates account). GA4 pending Keith setup.

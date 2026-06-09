@@ -58,7 +58,7 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
         {product.affiliate_link ? (
           <a
             href={product.affiliate_link.url}
-            rel={product.affiliate_link.type === 'amazon' ? 'nofollow sponsored' : 'nofollow'}
+            rel={product.affiliate_link.type === 'amazon' ? 'nofollow sponsored noopener' : 'nofollow noopener'}
             target="_blank"
           >
             {product.name}
@@ -91,7 +91,7 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
         <a
           href={product.affiliate_link.url}
           class={isAmazon ? 'btn btn--amazon' : 'btn btn--primary'}
-          rel={isAmazon ? 'nofollow sponsored' : 'nofollow'}
+          rel={isAmazon ? 'nofollow sponsored noopener' : 'nofollow noopener'}
           target="_blank"
           data-product={product.name}
         >

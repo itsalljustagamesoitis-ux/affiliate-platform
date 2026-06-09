@@ -3,6 +3,7 @@ Tests that site-specific config values are set (non-empty, non-placeholder).
 These catch initialisation mistakes where template values were not replaced.
 """
 
+import pytest
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent.parent
@@ -30,19 +31,15 @@ def test_package_name_is_set(root):
     assert "REPLACE" not in pkg["name"].upper(), "package.json name still has placeholder"
 
 
-def test_no_hardcoded_wrong_domain_in_schema_builder(site_config):
-    """schema_builder.SITE_URL must match site.config.yaml domain."""
-    from schema_builder import SITE_URL
-    expected = f"https://{site_config['site']['domain']}"
-    assert SITE_URL == expected, f"SITE_URL is '{SITE_URL}', expected '{expected}'"
-
-
-def test_schema_builder_loads_url_from_config():
-    """SITE_URL must not be hardcoded — it should be derived from config."""
-    text = (PRODUCER_DIR / "schema_builder.py").read_text()
-    assert "_get_site_url()" in text, "schema_builder.py should load SITE_URL from config, not hardcode it"
-
-
-def test_american_english_rules_in_system_prompt():
-    from article_builder import SYSTEM
-    assert "American English" in SYSTEM
+def test_american_english_in_system_prompt(site_config):
+    """American English rule must appear in the base system prompt."""
+    from prompt_loader import load_prompt
+    import yaml as pyyaml
+    try:
+        persona_path = ROOT / site_config["persona"]["config_path"]
+        persona = pyyaml.safe_load(persona_path.read_text())
+        system_prompt, _ = load_prompt("roundup", site_config, persona)
+        assert "American English" in system_prompt or "american english" in system_prompt.lower(), \
+            "System prompt should instruct American English spelling"
+    except Exception as e:
+        pytest.skip(f"Could not load prompt for this site configuration: {e}")

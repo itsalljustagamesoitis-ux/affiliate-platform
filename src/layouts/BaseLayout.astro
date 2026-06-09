@@ -3,6 +3,8 @@ import { getSiteConfig, getPersona } from '../lib/config'
 import Header from '../components/Header.astro'
 import Footer from '../components/Footer.astro'
 import '../styles/global.css'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 interface Props {
   title: string
@@ -27,13 +29,17 @@ const persona = getPersona()
 
 // GA4_ID env var overrides site.config.yaml — set per-clone in Cloudflare Pages
 const ga4Id = import.meta.env.GA4_ID ?? cfg.analytics.ga4_measurement_id
+const consentDefault = cfg.analytics.consent_default ?? 'denied'
 const googleVerification = import.meta.env.GOOGLE_SITE_VERIFICATION
 const bingVerification = import.meta.env.BING_SITE_VERIFICATION
+const cfAnalyticsToken = import.meta.env.CF_BEACON_TOKEN ?? (cfg.deployment as any).analytics_beacon_token
 // Per-origin storage key — avoids brand coupling across clones
 const consentKey = `${cfg.site.domain.replace(/\./g, '_')}_consent`
 
 const canonical = canonicalUrl ?? new URL(Astro.url.pathname, Astro.site).href
-const ogImageUrl = ogImage ?? `${cfg.images.base_url}/og-default.jpg`
+// OG image must be absolute for Facebook/Twitter parsers — construct from Astro.site
+const ogImagePath = ogImage ?? `${cfg.images.base_url}/og-default.jpg`
+const ogImageUrl = ogImagePath.startsWith('http') ? ogImagePath : new URL(ogImagePath, Astro.site).href
 
 const cssVars = `
   --color-primary: ${cfg.visual.primary_color};
@@ -42,6 +48,20 @@ const cssVars = `
   --font-headings: '${cfg.visual.font_headings}', Georgia, serif;
   --font-body: '${cfg.visual.font_body}', system-ui, sans-serif;
 `.trim()
+
+// Self-hosted fonts — files are in each site's public/fonts/
+const headSlug = cfg.visual.font_headings.toLowerCase().replace(/ /g, '-')
+const bodySlug = cfg.visual.font_body.toLowerCase().replace(/ /g, '-')
+const hasFontFile = (slug: string, wt: number, st: 'normal'|'italic') =>
+  existsSync(join(process.cwd(), 'public', 'fonts', `${slug}-${wt}-${st}.woff2`))
+const headWeights = [400, 600, 700].filter(w => hasFontFile(headSlug, w, 'normal'))
+const headHasItalic = hasFontFile(headSlug, 400, 'italic')
+const bodyWeights = [400, 500, 600].filter(w => hasFontFile(bodySlug, w, 'normal'))
+const fontFaceCSS = [
+  ...headWeights.map(w => `@font-face{font-family:'${cfg.visual.font_headings}';font-weight:${w};font-style:normal;font-display:swap;src:url('/fonts/${headSlug}-${w}-normal.woff2') format('woff2')}`),
+  headHasItalic ? `@font-face{font-family:'${cfg.visual.font_headings}';font-weight:400;font-style:italic;font-display:swap;src:url('/fonts/${headSlug}-400-italic.woff2') format('woff2')}` : '',
+  ...bodyWeights.map(w => `@font-face{font-family:'${cfg.visual.font_body}';font-weight:${w};font-style:normal;font-display:swap;src:url('/fonts/${bodySlug}-${w}-normal.woff2') format('woff2')}`),
+].filter(Boolean).join('')
 
 ---
 
@@ -65,6 +85,7 @@ const cssVars = `
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageUrl} />
     <meta property="og:site_name" content={cfg.site.brand_name} />
+    <meta property="og:locale" content="en_US" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
@@ -78,18 +99,22 @@ const cssVars = `
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <link rel="manifest" href="/site.webmanifest" />
 
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href={`https://fonts.googleapis.com/css2?family=${cfg.visual.font_headings.replace(/ /g, '+')}:ital,wght@0,400;0,600;0,700;1,400&family=${cfg.visual.font_body.replace(/ /g, '+')}:wght@400;500;600&display=swap`}
-      rel="stylesheet"
-    />
+    <!-- Self-hosted fonts (no third-party data transfer before consent) -->
+    <style set:html={fontFaceCSS} />
 
     <!-- CSS custom properties from site config -->
     <style set:html={`:root { ${cssVars} }`} />
 
     <slot name="head" />
+
+    <!-- Cloudflare Web Analytics -->
+    {cfAnalyticsToken && (
+      <script
+        defer
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon={`{"token":"${cfAnalyticsToken}"}`}
+      />
+    )}
 
     <!-- GA4 with Consent Mode v2 -->
     {ga4Id && (
@@ -98,12 +123,10 @@ const cssVars = `
           set:html={`
 window.dataLayer=window.dataLayer||[];
 function gtag(){dataLayer.push(arguments)}
-gtag('consent','default',{analytics_storage:'denied',ad_storage:'denied',wait_for_update:500});
+gtag('consent','default',{analytics_storage:'${consentDefault}',ad_storage:'denied',wait_for_update:500});
 gtag('js',new Date());
 gtag('config','${ga4Id}',{anonymize_ip:true});
-if(localStorage.getItem('${consentKey}')==='1'){
-  gtag('consent','update',{analytics_storage:'granted'});
-}
+(function(){var _s=localStorage.getItem('${consentKey}');if(!_s)return;try{var _p=JSON.parse(_s);if(Date.now()-_p.timestamp>=365*24*60*60*1000){localStorage.removeItem('${consentKey}');return;}if(_p.value==='1')gtag('consent','update',{analytics_storage:'granted'});}catch(e){localStorage.removeItem('${consentKey}');}})();
 `}
         />
         <script async src={`https://www.googletagmanager.com/gtag/js?id=${ga4Id}`} />
@@ -120,11 +143,17 @@ if(localStorage.getItem('${consentKey}')==='1'){
 
     <!-- Cookie consent banner -->
     {ga4Id && (
-      <div id="cookie-banner" data-key={consentKey} style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a2e1a;color:#fff;padding:1rem 1.5rem;z-index:9999;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;font-size:.875rem;">
-        <p style="margin:0;flex:1 1 auto;">We use cookies to understand how visitors use this site. <a href="/privacy/" style="color:#a3c97a;text-decoration:underline;">Privacy policy</a></p>
+      <div id="cookie-banner"
+           role="dialog"
+           aria-modal="false"
+           aria-label="Cookie consent"
+           aria-describedby="cookie-banner-desc"
+           data-key={consentKey}
+           style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1f2937;color:#f9fafb;padding:1rem 1.5rem;z-index:9999;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;font-size:.875rem;">
+        <p id="cookie-banner-desc" style="margin:0;flex:1 1 auto;">We use cookies to understand how visitors use this site. <a href="/privacy-policy/" style="color:var(--color-accent,#a3c97a);text-decoration:underline;">Privacy policy</a></p>
         <div style="display:flex;gap:.5rem;flex-shrink:0;">
-          <button id="cookie-accept" style="background:#4a7c59;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.875rem;">Accept</button>
-          <button id="cookie-decline" style="background:transparent;color:#ccc;border:1px solid #555;padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.875rem;">Decline</button>
+          <button id="cookie-accept" style="background:var(--color-primary,#4a7c59);color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.875rem;font-weight:500;">Accept</button>
+          <button id="cookie-decline" style="background:#52525b;color:#fff;border:none;padding:.5rem 1rem;border-radius:4px;cursor:pointer;font-size:.875rem;font-weight:500;">Decline</button>
         </div>
       </div>
     )}
@@ -133,17 +162,53 @@ if(localStorage.getItem('${consentKey}')==='1'){
         var banner=document.getElementById('cookie-banner');
         if(!banner)return;
         var key=banner.dataset.key;
-        var stored=localStorage.getItem(key);
-        if(stored===null)banner.style.display='flex';
-        document.getElementById('cookie-accept').addEventListener('click',function(){
-          localStorage.setItem(key,'1');
+        var MAX_AGE=365*24*60*60*1000;
+        function loadConsent(){
+          var raw=localStorage.getItem(key);
+          if(raw===null)return null;
+          try{
+            var p=JSON.parse(raw);
+            if(Date.now()-p.timestamp>MAX_AGE){localStorage.removeItem(key);return null;}
+            return p.value;
+          }catch(e){localStorage.removeItem(key);return null;}
+        }
+        function saveConsent(val){
+          localStorage.setItem(key,JSON.stringify({value:val,timestamp:Date.now()}));
+        }
+        function showBanner(){
+          banner.style.display='flex';
+          document.body.style.paddingBottom=(banner.offsetHeight||72)+'px';
+          setTimeout(function(){document.getElementById('cookie-accept').focus();},100);
+        }
+        function hideBanner(){
           banner.style.display='none';
+          document.body.style.paddingBottom='';
+        }
+        var consent=loadConsent();
+        if(consent===null){
+          showBanner();
+        }else{
+          hideBanner();
+        }
+        document.getElementById('cookie-accept').addEventListener('click',function(){
+          saveConsent('1');
+          hideBanner();
           if(typeof gtag==='function')gtag('consent','update',{analytics_storage:'granted'});
         });
         document.getElementById('cookie-decline').addEventListener('click',function(){
-          localStorage.setItem(key,'0');
-          banner.style.display='none';
+          saveConsent('0');
+          hideBanner();
         });
+        document.addEventListener('keydown',function(e){
+          if(e.key==='Escape'&&banner.style.display!=='none'){
+            hideBanner();
+          }
+        });
+        window.__showConsentBanner=function(){
+          localStorage.removeItem(key);
+          banner.style.display='flex';
+          setTimeout(function(){document.getElementById('cookie-accept').focus();},100);
+        };
       })();
     </script>
 

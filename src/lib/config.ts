@@ -53,6 +53,7 @@ export interface SiteConfig {
   analytics: {
     ga4_measurement_id: string | null
     bing_uet_tag: string | null
+    consent_default?: 'granted' | 'denied'
   }
   images: {
     base_url: string
@@ -270,8 +271,8 @@ export function resolveProduct(
     brand,
     image: product.default_image,
     price_band: product.price_band,
-    pros: ref.article_specific_pros ?? product.default_pros,
-    cons: ref.article_specific_cons ?? product.default_cons,
+    pros: ref.article_specific_pros ?? product.default_pros ?? [],
+    cons: ref.article_specific_cons ?? product.default_cons ?? [],
     affiliate_url: affiliateLink?.url ?? null,
     affiliate_link: affiliateLink,
     role: ref.role,

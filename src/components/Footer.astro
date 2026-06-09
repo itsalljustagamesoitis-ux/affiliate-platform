@@ -8,6 +8,7 @@ const year = new Date().getFullYear()
 
 // Show top-level categories (excluding "All Reviews" utility entry)
 const footerCats = nav.categories.filter(c => c.hubs.length > 0)
+const hasReviewsHub = nav.categories.some(c => c.hubs.some(h => h.slug === 'reviews'))
 ---
 
 <footer class="site-footer">
@@ -23,14 +24,14 @@ const footerCats = nav.categories.filter(c => c.hubs.length > 0)
           {footerCats.map(cat => (
             <li><a href={`/${cat.slug}/`}>{cat.label}</a></li>
           ))}
-          <li><a href="/reviews/">All Reviews</a></li>
+          {hasReviewsHub && <li><a href="/reviews/">All Reviews</a></li>}
         </ul>
       </div>
       <div class="footer-links">
         <h4>About</h4>
         <ul>
           <li><a href="/about/">About {persona.name_used}</a></li>
-          <li><a href="/how-we-test/">How We Test</a></li>
+          <li><a href="/how-we-research/">How We Research</a></li>
           <li><a href="/contact/">Contact</a></li>
         </ul>
       </div>
@@ -39,6 +40,7 @@ const footerCats = nav.categories.filter(c => c.hubs.length > 0)
         <ul>
           <li><a href="/affiliate-disclosure/">Affiliate Disclosure</a></li>
           <li><a href="/privacy-policy/">Privacy Policy</a></li>
+          <li><a href="#" onclick="event.preventDefault();window.__showConsentBanner&&window.__showConsentBanner();">Manage cookies</a></li>
           <li><a href="/terms/">Terms of Use</a></li>
           <li><a href="/disclaimer/">Disclaimer</a></li>
         </ul>
@@ -46,6 +48,9 @@ const footerCats = nav.categories.filter(c => c.hubs.length > 0)
     </div>
     <div class="footer-bottom">
       <p>&copy; {year} {cfg.site.brand_name}. As an Amazon Associate and Awin publisher, we earn from qualifying purchases.</p>
+      {(cfg as any).site.prior_shop_note && (
+        <p class="footer-bottom__note">{(cfg as any).site.prior_shop_note}</p>
+      )}
     </div>
   </div>
 </footer>

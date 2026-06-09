@@ -1,0 +1,25 @@
+# Brands confirmed not available on Amazon.com in their primary product categories.
+#
+# When the sourcing tool detects one of these brand names in a search keyword it
+# creates a NOT_ON_AMAZON product entry instead of backfilling with a competitor.
+#
+# Format: keyed by site.config.yaml site.niche value.
+# Brands listed under "universal" apply to every niche.
+#
+# Omit brands that DO sell on Amazon (Orvis, Redington, RIO, Cortland, Patagonia)
+# even if some SKUs are DTC — the tool can evaluate Amazon results for those.
+
+fly-fishing:
+  - Scott          # Scott Fly Rod Co — DTC only
+  - Sage           # Sage Rod Co — DTC only
+  - Winston        # R.L. Winston Rod Co — DTC only
+  - Hatch          # Hatch Outdoors reels — DTC only
+  - Abel           # Abel Reels — DTC only
+  - Simms          # Simms Fishing Products waders/outerwear — DTC only
+  - Tibor          # Tibor Reel Corp — DTC only
+  - Nautilus       # Nautilus Reels — DTC only
+  - Galvan         # Galvan Fly Reels — DTC only
+  - Fishpond       # Fishpond packs/bags — DTC only
+  - Tenkara Rod Co # Tenkara Rod Co — DTC only
+
+universal: []

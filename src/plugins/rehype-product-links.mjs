@@ -83,9 +83,23 @@ function visitNode(node, parent, index) {
       // rel/target added by rehypeExternalLinks for amazon.com URLs — don't duplicate
     } else {
       // NOT_ON_AMAZON: strip link, render anchor text as plain <span>
+      // Add data-cta for CTA-style link text (e.g. "Check current price on Amazon")
+      // so CSS can suppress only CTA spans, not prose product-name mentions.
+      const anchorText = node.children
+        ?.filter(c => c.type === 'text')
+        .map(c => c.value)
+        .join('')
+        .trim()
+        .toLowerCase() ?? ''
+      const isCta = anchorText.startsWith('check') || anchorText.startsWith('see price') || anchorText.startsWith('buy ')
       node.tagName = 'span'
       const { href, ...rest } = node.properties
-      node.properties = { ...rest, 'data-product': productSlug, 'data-unavailable': 'true' }
+      node.properties = {
+        ...rest,
+        'data-product': productSlug,
+        'data-unavailable': 'true',
+        ...(isCta ? { 'data-cta': 'true' } : {}),
+      }
     }
     return
   }

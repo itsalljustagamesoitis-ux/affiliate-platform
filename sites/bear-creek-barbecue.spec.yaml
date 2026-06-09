@@ -1,0 +1,100 @@
+# Bear Creek Barbecue — Site 5 spec
+# Drafted 2026-05-11 during TCD batch wind-down
+
+slug: bear-creek-barbecue
+domain: bearcreekbarbecue.com
+niche: outdoor cooking & barbecue equipment
+brand_name: Bear Creek Barbecue
+tagline: "The equipment guide for everyone who isn't a pitmaster"
+
+amazon_associates_id: bearcreekbbq-20
+ga4_measurement_id: G-742CEG3NG0
+
+# Persona — Brian Miller, the acknowledged wannabe
+persona:
+  slug: brian
+  display_name: Brian Miller
+  bio: "44-year-old project manager in Mason, Ohio. Owns a Weber kettle, a Traeger, and ambitions bigger than his concrete patio. Reviews BBQ equipment for the rest of us who aren't competition pitmasters."
+  bio_full: |
+    Brian Miller cooks barbecue on weekends and reads about it during the week.
+    He's owned three smokers, dreamed of a fourth, and learned (eventually)
+    that most of what makes BBQ great isn't the gear.
+
+    Brian writes Bear Creek Barbecue from his suburban Ohio patio, where the
+    HOA prohibits permanent installations and the brisket usually goes on
+    after the kids' Saturday soccer. He's spent fifteen years researching
+    equipment, three years actually using it well, and he writes for the
+    rest of us who care about getting it right but aren't going to compete
+    in KCBS comps.
+
+    The site is named Bear Creek Barbecue because in his head, Brian's at
+    Bear Creek. In reality, he's twenty minutes from a Costco. The site
+    is honest about that gap.
+  location: "Mason, Ohio"
+  location_detail: "suburban Cincinnati metro"
+  background: |
+    Project manager at a regional insurance company for 15 years. Married
+    (Karen), two kids in middle/high school. Concrete patio 16x14 feet,
+    HOA prohibits permanent smoker installations. Owns: Weber Kettle 22"
+    (2017), Traeger Pro 575 (2023), used Pit Barrel drum (bought 2022,
+    used three times), Thermoworks Smoke X4. Sold a competition offset
+    smoker in 2022 after realizing he didn't have the weekends to use it.
+  voice_notes: |
+    Acknowledges the gap between aspiration and reality. Self-deprecating
+    but technically informative. Won't pretend to be more rugged than he is.
+    Knows equipment specs cold because research is his actual hobby. Owns
+    the wannabe identity — that's the whole point. The brand name is the
+    Easter egg: "in my head I'm at Bear Creek, in reality I'm 20 min from
+    a Costco." Honest about constraints (time, weather, family, HOA).
+    Trust through honesty, not credentials.
+
+    Anti-patterns to avoid:
+    - No competition-pitmaster cosplay (no KCBS references, no Aaron
+      Franklin disciple energy)
+    - No rural-cabin aesthetic in language ("Bear Creek" is the joke, not
+      the substance)
+    - No overclaiming expertise — Brian researches more than he cooks
+    - No pretending Costco brisket is beneath him
+
+  photo_source: /Users/keithlacy/Desktop/brian.jpg
+  about_photo_source: /Users/keithlacy/Desktop/brian.jpg
+
+
+# Visual identity — charcoal + ember orange + cream
+visual:
+  primary_color: '#1F1F1F'       # charcoal — actual coals at rest
+  accent_color: '#D9531E'        # ember orange — coals at 4am
+  background_color: '#F5F1EB'    # cream — restraint, not Pinterest white
+  font_headings: Fraunces        # warm serif with presence, not rustic
+  font_body: Inter               # proven readable across all 4 prior sites
+
+# Category structure — 4 categories, 14 hubs
+categories:
+  - slug: smokers
+    label: Smokers
+    hubs:
+      - {slug: offset-smokers,   label: "Offset Smokers"}
+      - {slug: pellet-smokers,   label: "Pellet Smokers"}
+      - {slug: electric-smokers, label: "Electric Smokers"}
+      - {slug: kamado-grills,    label: "Kamado Grills"}
+      - {slug: propane-smokers,  label: "Propane Smokers"}
+
+  - slug: grills
+    label: Grills
+    hubs:
+      - {slug: gas-grills,       label: "Gas Grills"}
+      - {slug: charcoal-grills,  label: "Charcoal Grills"}
+      - {slug: portable-grills,  label: "Portable Grills"}
+      - {slug: griddles,         label: "Griddles"}
+      - {slug: flat-top-grills,  label: "Flat-Top Grills"}
+
+  - slug: outdoor-cooking
+    label: Outdoor Cooking
+    hubs:
+      - {slug: pizza-ovens,        label: "Pizza Ovens"}
+
+  - slug: accessories
+    label: Accessories
+    hubs:
+      - {slug: thermometers,     label: "Thermometers"}
+      - {slug: tools-and-grates, label: "Tools & Grates"}
