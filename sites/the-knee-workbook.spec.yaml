@@ -1,0 +1,162 @@
+# The Knee Workbook — Site 20 spec
+# Generated 2026-06-08
+
+# ── BLOCKING BEFORE launch-site CAN RUN ────────────────────────────────
+#
+# 1. amazon_associates_id — set below; confirm tracking ID with Keith (kneeworkbook-20)
+# 2. ga4_measurement_id   — placeholder; Keith creates GA4 property before deploy
+#
+# Photos: placeholder JPEGs at site path — replace with generate-persona-photos.mjs output
+# ──────────────────────────────────────────────────────────────────────────────
+
+slug: the-knee-workbook
+domain: kneeworkbook.com
+brand_name: The Knee Workbook
+tagline: "Knee equipment reviewed by someone who works on their feet"
+niche: knee pain products and equipment
+description: "Product reviews and buying guides for managing knee pain through equipment and support gear"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+# Confirm tracking ID with Keith — pending Amazon Associates creation
+amazon_associates_id: kneeworkbook-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create property in analytics.google.com, then update here
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  xlsx_path: /tmp/kneeworkbook_pipeline_2026-06-08.xlsx
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: mark-donovan
+  display_name: Mark Donovan
+  location: Burlington, VT
+  location_detail: Burlington, VT (Chittenden County — college town on Lake Champlain, harsh winters, significant construction activity year-round, strong outdoor culture)
+
+  background: "Building inspector (formerly carpenter, 30+ years in construction trades)"
+  # Rule 1 check: grep -h "^background:" /root/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty.
+
+  bio: >-
+    Mark Donovan is a building inspector in Burlington, Vermont, and a former carpenter with thirty-plus
+    years in the construction trades. He has been testing knee braces and recovery gear for fifteen years,
+    ever since job-site kneeling caught up with him. He writes about what held up and what didn't.
+
+  bio_full: >-
+    My name is Mark Donovan. I'm a building inspector based in Burlington, Vermont, and before that I spent
+    more than thirty years as a carpenter — framing, finish work, renovation, all of it. My knees paid for it.
+    The trouble started in my late thirties. Years of kneeling on concrete, aggregate, rough subfloor, crawl-space
+    gravel. Add in the ladder work and the carrying and the not-great habits that come with a young tradesman who
+    thinks he's indestructible, and you get a pair of knees that started making their opinion known around the time
+    I turned thirty-eight. I didn't go looking for a diagnosis. I went looking for gear that would let me keep
+    working. That's been the project for the last fifteen-plus years: figure out which braces, sleeves, compression
+    products, ice machines, foam rollers, and other equipment are actually worth buying, and which ones fall apart
+    in the first season. I've tested somewhere around twenty-five to thirty products. Most were fine. Several were
+    excellent. A few were a waste of money. I write about what held up and what didn't, using the conditions I
+    actually work in: job sites, crawl spaces, rough floors, long days on your feet. I'm not a physical therapist.
+    I'm not an orthopedist. I'm a tradesman who figured out what works for his knees through fifteen years of trial
+    and error, and I write about it in plain language.
+
+  voice_notes: |
+    Mark writes from trade experience, not analytical frameworks. His sentences are short and declarative.
+    He uses job-site conditions as his test environment: "eight days of framing work" is his benchmark.
+    Failure cases are physical and concrete: "the wrap shifted on ladder work," "the sleeve bunched under
+    my work pants." He is direct: when something helped, he says so; when it failed, he describes exactly how.
+    He does not explain products to beginners — he assumes the reader knows what a compression sleeve is.
+    He is not prescriptive: "this is what held up on the job," never "you should buy this."
+    Voice register: first person, past-tense experience, trade vocabulary (load-bearing, kneeling sequence,
+    rough flooring, framing-day knees, aggregate). He says "I wore this through," "it held up," "it didn't
+    make it past," "the wrap stayed put."
+    The contrast with Nathan Keller: Nathan tracks variables and runs experiments. Mark wears something and
+    tells you what happened. Nathan says "I can measure." Mark says "I can tell you if it held up."
+
+  # Placeholder JPEGs exist at site path — replace with generate-persona-photos.mjs output
+  photo_source: /root/kneeworkbook/public/images/brand/mark-donovan-byline.jpg
+  about_photo_source: /root/kneeworkbook/public/images/brand/mark-donovan-about.jpg
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+# Knee pain / construction trades niche: practical durability + trust.
+# Differentiated from BPN (navy #1E3A5F / amber #B05E00 / IBM Plex Serif + PT Serif).
+
+visual:
+  primary_color: "#1B3D2B"      # deep hunter green — construction/outdoor trades, durability
+  accent_color: "#B84B0A"       # burnt orange — urgency, warmth, contrasts cleanly on green
+  background_color: "#F5F6F2"   # cool off-white — slightly different from BPN's warm #F8F7F5
+  font_headings: "Merriweather"  # sturdy slab serif — workbook/reference feel
+  font_body: "Source Serif 4"    # clean, readable body
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+# 10 hubs, single Knee Pain category. 305 articles.
+
+categories:
+  - slug: knee-pain
+    label: Knee Pain
+    hubs:
+      - slug: compression-wear
+        label: Compression Wear
+        description: >-
+          Compression sleeves, knee socks, and graduated compression gear reviewed
+          for joint support and circulation during activity and recovery.
+
+      - slug: knee-braces
+        label: Knee Braces
+        description: >-
+          Hinged braces, wraparound supports, and functional knee braces reviewed
+          for job-site and active-use durability.
+
+      - slug: knee-pain-relief
+        label: Knee Pain Relief
+        description: >-
+          TENS units, topical applicators, and pain-relief devices reviewed for
+          daily management without clinical intervention.
+
+      - slug: knee-pillows
+        label: Knee Pillows
+        description: >-
+          Contour pillows, wedge supports, and positioning aids reviewed for
+          sleep and rest comfort with knee issues.
+
+      - slug: mobility-aids
+        label: Mobility Aids
+        description: >-
+          Crutches, knee scooters, rollators, and walking aids reviewed for
+          limited-mobility phases of recovery.
+
+      - slug: post-surgery-equipment
+        label: Post-Surgery Equipment
+        description: >-
+          Ice machines, compression wraps, and recovery hardware reviewed for
+          the equipment side of post-surgical recovery.
+
+      - slug: recovery-equipment
+        label: Recovery Equipment
+        description: >-
+          Foam rollers, massage guns, ice packs, and muscle recovery tools
+          reviewed for daily knee maintenance.
+
+      - slug: running-shoes
+        label: Running Shoes
+        description: >-
+          Running and work shoes reviewed for knee loading, stability, and
+          cushioning in active and trade use.
+
+      - slug: specialty-wearables
+        label: Specialty Wearables
+        description: >-
+          Patellar straps, kinesiology tape, knee wraps, and targeted support
+          wearables reviewed for specific knee conditions.
+
+      - slug: strengthening
+        label: Strengthening
+        description: >-
+          Resistance bands, balance boards, and exercise equipment used in
+          knee-strengthening routines.

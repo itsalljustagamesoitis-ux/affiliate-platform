@@ -1,0 +1,157 @@
+# The Back Pain Notebook — Site 19 spec
+# Generated 2026-06-07
+
+# ── BLOCKING BEFORE launch-site CAN RUN ────────────────────────────────
+#
+# 1. amazon_associates_id — set below; confirm tracking ID string with Keith
+# 2. ga4_measurement_id   — placeholder; Keith creates GA4 property before deploy
+#
+# Photos: placeholder JPEGs at site path (DALL-E generation deferred per policy)
+# ──────────────────────────────────────────────────────────────────────────────
+
+slug: the-back-pain-notebook
+domain: thebackpainnotebook.com
+brand_name: The Back Pain Notebook
+tagline: "Back pain products reviewed by someone who actually uses them"
+niche: back pain products and equipment
+description: "Product reviews and buying guides for managing back pain through equipment and ergonomics"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+# Confirm tracking ID with Keith — suggested string: thebackpainnotebook-20
+amazon_associates_id: thebackpainnotebook-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create property in analytics.google.com, then update here
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  xlsx_path: /root/the-back-pain-notebook/data/launch-pipeline.xlsx
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: nathan-keller
+  display_name: Nathan Keller
+  location: Madison, WI
+  location_detail: Madison, WI (Dane County — university city, strong remote-work culture, cold winters)
+
+  background: "Data analyst, tech industry, remote"
+  # Rule 1 check: grep -h "^background:" /root/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty.
+
+  bio: >-
+    Nathan Keller is a data analyst working remotely from Madison, Wisconsin, who has been managing
+    chronic lower back issues through equipment and routine for over a decade. He approaches back pain
+    management the way he approaches data problems: track the variables, run the experiment, note the
+    outcomes honestly. He has tested roughly 40 products over 12 years. Some made a measurable
+    difference. Most did not. A handful made things worse. He writes about what he actually used,
+    how long he used it, and what happened.
+
+  bio_full: >-
+    Nathan Keller is a data analyst working remotely from Madison, Wisconsin, where he has spent the
+    better part of a decade turning large datasets into decision-ready summaries for the tech industry.
+    Eight to ten hours at a desk is a normal day. His back started giving him problems around age 33 —
+    the result of a decade of bad desk posture compounded by an awkward moment moving a heavy monitor
+    setup at work. He chose not to pursue imaging after the initial flare resolved with rest. The issue
+    recurred, became chronic around 2018, and he has been managing it through product selection and
+    routine since. No surgery, no injections, no ongoing clinical treatment. He is not a physical
+    therapist, chiropractor, or physician. He approaches back pain management the way he approaches
+    data problems: track the variables, run the experiment, note the outcomes honestly. He has tested
+    roughly 40 products over 12 years. Some made a measurable difference. Most did not. A handful made
+    things worse. He writes about what he actually used, how long he used it, and what happened.
+
+  voice_notes: |
+    Nathan writes the way a data analyst talks about variables: what he measured, over what time period,
+    and what the outcome was. He does not write "amazing" or "game-changing." He writes "my sit-to-stand
+    ratio improved because the chair stopped making me want to shift every 45 minutes" and "the months
+    where I skip more than two foam roller sessions per week correlate with higher discomfort days."
+
+    He is explicit about individual variability. Almost every product claim is followed by a qualifier:
+    "whether this works for you depends on," "individual fit matters enormously," "I cannot tell you
+    whether your issue is the same as mine." This is not false modesty — it is the correct position for
+    someone who is not a medical professional and knows it.
+
+    He cites durations. Not "I've used this for a while" — but "eight months," "27 months," "30 days."
+    He tracks his foam roller sessions in a notes app. He finds this unusual and says so.
+
+    He distinguishes between what a product does mechanically and what it claims to do. Marketing claims
+    about flushing lactic acid or improving posture in two weeks are noted and addressed directly. "That
+    is not a thing" is an acceptable sentence.
+
+    Voice register: first person throughout. He says "I've used," "I noticed," "in my experience."
+    He does not explain products to beginners — he assumes the reader already knows what a lumbar
+    support is and wants to know whether this specific one holds up in a work-from-home context.
+
+    He is not prescriptive. He does not write "you should buy this chair" — he writes "this chair
+    worked for me for eight months and here is specifically why."
+
+  # Placeholder photos already exist at site path from manual creation
+  photo_source: /root/the-back-pain-notebook/public/images/brand/nathan-keller-byline.jpg
+  about_photo_source: /root/the-back-pain-notebook/public/images/brand/nathan-keller-about.jpg
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+# Back pain niche: clinical credibility + empathy warmth. Engineer's notebook voice.
+# Proposal — surface to Keith at Phase 3 checkpoint for approval.
+
+visual:
+  primary_color: "#1E3A5F"      # deep navy — clinical credibility, trust
+  accent_color: "#B05E00"       # amber rust — warmth, empathy contrast
+  background_color: "#F8F7F5"   # warm off-white
+  font_headings: "IBM Plex Serif"   # technical serif — data/engineering coded
+  font_body: "PT Serif"             # clean, readable body
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+# 7 hubs, single Back Pain category. 355 articles (306 live after B45 dedup).
+
+categories:
+  - slug: back-pain
+    label: Back Pain
+    hubs:
+      - slug: active-recovery
+        label: Active Recovery
+        description: >-
+          Foam rollers, percussion massagers, TENS units, and recovery tools
+          for managing back muscle tension and post-work soreness.
+
+      - slug: heat-and-cold-therapy
+        label: Heat and Cold Therapy
+        description: >-
+          Heating pads, infrared wraps, ice packs, and contrast therapy tools
+          for home back pain management.
+
+      - slug: home-equipment
+        label: Home Equipment
+        description: >-
+          Inversion tables, back stretchers, decompression racks, and home gym
+          equipment suited for back pain sufferers.
+
+      - slug: lumbar-and-posture
+        label: Lumbar and Posture
+        description: >-
+          Lumbar rolls, seat cushions, posture correctors, and back braces
+          for desk workers and drivers.
+
+      - slug: office-ergonomics
+        label: Office Ergonomics
+        description: >-
+          Ergonomic office chairs, standing desks, monitor arms, keyboard trays,
+          and anti-fatigue mats for the home office.
+
+      - slug: sleep-optimization
+        label: Sleep Optimization
+        description: >-
+          Mattresses, mattress toppers, pillows, and bed accessories
+          reviewed for back pain sufferers.
+
+      - slug: stretching-and-mobility
+        label: Stretching and Mobility
+        description: >-
+          Yoga blocks, stretching straps, balance boards, and flexibility tools
+          for back pain mobility work.
