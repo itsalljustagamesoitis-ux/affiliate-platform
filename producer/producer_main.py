@@ -13,15 +13,23 @@ Or via site-side shell (sets --site automatically):
   python3 producer/mlt-producer.py --count 10
 
 Flags:
-  --site      Path to site root (default: current working directory)
-  --id        Produce single article by pipeline ID
-  --slug      Produce single article by slug
-  --count     Number of articles to produce
-  --type      Filter by type: Roundup, Review, Comparison, Informational, Buyer Guide
-  --hub       Filter by hub slug
-  --dry-run   Plan without generating (no LLM calls, no file writes)
-  --force     Regenerate even if already staged
-  --publish   Write directly to content/articles/ without staging step
+  --site             Path to site root (default: current working directory)
+  --id               Produce single article by pipeline ID
+  --slug             Produce single article by slug
+  --count            Number of articles to produce (default: ALL pending, with confirmation)
+  --type             Filter by type: Roundup, Review, Comparison, Informational, Buyer Guide
+  --hub              Filter by hub slug
+  --dry-run          Plan without generating (no LLM calls, no file writes)
+  --force            Regenerate even if already staged
+  --publish          Write directly to content/articles/ without staging step
+  --no-confirm       Skip the "produce all N pending?" confirmation (for scripted runs)
+  --skip-verification  Skip pre-flight coverage check (emergency override only)
+
+Exit codes:
+  0  All articles generated successfully
+  1  Completed with article-level skips or failures
+  2  Configuration/environment error (missing site.config.yaml, no API key)
+  3  Coverage gate failure
 """
 
 import argparse
@@ -29,6 +37,7 @@ import os
 import sys
 import time
 import tempfile
+import traceback
 from pathlib import Path
 
 
@@ -103,8 +112,9 @@ def select_articles(pipeline: list, args) -> list:
         pending = [a for a in pending if a.get("hub") == args.hub]
 
     pending.sort(key=lambda a: (a.get("kd", 99), -a.get("volume", 0)))
-    count = args.count or 1
-    return pending[:count]
+    if args.count is None:
+        return pending
+    return pending[:args.count]
 
 
 def verify_coverage(site_root: Path, min_products: int = 4) -> bool:
@@ -150,6 +160,16 @@ def run(args, site_root: Path):
         print("No matching pending articles found.")
         return
 
+    # Finding A: when --count is not given, default is all pending — confirm before running
+    if args.count is None and not args.id and not args.slug:
+        print(f"No --count specified; will produce all {len(articles)} pending articles.")
+        if not args.no_confirm and not args.dry_run:
+            try:
+                input("Press Enter to continue or Ctrl-C to abort: ")
+            except KeyboardInterrupt:
+                print("\nAborted by user.")
+                sys.exit(0)
+
     # Pre-flight coverage check — refuse to run if products are insufficient
     if not args.dry_run and not args.skip_verification:
         print("Running pre-flight coverage check...")
@@ -166,7 +186,11 @@ def run(args, site_root: Path):
     client = None
     if not args.dry_run:
         import anthropic
-        client = anthropic.Anthropic(api_key=get_api_key(site_root))
+        try:
+            client = anthropic.Anthropic(api_key=get_api_key(site_root))
+        except ValueError as e:
+            print(f"ERROR (config): {e}", file=sys.stderr)
+            sys.exit(2)
 
     errors = 0
     skip_counts = {"dupe": 0, "drop": 0, "unknown_status": 0,
@@ -328,15 +352,19 @@ def run(args, site_root: Path):
                     )
                 else:
                     print(f" done. {word_count} words → staging/{slug}.md")
+                    article["staged"] = True
                     generated += 1
-
-                article["staged"] = True
 
             article.pop("_siblings", None)
             save_pipeline(pipeline, site_root)
 
         except Exception as e:
-            print(f" ERROR: {e}")
+            err_type = type(e).__name__
+            print(f" ERROR: {err_type}: {e}")
+            failed_dir = staging_dir / "failed"
+            failed_dir.mkdir(exist_ok=True)
+            tb_path = failed_dir / f"{slug}.traceback"
+            tb_path.write_text(traceback.format_exc(), encoding="utf-8")
             errors += 1
             continue
 
@@ -402,6 +430,11 @@ def main():
         action="store_true",
         help="Skip pre-flight coverage check (emergency override only)",
     )
+    parser.add_argument(
+        "--no-confirm",
+        action="store_true",
+        help="Skip confirmation prompt when --count is omitted (for scripted runs)",
+    )
     args = parser.parse_args()
 
     site_root = Path(args.site).resolve()
@@ -411,7 +444,7 @@ def main():
             f"Pass --site <path> to specify site root.",
             file=sys.stderr,
         )
-        sys.exit(1)
+        sys.exit(2)  # config error, not article-level failure
 
     run(args, site_root)
 
