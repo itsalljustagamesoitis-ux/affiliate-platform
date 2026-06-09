@@ -257,8 +257,8 @@ const navItems = flatNav
 
   .site-nav__link {
     display: flex; align-items: center; gap: 0.3rem;
-    padding: 0 1rem; height: 64px;
-    font-weight: 600; font-size: 0.875rem;
+    padding: 0 0.6rem; height: 64px;
+    font-weight: 600; font-size: 0.8125rem;
     color: var(--color-text); text-decoration: none;
     transition: color 0.15s;
     white-space: nowrap;
@@ -336,6 +336,8 @@ const navItems = flatNav
   }
   .site-header__wordmark:hover { color: var(--color-primary); }
 
+  .site-header__logo-img { max-width: 210px; height: auto; }
+
   /* "More" overflow button — desktop only */
   .site-nav__more-btn {
     background: none; border: none; cursor: pointer;
@@ -348,4 +350,8 @@ const navItems = flatNav
      closed until JS adds .is-open via the More button click handler. */
   .site-nav__more .site-nav__more-list { display: none; }
   .site-nav__more .site-nav__more-list.is-open { display: block; }
+
+  /* Dynamically created overflow items — Astro scoped CSS won't reach them */
+  :global(.site-nav__more-list) { list-style: none; padding: 0.5rem 0; margin: 0; }
+  :global(.site-nav__more-list li) { list-style: none; }
 </style>

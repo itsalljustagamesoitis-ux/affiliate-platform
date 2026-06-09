@@ -319,12 +319,15 @@ def run(args, site_root: Path):
 
                 valid, validator_output = _run_validator(article["type"], tmp_path, site_root)
                 if not valid:
-                    tmp_path.unlink(missing_ok=True)
-                    print(
-                        f"\n  ERROR: validator rejected '{slug}'. "
-                        f"Fix issues and retry. Exiting with code 2."
-                    )
-                    sys.exit(2)
+                    failed_dir = staging_dir / "failed"
+                    failed_dir.mkdir(exist_ok=True)
+                    failed_path = failed_dir / f"{slug}.md"
+                    tmp_path.rename(failed_path)
+                    sidecar_path = failed_dir / f"{slug}.failures"
+                    sidecar_path.write_text(validator_output, encoding="utf-8")
+                    print(f"\n  WARN: validator rejected '{slug}' (publish) — moved to staging/failed/")
+                    errors += 1
+                    continue
 
                 out_path = articles_dir / f"{slug}.md"
                 tmp_path.rename(out_path)

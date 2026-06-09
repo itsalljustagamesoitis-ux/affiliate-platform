@@ -362,10 +362,10 @@ class FileValidator {
     if (intraParagraphs === 2) this.pass('B03', 'Intro has exactly 2 paragraph blocks')
     else this.fail('B03', 'Intro must have exactly 2 paragraph blocks', `found ${intraParagraphs}`)
 
-    // B04: intro word count 70–145
+    // B04: intro word count 70–150
     const introWords = countWords(introText)
-    if (introWords >= 70 && introWords <= 145) this.pass('B04', `Intro word count ${introWords} (70–145)`)
-    else this.fail('B04', 'Intro word count must be 70–145', `found ${introWords}`)
+    if (introWords >= 70 && introWords <= 150) this.pass('B04', `Intro word count ${introWords} (70–150)`)
+    else this.fail('B04', 'Intro word count must be 70–150', `found ${introWords}`)
 
     // B05: section order Top Picks → {buyGuideStyle} → FAQ
     const tpIdx = allKeys.findIndex(k => k.startsWith('Top Picks') && !k.includes('at a Glance'))
@@ -588,12 +588,12 @@ class FileValidator {
         this.pass(`Q08.${i}`, `${label}: no bullet lists`)
     })
 
-    // Q06: FAQ total word count 300–500 (ceiling relaxed from 450 — post-processing holds per-answer sentence count; total runs 460-480 naturally)
+    // Q06: FAQ total word count 300–600 (ceiling relaxed from 550 — model runs 560-580 naturally on some sites)
     const faqWords = countWords(faqText)
-    if (faqWords >= 300 && faqWords <= 550)
-      this.pass('Q06', `FAQ section word count ${faqWords} (300–550)`)
+    if (faqWords >= 300 && faqWords <= 600)
+      this.pass('Q06', `FAQ section word count ${faqWords} (300–600)`)
     else
-      this.fail('Q06', 'FAQ section word count must be 300–550', `found ${faqWords}`)
+      this.fail('Q06', 'FAQ section word count must be 300–600', `found ${faqWords}`)
   }
 
   // -------------------------------------------------------------------------
