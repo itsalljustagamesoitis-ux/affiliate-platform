@@ -209,3 +209,29 @@ sites:
       collars-and-leashes, crates-and-transport, chews-and-treats, training-equipment, harnesses, tracking-gear,
       training-treats, sports-equipment. 337 articles. Amazon tag theworkingcoat-20 (placeholder — needs real
       Associates account). GA4 pending Keith setup.
+  - slug: backpainnotebook
+    domain: backpainnotebook.com
+    persona: dr-ryan-chen
+    tracking_id: backpainnotebook-20
+    ga4_id: G-DLTQPDPN1G
+    cloudflare_project: backpainnotebook
+    github_repo: null
+    deploy_pattern: direct_upload
+    status: live
+    launched: "2026-06-08"
+    notes: >-
+      Site 19. Back pain products affiliate (YMYL-adjacent). Persona: Dr. Ryan Chen, 41, physical therapist.
+      6 hubs, 194 articles. Amazon tag backpainnotebook-20.
+  - slug: the-knee-workbook
+    domain: kneeworkbook.com
+    persona: mark-donovan
+    tracking_id: kneeworkbook-20
+    ga4_id: null
+    cloudflare_project: the-knee-workbook
+    github_repo: null
+    deploy_pattern: direct_upload
+    status: live
+    launched: "2026-06-10"
+    notes: >-
+      Site 20. Knee pain products affiliate (YMYL-adjacent). Persona: Mark Donovan, 54, building inspector
+      (former carpenter). 10 hubs, 276 articles. Amazon tag kneeworkbook-20. GA4 pending Keith setup.
