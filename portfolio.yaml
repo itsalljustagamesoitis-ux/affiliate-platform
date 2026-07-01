@@ -57,7 +57,7 @@ sites:
     launched: 2026-05-18T00:00:00.000Z
   - slug: ten27
     domain: ten27cycles.com
-    persona: dan
+    persona: dan-reeves
     tracking_id: ten27cycles-20
     ga4_id: null
     cloudflare_project: ten27
@@ -122,7 +122,7 @@ sites:
       GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, CF_BEACON_TOKEN.
   - slug: strengthmill
     domain: strengthmill.com
-    persona: dan
+    persona: dan-kowalski
     tracking_id: strengthmill-20
     ga4_id: G-G39HN9TN8E
     cloudflare_project: strengthmill
@@ -204,24 +204,24 @@ sites:
     status: pre_launch
     launched: null
     notes: >-
-      Site 18. Working/sporting/training dog equipment affiliate. Persona: Derek Foss, 48, field wildlife
-      manager, central PA. Dutch Shepherd (IPO2) + GWP (NAVHDA-tested) + young Malinois. 9 hubs: outdoor-gear,
+      Site 18. Working/sporting/training dog equipment affiliate. Persona: Derek Foss, 48, field wildlife manager,
+      central PA. Dutch Shepherd (IPO2) + GWP (NAVHDA-tested) + young Malinois. 9 hubs: outdoor-gear,
       collars-and-leashes, crates-and-transport, chews-and-treats, training-equipment, harnesses, tracking-gear,
-      training-treats, sports-equipment. 337 articles. Amazon tag theworkingcoat-20 (placeholder — needs real
-      Associates account). GA4 pending Keith setup.
+      training-treats, sports-equipment. 337 articles. Amazon tag theworkingcoat-20 (placeholder — needs real Associates
+      account). GA4 pending Keith setup.
   - slug: backpainnotebook
-    domain: backpainnotebook.com
+    domain: thebackpainnotebook.com
     persona: dr-ryan-chen
     tracking_id: backpainnotebook-20
     ga4_id: G-DLTQPDPN1G
-    cloudflare_project: backpainnotebook
+    cloudflare_project: the-back-pain-notebook
     github_repo: null
     deploy_pattern: direct_upload
     status: live
-    launched: "2026-06-08"
+    launched: '2026-06-08'
     notes: >-
-      Site 19. Back pain products affiliate (YMYL-adjacent). Persona: Dr. Ryan Chen, 41, physical therapist.
-      6 hubs, 194 articles. Amazon tag backpainnotebook-20.
+      Site 19. Back pain products affiliate (YMYL-adjacent). Persona: Dr. Ryan Chen, 41, physical therapist. 6 hubs, 194
+      articles. Amazon tag backpainnotebook-20.
   - slug: the-knee-workbook
     domain: kneeworkbook.com
     persona: mark-donovan
@@ -231,7 +231,75 @@ sites:
     github_repo: null
     deploy_pattern: direct_upload
     status: live
-    launched: "2026-06-10"
+    launched: '2026-06-10'
     notes: >-
-      Site 20. Knee pain products affiliate (YMYL-adjacent). Persona: Mark Donovan, 54, building inspector
-      (former carpenter). 10 hubs, 276 articles. Amazon tag kneeworkbook-20. GA4 pending Keith setup.
+      Site 20. Knee pain products affiliate (YMYL-adjacent). Persona: Mark Donovan, 54, building inspector (former
+      carpenter). 10 hubs, 276 articles. Amazon tag kneeworkbook-20. GA4 pending Keith setup.
+  - slug: blackshore
+    domain: byblackshore.com
+    type: brand
+    persona: null
+    tracking_id: null
+    ga4_id: G-2B32HXQ4CV
+    cloudflare_project: blackshore-site
+    github_repo: itsalljustagamesoitis-ux/blackshore-site
+    deploy_pattern: direct_upload
+    status: live
+    launched: '2026-06-12'
+    notes: >-
+      Brand site (not affiliate). Craft soap brand — byblackshore.com. No persona, no Amazon tag. 9 hubs, 284 articles +
+      42 journal essays. Deploy: wrangler pages deploy dist --project-name=blackshore-site. GA4 G-2B32HXQ4CV confirmed
+      unique — not used by any other portfolio site.
+  - slug: threedprinterpicks
+    domain: 3dprinterpicks.com
+    status: live
+    launched: '2026-06-25'
+    deploy_pattern: direct_upload
+    persona: dan-whitaker
+    tracking_id: 3dprinterpicks-20
+    amazon_tag_confirmed: true
+    ga4_id: G-51SSQR8YD4
+    cloudflare_project: threedprinterpicks
+    github_repo: null
+    notes: >-
+      Site 21. 50 articles live. Custom domain 3dprinterpicks.com attached. GSC/BWT/IndexNow done by Keith 2026-06-25.
+      Dan Whitaker persona. FDM/resin 3D printing niche.
+  - slug: sleepsoundguide
+    domain: sleepsoundguide.com
+    status: live
+    deploy_pattern: direct_upload
+    persona: maya-ellison
+    tracking_id: sleepsoundguide-20
+    amazon_tag_confirmed: true
+    ga4_id: G-R41EPVX0FQ
+    cloudflare_project: sleepsoundguide
+    github_repo: null
+    notes: >-
+      Site 22. LIVE 2026-06-27. 46 articles (16 comparison / 14 review / 16 roundup). 4 hubs: sleepbuds, white-noise,
+      headphones, pillow-speakers. Maya Ellison persona (curator-researcher, light sleeper, Chicago IL). IndexNow key:
+      de4a9b92fec4b510eafbaf96edfcd26d. 51 URLs submitted 2026-06-27. Pending Keith: GA4, GSC, BWT.
+  - slug: thecladkitchen
+    domain: thecladkitchen.com
+    status: live
+    deploy_pattern: direct_upload
+    persona: nathan-cole
+    tracking_id: thecladkitchen-20
+    amazon_tag_confirmed: true
+    ga4_id: G-N1DT8MLCSV
+    cloudflare_project: thecladkitchen
+    github_repo: null
+    notes: >-
+      Site 23. SCAFFOLD LIVE 2026-06-28. 50-article pipeline (18 comparison / 14 review / 18 roundup). 4 hubs:
+      premium-nonstick, stainless, enameled-cast-iron, materials. Nathan Cole persona (serious home cook, Portland OR).
+      Persona locked. IndexNow key d6cd612616fef57b81f01e8d9cbd2d4a set in CF. thecladkitchen.com domain attached. All
+      ASINs VERIFY — resolve before first production run. Pending Keith: Amazon Associates thecladkitchen-20, GA4, GSC,
+      BWT.
+  - slug: thecordlessworkshop
+    domain: thecordlessworkshop.com
+    persona: ryan-mercer
+    tracking_id: thecordlessworkshop-20
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: thecordlessworkshop
+    github_repo: itsalljustagamesoitis-ux/thecordlessworkshop
+    status: pre_launch
+    launched: null
