@@ -1,0 +1,176 @@
+# The Cordless Workshop — Site 24 spec
+# Drafted 2026-07-01
+
+# Photos: generate from pen portrait below — male persona, early 40s, flannel/henley,
+# home workshop/garage setting. Must be visibly distinct from Dan Whitaker (3D printing)
+# and Nathan Cole (cookware). After approval, set photo_source + about_photo_source
+# to the approved paths and run initialise-site.mjs.
+
+# ga4_measurement_id — add post-launch when Keith creates GA4 property.
+
+# DUPLICATE SLUG FLAG: 'best-angle-grinders' appears in both 'power-tools' hub and
+# 'workshop' hub in powertools-launch-50.xlsx. One must be renamed before first production
+# build. Suggested fix: 'best-angle-grinders-for-wood' (workshop) vs keep 'best-angle-grinders'
+# in power-tools, or vice versa. Resolve before running xlsx-to-pipeline.
+
+slug: thecordlessworkshop
+domain: thecordlessworkshop.com
+brand_name: The Cordless Workshop
+tagline: "Researched picks from someone who's already made the expensive mistakes"
+niche: power-tools
+description: "Cordless power tool guides — drills, saws, battery platforms, and workshop gear for the serious DIYer"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+amazon_associates_id: thecordlessworkshop-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+# NEEDS KEITH — create property in analytics.google.com, then update here
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+deploy_pattern: direct_upload
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: ryan-mercer
+  display_name: Ryan Mercer
+  location: Columbus, OH
+  location_detail: Columbus, OH (home workshop and garage)
+
+  background: "Lifelong DIYer and weekend woodworker; twenty-plus years of home renovation, deck builds, and committed battery platform decisions"
+  # Rule 1 check: grep -h "^background:" ~/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty.
+
+  # Hard gate — curator-researcher persona. Producer must not emit: "I tested,"
+  # "hands-on," "in our testing," "bench-tested," "after months of use," "we ran it through."
+  testing_claims: false
+
+  bio: >-
+    Ryan Mercer is a lifelong DIYer and weekend woodworker who's bought into
+    (and out of) enough cordless platforms to know which tools earn their place.
+    He compiles The Cordless Workshop's recommendations from specs, platform
+    compatibility, and the consensus of people who actually use the tools.
+
+  bio_full: >-
+    I'm Ryan. I grew up around tools and I've spent twenty-odd years doing my own
+    renovations, deck builds, furniture, and the endless repairs an old house throws
+    at you. Over that time I've bought into battery platforms, regretted a few of
+    those calls, sold off kits, and rebuilt my workshop more than once — so I know
+    exactly how much the platform decision matters and how much marketing gets in the
+    way of it.
+
+    I started The Cordless Workshop because power-tool advice is either affiliate filler
+    or written for pro contractors, when most of us are DIYers trying to figure out
+    whether to commit to DeWalt or Milwaukee for a home workshop.
+
+    Here's the honest version of what this is: I don't run a testing lab. Every
+    recommendation comes from comparing specs and platforms, knowing how the battery
+    systems lock together, and paying close attention to what people who've actually
+    used these tools for years report — checked against my own time in the workshop.
+    No hype, no invented testing, just researched picks from someone who's already
+    made the expensive mistakes.
+
+  voice_notes: |
+    Practical, spec-literate, written for the serious DIYer and weekend builder —
+    not pro-contractor, not total beginner. Specific, never hype: talks in voltage,
+    brushless motors, battery compatibility, torque, run-time, ergonomics, warranty —
+    not "beast of a drill."
+
+    Honest about trade-offs and platform lock-in ("on paper," "owners report," "for
+    a DIYer, the cheaper option makes more sense here"). Ryan's credibility framing:
+    he's a long-time DIYer who's owned and committed to battery platforms over the
+    years — that's his motivation and the reason he's spec-fluent. Method stated
+    openly: recommendations come from spec and platform comparison, manufacturer data,
+    and owner reviews + community consensus (r/Tools, r/DIY, r/MilwaukeeTool,
+    long-term owner threads) weighed against his own years in the workshop. NOT a
+    structured test protocol.
+
+    He says it plainly: "I don't run a tool-testing lab. I compare the specs, I know
+    the platforms, and I pay attention to what people who actually use these tools say
+    after months and years."
+
+    Forbidden vocabulary (platform-wide): "game-changer," "beast," "workhorse" (as
+    hype), "must-have," "unlock," "revolutionary," "elevate," "premium" (as filler).
+    Plain English only. No prices quoted in content — describe tools as budget /
+    mid-range / premium tier. Tool safety topics (kickback, PPE, blade guards): frame
+    factually and per manufacturer guidance only — no authoritative safety instructions
+    that imply liability.
+
+    Sourcing language: "spec sheets show," "owner reports indicate," "community
+    consensus on r/Tools points to," "DeWalt's published torque figures," "after years
+    of owner reports."
+
+  # PENDING — generate from pen portrait before running initialise-site.mjs:
+  # Early-40s man, practical and grounded — looks like a capable DIYer, not a model.
+  # Short hair, maybe light stubble, easy half-smile. Flannel or henley, sleeves pushed
+  # up. Real home workshop / garage, warm natural light, pegboard or tools softly out
+  # of focus behind (no readable brand logos). Candid 35mm look, shallow depth of field.
+  # Visibly distinct from Dan Whitaker (3D printing) and Nathan Cole (cookware).
+  photo_source: /Users/keithlacy/Downloads/Ryan.png
+  about_photo_source: /Users/keithlacy/Downloads/Ryan.png
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+
+visual:
+  primary_color: "#1A2332"       # dark navy-charcoal — industrial, clean
+  accent_color: "#F59B00"        # warm amber — tool-adjacent, distinct from Prusa orange
+  background_color: "#F5F5F4"    # warm off-white
+  font_headings: "Oswald"        # bold condensed — workshop/industrial feel (not used elsewhere)
+  font_body: "Inter"
+
+# ── Keyword source ────────────────────────────────────────────────────────────
+
+keyword_source:
+  xlsx_path: /Users/keithlacy/Downloads/powertools-launch-50.xlsx
+
+# ── Navigation ───────────────────────────────────────────────────────────────
+# 6 hubs, 1 category. 50 launch articles.
+# Hub structure from powertools-launch-50.xlsx.
+
+categories:
+  - slug: cordless-tools
+    label: Cordless Tools
+    hubs:
+      - slug: battery-platforms
+        label: Battery Platforms
+        description: >-
+          Battery platform buying guides and comparisons — DeWalt 20V Max,
+          Milwaukee M18 and M12, Makita LXT, Ryobi One+, and how to choose
+          which ecosystem to commit to.
+
+      - slug: drills-drivers
+        label: Drills & Drivers
+        description: >-
+          Cordless drill and driver guides — comparing brushless drills, impact
+          drivers, hammer drills, and rotary hammers by voltage, torque, and
+          battery compatibility.
+
+      - slug: saws
+        label: Saws
+        description: >-
+          Cordless saw guides — circular saws, miter saws, table saws, jigsaws,
+          reciprocating saws, and track saws for DIY and home workshop use.
+
+      - slug: power-tools
+        label: Power Tools
+        description: >-
+          Cordless power tool guides covering angle grinders, oscillating multitools,
+          random orbital sanders, routers, nailers, impact wrenches, and more.
+
+      - slug: workshop
+        label: Workshop
+        description: >-
+          Workshop gear guides — shop vacuums, air compressors, drill presses,
+          and the support equipment that makes a home workshop functional.
+
+      - slug: outdoor-power
+        label: Outdoor Power
+        description: >-
+          Outdoor cordless power equipment — leaf blowers, string trimmers,
+          chainsaws, pressure washers, and battery lawn mowers.
