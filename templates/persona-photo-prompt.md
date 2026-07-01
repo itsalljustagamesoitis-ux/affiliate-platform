@@ -56,6 +56,11 @@ setting_byline: home office or study with star charts, a telescope eyepiece case
 setting_about: A backyard observatory or patio at dusk, telescope silhouetted against a deep blue twilight sky, milky way beginning to appear
 action_description: Standing at a telescope eyepiece or adjusting a mount polar alignment, focused and in their element
 
+### power-tools
+setting_byline: a home garage workshop with a pegboard of tools softly visible out of focus behind, warm natural light from a side window
+setting_about: A real home workshop or garage with a workbench, a few cordless power tools, and warm ambient light — no readable brand logos
+action_description: Standing at a workbench examining a cordless drill, relaxed and in their element, sleeves pushed up
+
 ### default
 setting_byline: home office with bookshelves and soft natural light from a window
 setting_about: A comfortable, well-appointed home workspace with personal objects visible

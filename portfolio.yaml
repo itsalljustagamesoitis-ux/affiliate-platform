@@ -296,10 +296,18 @@ sites:
       BWT.
   - slug: thecordlessworkshop
     domain: thecordlessworkshop.com
+    status: pre_launch
+    deploy_pattern: direct_upload
     persona: ryan-mercer
     tracking_id: thecordlessworkshop-20
+    amazon_tag_confirmed: false
     ga4_id: G-XXXXXXXXXX
     cloudflare_project: thecordlessworkshop
-    github_repo: itsalljustagamesoitis-ux/thecordlessworkshop
-    status: pre_launch
-    launched: null
+    github_repo: null
+    launched: pre_launch
+    notes: >-
+      Site 24. SCAFFOLD 2026-07-01. 50-article pipeline (9 comparison / 4 buyer_guide / 35 roundup / 2 review).
+      6 hubs: battery-platforms, drills-drivers, saws, power-tools, workshop, outdoor-power. Ryan Mercer persona
+      (lifelong DIYer, Columbus OH). Persona NOT YET LOCKED. IndexNow key 62471b80f9c5212328b318e36191c39f set in CF.
+      thecordlessworkshop.com domain attached. Products sourcing pending. Photos placeholder (need real persona photo).
+      Pending Keith: Amazon Associates thecordlessworkshop-20, GA4, GSC, BWT.
