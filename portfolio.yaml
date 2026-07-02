@@ -301,5 +301,14 @@ sites:
     ga4_id: G-XXXXXXXXXX
     cloudflare_project: thecordlessworkshop
     github_repo: itsalljustagamesoitis-ux/thecordlessworkshop
+    status: live
+    launched: null
+  - slug: thehomewarden
+    domain: thehomewarden.com
+    persona: claire-dunmore
+    tracking_id: thehomewarden-20
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: thehomewarden
+    github_repo: itsalljustagamesoitis-ux/thehomewarden
     status: pre_launch
     launched: null
