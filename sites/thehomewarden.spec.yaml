@@ -1,0 +1,167 @@
+# The Home Warden — Site 25 spec
+# Generated 2026-07-02
+
+# ── BLOCKING BEFORE launch-site CAN RUN ────────────────────────────────
+#
+# 1. ga4_measurement_id   — placeholder; Keith creates GA4 property before deploy
+# 2. Persona photos       — generate from pen portrait via generate-persona-photos.mjs
+#
+# ──────────────────────────────────────────────────────────────────────────────
+
+slug: thehomewarden
+domain: thehomewarden.com
+brand_name: The Home Warden
+tagline: "Practical security gear picks — no contracts where you don't need them"
+niche: home security gear
+description: "Camera, doorbell, lock, and sensor buying guides for the practical homeowner and small landlord"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+amazon_associates_id: thehomewarden-20
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+ga4_measurement_id: G-XXXXXXXXXX
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  xlsx_path: /Users/keithlacy/Downloads/security-launch-50.xlsx
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: claire-dunmore
+  display_name: Claire Dunmore
+  location: Seattle, WA
+  location_detail: Seattle, WA (King County — high rental-market density, Pacific Northwest weather conditions year-round)
+
+  background: "Small-scale landlord and property manager; multi-property security installation and troubleshooting"
+  # Rule 1 check: grep -h "^background:" /root/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty. Verified 2026-07-02 — no clash.
+
+  bio: >-
+    Claire Dunmore owns her home and manages several small rental properties in Seattle, which has meant
+    installing, troubleshooting, and replacing security gear across multiple sites and tenants for years.
+    She compiles The Home Warden's recommendations from specs, install requirements, and the consensus of
+    long-term owners — with a particular focus on what works without a drill, a subscription, or a
+    professional installer.
+
+  bio_full: >-
+    I'm Claire. I own my home and manage a handful of small rental properties — which means I've spent
+    years fitting security gear into places I can't drill into, explaining smart-lock apps to tenants
+    who've never touched a smart-home device, and figuring out which cameras actually hold up through
+    a Pacific Northwest winter without dying or losing their Wi-Fi connection.
+
+    That's a different problem than "buy the best camera money can buy." It's "buy the thing that
+    installs in an afternoon, works reliably for three years, and doesn't require a $10-a-month
+    subscription to do the one thing you actually need it to do."
+
+    How I pick: I don't run a testing lab. Every recommendation here comes from comparing specs,
+    install requirements, and subscription terms across products, plus close attention to what
+    long-term owners actually report — the return-rate patterns, the "worked great for six months
+    then the app stopped syncing" threads, the compatibility complaints with older routers. I weigh
+    that against what I've actually had to install and manage across multiple properties. When
+    something specs well but owners report the battery lasts two weeks instead of six months,
+    the owners win.
+
+    What I won't do: no invented hands-on testing of every product. No pretending professional
+    monitoring is necessary when a self-monitored system genuinely covers the use case. No prices
+    in articles — they move constantly, so I describe gear as budget, mid-range, or premium.
+    And if a category doesn't have a pick I'd actually install myself, I'll say so.
+
+  voice_notes: |
+    Claire writes from a landlord's practical frame: installation overhead, tenant usability,
+    subscription cost, and what survives three years of Seattle weather are her filters.
+    Renter-friendly / no-drill / no-subscription framing is her consistent differentiator.
+    Sentences are direct and specific. She doesn't lead with brand prestige — she leads with
+    install requirements and what happens after six months of real use.
+
+    Honest about trade-offs: "Ring's ecosystem is convenient if you're already in it; if you're not,
+    the subscription is non-trivial." Frames complexity as a genuine obstacle: "tenant has to
+    re-pair this after every power outage" is a real knock, not a footnote. Does not recommend
+    professional monitoring unless the use case genuinely requires it.
+
+    Credibility framing: multi-property installation and management history + research method
+    (specs, install requirements, owner consensus from Amazon reviews, Reddit threads on
+    r/homeautomation, r/homesecurity, r/Locksmith, long-term owner threads). NOT a
+    professional security installer or law-enforcement background. NOT first-person testing claims.
+
+    Forbidden vocabulary: "I tested," "hands-on," "bench-tested," "in our testing," "we ran it through,"
+    "real-world use," "after X weeks with," "game-changer," "must-have," "revolutionary," "premium"
+    as filler. No specific dollar prices in body copy — budget / mid-range / premium only.
+
+    Sourcing language: "spec sheets show," "owner reports indicate," "long-term owners on
+    r/homesecurity report," "Amazon return data suggests," "the install guide specifies,"
+    "manufacturer's stated battery life vs. what owners report."
+
+  photo_source: /Users/keithlacy/thehomewarden/public/images/brand/claire-dunmore-byline.jpg
+  about_photo_source: /Users/keithlacy/thehomewarden/public/images/brand/claire-dunmore-about.jpg
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+# Home security niche: practical trust — not a corporate alarm company, not a tech startup.
+# Differentiated from TCW (#1A2332 navy/#F59B00 amber) and BPN (#1E3A5F/#B05E00 amber).
+
+visual:
+  primary_color: "#1F3251"      # deep slate navy — trustworthy, security
+  accent_color: "#D64045"       # alert red — security urgency, action-oriented
+  background_color: "#F6F6F4"   # warm off-white — approachable
+  font_headings: "Barlow"       # clean, slightly condensed, modern — distinct from Oswald/Merriweather/Lora
+  font_body: "Inter"
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+
+categories:
+  - slug: home-security
+    label: Home Security
+    hubs:
+      - slug: security-cameras
+        label: Security Cameras
+        description: >-
+          Wireless and wired security cameras reviewed for outdoor durability, local storage options,
+          and rental-friendly installation — no professional mounting required.
+
+      - slug: video-doorbells
+        label: Video Doorbells
+        description: >-
+          Video doorbell reviews covering battery-powered and wired options, subscription requirements,
+          local storage, and compatibility with existing doorbell wiring.
+
+      - slug: smart-locks
+        label: Smart Locks & Access
+        description: >-
+          Smart lock and keyless entry reviews for rental properties — focusing on renter-friendly
+          installs, guest access management, and no-subscription operation.
+
+      - slug: sensors-alarms
+        label: Sensors & Alarms
+        description: >-
+          DIY alarm systems, door and window sensors, and motion detectors reviewed for
+          self-monitored setups that work without a professional monitoring contract.
+
+      - slug: cctv-systems
+        label: CCTV & NVR Systems
+        description: >-
+          Small-property CCTV systems and NVR setups reviewed for multi-unit landlords —
+          local recording, PoE cameras for stable connections, and license-plate coverage.
+
+      - slug: security-lighting
+        label: Security Lighting
+        description: >-
+          Motion-activated and smart security lighting reviewed for deterrence, ease of
+          installation, and performance through Pacific Northwest weather conditions.
+
+      - slug: smart-garage
+        label: Smart Garage
+        description: >-
+          Smart garage door controllers and openers reviewed for retrofit compatibility,
+          remote access, and integration with existing security setups.
+
+      - slug: hubs-integration
+        label: Hubs & Integration
+        description: >-
+          Smart home security hubs and integration options reviewed for renters and landlords
+          who want systems that work without professional installation or monthly fees.

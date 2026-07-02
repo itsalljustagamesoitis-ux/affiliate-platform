@@ -311,3 +311,20 @@ sites:
       (lifelong DIYer, Columbus OH). PERSONA LOCKED 2026-07-01. Amazon tag thecordlessworkshop-20 CONFIRMED.
       IndexNow key 62471b80f9c5212328b318e36191c39f set in CF. thecordlessworkshop.com domain attached.
       Products sourcing pending. Pending Keith: GA4, GSC, BWT.
+
+  - slug: thehomewarden
+    status: pre_launch
+    deploy_pattern: direct_upload
+    persona: claire-dunmore
+    tracking_id: thehomewarden-20
+    amazon_tag_confirmed: true
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: thehomewarden
+    github_repo: itsalljustagamesoitis-ux/thehomewarden
+    launched: null
+    notes: >-
+      Site 25. SCAFFOLD 2026-07-02. 50-article pipeline (14 buyer_guide / 36 roundup).
+      8 hubs: security-cameras, video-doorbells, smart-locks, sensors-alarms, cctv-systems,
+      security-lighting, smart-garage, smart-hubs. Claire Dunmore persona (landlord/property manager,
+      Seattle WA). IndexNow key ace13c54ca1efbdb76c410856a976ae7. thehomewarden.com domain attached.
+      Pending: persona lock, product sourcing, GA4, GSC, BWT.
