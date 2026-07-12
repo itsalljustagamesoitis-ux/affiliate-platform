@@ -29,7 +29,7 @@ const persona = getPersona()
 
 // GA4_ID env var overrides site.config.yaml — set per-clone in Cloudflare Pages
 const ga4Id = import.meta.env.GA4_ID ?? cfg.analytics.ga4_measurement_id
-const consentDefault = cfg.analytics.consent_default ?? 'denied'
+const consentDefault = cfg.analytics.consent_default ?? 'granted'
 const googleVerification = import.meta.env.GOOGLE_SITE_VERIFICATION
 const bingVerification = import.meta.env.BING_SITE_VERIFICATION
 const cfAnalyticsToken = import.meta.env.CF_BEACON_TOKEN ?? (cfg.deployment as any)?.analytics_beacon_token
