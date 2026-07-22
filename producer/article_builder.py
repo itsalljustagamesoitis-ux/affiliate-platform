@@ -546,7 +546,8 @@ Article opening:
 {body[:600]}
 
 Rules:
-- Title: MINIMUM 50 characters, maximum 70 characters. Count the characters. Titles under 50 chars are rejected. Keyword near the front, specific and honest (no "ultimate", no "best ever"). If your draft is under 50 chars, extend it: add "Reviewed", "Tested", "for Home Cooks", "Top Picks", etc.
+- Title: MINIMUM 50 characters, maximum 70 characters. Count the characters. Titles under 50 chars are rejected. Keyword near the front, specific and honest (no "ultimate", no "best ever"). If your draft is under 50 chars, extend it with neutral framing like "Guide", "Compared", "Top Picks", "What to Know", "for Home Cooks", etc.
+- Never use "Tested", "Hands-On", "Tried", "Field-Tested", "Road-Tested", or any other first-party testing claim in the title or description — most personas on this platform explicitly do not claim to have tested products, and these words are a hard compliance violation regardless of how the title otherwise reads. "Reviewed" alone is fine — it describes the article, not a testing claim.
 - Meta description: MINIMUM 140 characters, MAXIMUM 160 characters. Count the characters. Target 150. If under 140, add a phrase. Plain sentence, no em dashes, no exclamation marks.
 
 Return JSON only — no other text:
@@ -598,7 +599,24 @@ Return JSON only — no other text:
         if not d_ok:
             issues.append(f"description={d_len} chars — {'ADD a phrase to reach 140+' if d_len < 140 else 'CUT to reach 160 or less'}")
         feedback = f"\n\nPrevious attempt issues: {'; '.join(issues)}. Fix and return JSON only."
-    return best_title, best_desc
+    return _scrub_testing_claims(best_title), _scrub_testing_claims(best_desc)
+
+
+def _scrub_testing_claims(text: str) -> str:
+    """Hard safety net for FTC §255 compliance: strip first-party testing claims
+    from generated titles/descriptions even if the model ignores the prompt
+    instruction. "Reviewed" alone is not a testing claim (it describes the
+    article, not hands-on use) and is left untouched."""
+    if not text:
+        return text
+    text = re.sub(r"\bhands[- ]on\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\b(field|road)[- ]tested\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\btested\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\btried\b", "", text, flags=re.IGNORECASE)
+    text = re.sub(r"\s{2,}", " ", text)
+    text = re.sub(r"\s+([:,.])", r"\1", text)
+    text = re.sub(r"[:,]\s*$", "", text)
+    return text.strip()
 
 
 # ---------------------------------------------------------------------------
