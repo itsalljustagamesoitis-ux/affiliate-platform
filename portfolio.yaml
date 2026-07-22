@@ -306,12 +306,11 @@ sites:
     github_repo: null
     launched: pre_launch
     notes: >-
-      Site 24. SCAFFOLD LIVE 2026-07-01. 50-article pipeline (9 comparison / 4 buyer_guide / 35 roundup / 2 review).
-      6 hubs: battery-platforms, drills-drivers, saws, power-tools, workshop, outdoor-power. Ryan Mercer persona
-      (lifelong DIYer, Columbus OH). PERSONA LOCKED 2026-07-01. Amazon tag thecordlessworkshop-20 CONFIRMED.
-      IndexNow key 62471b80f9c5212328b318e36191c39f set in CF. thecordlessworkshop.com domain attached.
-      Products sourcing pending. Pending Keith: GA4, GSC, BWT.
-
+      Site 24. SCAFFOLD LIVE 2026-07-01. 50-article pipeline (9 comparison / 4 buyer_guide / 35 roundup / 2 review). 6
+      hubs: battery-platforms, drills-drivers, saws, power-tools, workshop, outdoor-power. Ryan Mercer persona (lifelong
+      DIYer, Columbus OH). PERSONA LOCKED 2026-07-01. Amazon tag thecordlessworkshop-20 CONFIRMED. IndexNow key
+      62471b80f9c5212328b318e36191c39f set in CF. thecordlessworkshop.com domain attached. Products sourcing pending.
+      Pending Keith: GA4, GSC, BWT.
   - slug: thehomewarden
     status: pre_launch
     deploy_pattern: direct_upload
@@ -323,8 +322,51 @@ sites:
     github_repo: itsalljustagamesoitis-ux/thehomewarden
     launched: null
     notes: >-
-      Site 25. SCAFFOLD 2026-07-02. 50-article pipeline (14 buyer_guide / 36 roundup).
-      8 hubs: security-cameras, video-doorbells, smart-locks, sensors-alarms, cctv-systems,
-      security-lighting, smart-garage, smart-hubs. Claire Dunmore persona (landlord/property manager,
-      Seattle WA). IndexNow key ace13c54ca1efbdb76c410856a976ae7. thehomewarden.com domain attached.
-      Pending: persona lock, product sourcing, GA4, GSC, BWT.
+      Site 25. SCAFFOLD 2026-07-02. 50-article pipeline (14 buyer_guide / 36 roundup). 8 hubs: security-cameras,
+      video-doorbells, smart-locks, sensors-alarms, cctv-systems, security-lighting, smart-garage, smart-hubs. Claire
+      Dunmore persona (landlord/property manager, Seattle WA). IndexNow key ace13c54ca1efbdb76c410856a976ae7.
+      thehomewarden.com domain attached. Pending: persona lock, product sourcing, GA4, GSC, BWT.
+  - slug: thecuringcellar
+    domain: thecuringcellar.com
+    status: pre_launch
+    deploy_pattern: direct_upload
+    persona: marek-kowalski
+  - slug: liveworksleep
+    domain: liveworksleep.com
+    persona: scott-hilliard
+    status: live
+    github_repo: null
+    notes: >-
+      Legacy build, not on @platform/core — separate repo/pipeline at ~/live-work-sleep. Registered 27 March 2026. 367
+      articles, sleep-optimization affiliate. Added here only so tools/gsc_dashboard.py picks it up for GSC reporting;
+      not otherwise managed through this monorepo's build/deploy tooling.
+  - slug: thecoolcozy
+    domain: thecoolcozy.com
+    persona: priya-anand
+    tracking_id: thecoolcozy-20
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: thecoolcozy
+    github_repo: null
+    deploy_pattern: direct_upload
+    status: pre_launch
+    launched: null
+    notes: >-
+      Site 27. Bedroom temperature comfort affiliate (weighted/electric blankets, cooling bedding/pillows, sleep masks).
+      Persona: Priya Anand, Minneapolis MN, "temperature-mismatch household" curator-researcher framing — one hot
+      sleeper + one cold sleeper under one roof. 50-article pipeline built from bedroom-comfort-launch-50.xlsx (75,590
+      total volume, 7 hubs) — xlsx-to-pipeline.mjs's column validation is stale for the lean 50-article schema (checks
+      for the old 300-article Point-2 column set), so pipeline.json was hand-built using the same
+      angle/h2_structure/required_product_count conventions already live on thecuringcellar/thecordlessworkshop. Domain
+      registered on Cloudflare 2026-07-16. Persona photo provided by Keith directly (same image used for both byline and
+      about). Pending Keith: Amazon Associates ID, GA4 measurement ID, Cloudflare Pages project creation (direct_upload,
+      not git-connected — initialise-site.mjs's Phase 3 only supports GitHub-connected projects, so this needs the same
+      manual wrangler flow used for other Sites 11+).
+  - slug: timepiececare
+    domain: timepiececare.com
+    persona: adam-ferris
+    tracking_id: '2006-29-20'
+    ga4_id: G-XXXXXXXXXX
+    cloudflare_project: timepiececare
+    github_repo: itsalljustagamesoitis-ux/timepiececare
+    status: pre_launch
+    launched: null
