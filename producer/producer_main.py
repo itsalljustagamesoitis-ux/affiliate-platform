@@ -267,7 +267,13 @@ def run(args, site_root: Path):
             continue
 
         eeat = get_eeat_for_cluster(vault, article["hub"])
-        products = get_hub_products(all_products, article["hub"])
+        # Pass the full catalog, not a hub-filtered subset: an article's assigned
+        # products (article["products"]) may legitimately be reused from a product
+        # first catalogued under a different hub. _enforce_product_count's no-
+        # assignment fallback branch already does its own hub-matching internally
+        # (product_matches_hub), so pre-filtering here only breaks the common case
+        # of validating already-assigned cross-hub-reused products.
+        products = all_products
 
         # Attach published siblings for internal linking
         article["_siblings"] = [
