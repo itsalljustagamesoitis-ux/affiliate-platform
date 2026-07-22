@@ -42,8 +42,9 @@ def load_products(site_root: Path) -> dict:
         if "amazon_asin" not in p and "asin" in p:
             p["amazon_asin"] = p["asin"]
         # build_frontmatter reads default_pros/cons to populate article_specific_pros/cons;
-        # Rainforest products don't have them so add placeholder defaults if absent.
-        if "default_pros" not in p:
+        # Rainforest products set these keys to [] rather than omitting them, so check
+        # for emptiness (not just key presence) or the placeholder defaults never fire.
+        if not p.get("default_pros"):
             brand = p.get("brand") or ""
             hub = p.get("hub") or ""
             hub_label = hub.replace("-", " ") if hub else "product"
@@ -51,7 +52,7 @@ def load_products(site_root: Path) -> dict:
                 f"Well-reviewed {hub_label} option" if hub_label else "Highly rated",
                 f"From {brand}" if brand else "Strong customer ratings",
             ]
-        if "default_cons" not in p:
+        if not p.get("default_cons"):
             p["default_cons"] = ["Verify specifications match your needs before purchasing"]
         products[key] = p
     return products

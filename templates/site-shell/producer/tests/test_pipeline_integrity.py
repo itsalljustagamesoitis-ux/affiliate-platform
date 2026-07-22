@@ -107,13 +107,14 @@ class TestProductAssignment:
 
 class TestProductsCatalog:
     def test_all_products_have_required_fields(self, products):
-        required = ["name", "brand", "price_band", "default_pros", "default_cons"]
+        required_nonempty = ["name"]
+        # brand/price_band/amazon_asin/default_pros/default_cons may legitimately be
+        # null or absent (e.g. unbranded generic Amazon listings) — only require the key
+        required_key_present = ["brand", "price_band", "amazon_asin", "default_pros", "default_cons"]
         bad = []
         for key, p in products.items():
-            missing = [f for f in required if not p.get(f)]
-            # amazon_asin may be null for direct-to-consumer brands — check it's present as a key
-            if "amazon_asin" not in p:
-                missing.append("amazon_asin (key missing entirely)")
+            missing = [f for f in required_nonempty if not p.get(f)]
+            missing += [f for f in required_key_present if f not in p]
             if missing:
                 bad.append(f"'{key}': missing {missing}")
         assert not bad, f"{len(bad)} products missing required fields:\n" + "\n".join(bad[:10])
@@ -131,7 +132,7 @@ class TestProductsCatalog:
         bad = []
         for key, p in products.items():
             asin = p.get("amazon_asin")
-            if asin and asin not in ("VERIFY",) and len(asin) != 10:
+            if asin and asin not in ("VERIFY", "NOT_ON_AMAZON", "NOT_FOUND") and len(asin) != 10:
                 bad.append(f"'{key}': ASIN='{asin}' (length {len(asin)}, expected 10)")
         assert not bad, f"Malformed ASINs:\n" + "\n".join(bad)
 

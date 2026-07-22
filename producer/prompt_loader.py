@@ -19,8 +19,8 @@ PROMPTS_DIR = PLATFORM_ROOT / "prompts"
 _PROMPT_MAP = {
     "roundup":     "article-roundup.v1.md",
     "buyer_guide": "article-buyer-guide.v1.md",
-    "comparison":  "article-buyer-guide.v1.md",
-    "review":      "article-buyer-guide.v1.md",
+    "comparison":  "article-comparison.v1.md",
+    "review":      "article-review.v1.md",
 }
 
 # Platform-level product_count limits (not site-overridable per CATALOG-BEHAVIOUR.md)

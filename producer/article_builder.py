@@ -646,6 +646,7 @@ def generate_article(
         messages=[{"role": "user", "content": prompt}],
     )
     body = resp.content[0].text.strip()
+    body = _strip_json_ld_fence(body)
     dollar_allowed = site_config.get("style_policy", {}).get("dollar_figures", {}).get("allowed", False)
     body = _fix_punctuation(body)
     body = _americanize(body)
@@ -747,7 +748,13 @@ def build_frontmatter(
         roles = ["also_consider"] * len(assigned_keys)
 
     def _cy(s):
-        return s.replace("\u2014", ",").replace("\u2013", ",").replace('"', '\\"')
+        # Frontmatter must not contain raw em/en-dash characters (see
+        # test_no_em_dashes_in_frontmatter), but a bare replace leaves the
+        # original spaces around the dash intact, producing "word , word"
+        # instead of "word, word" -- collapse the surrounding whitespace too.
+        s = re.sub(r"\s*[\u2014\u2013]\s*", ", ", s)
+        s = re.sub(r",\s*,", ",", s).rstrip(", ")
+        return s.replace('"', '\\"')
 
     def _derive_pros_cons(product: dict, hub: str) -> tuple[list[str], list[str]]:
         """Derive minimal real pros/cons from product metadata when default_pros/cons are absent.
@@ -888,7 +895,11 @@ def build_frontmatter(
     tags = [hub_slug_tag, article["type"].lower()]
 
     def _clean_yaml(s: str) -> str:
-        return s.replace("\u2014", ",").replace("\u2013", ",").replace('"', '\\"')
+        # See _cy() above -- same fix, collapse whitespace around the dash
+        # instead of leaving a stray space before the comma.
+        s = re.sub(r"\s*[\u2014\u2013]\s*", ", ", s)
+        s = re.sub(r",\s*,", ",", s).rstrip(", ")
+        return s.replace('"', '\\"')
 
     safe_title = _clean_yaml(title) if title else article["keyword"].title()
     safe_desc = _clean_yaml(description) if description else ""
@@ -1113,23 +1124,53 @@ def _enforce_faq_sentence_limit(body: str, max_sentences: int = 4) -> str:
     return pre_faq + '\n'.join(result_lines)
 
 
+def _strip_json_ld_fence(text: str) -> str:
+    """Strip a stray markdown code fence the model sometimes wraps around the
+    FAQPage JSON-LD script block, which would otherwise render as a visible
+    broken code block on the page instead of invisible structured data."""
+    marker = '<script type="application/ld+json">'
+    if marker not in text:
+        return text
+    text = re.sub(r"[ \t]*```[a-zA-Z]*[ \t]*\n(?=" + re.escape(marker) + r")", "", text)
+    text = re.sub(r"(</script>)[ \t]*\n[ \t]*```[ \t]*$", r"\1", text)
+    return text
+
+
 def _fix_punctuation(text: str) -> str:
-    """Hard-fix punctuation the model generates despite instructions."""
-    # Em/en dashes at line boundaries produce orphan commas — strip rather than replace
-    text = re.sub(r"[ \t]*[\u2014\u2013][ \t]*\n", "\n", text)   # trailing dash before newline
-    text = re.sub(r"\n[ \t]*[\u2014\u2013][ \t]*", "\n", text)   # leading dash after newline
-    # Intra-sentence dashes: replace with comma-space
-    text = text.replace("\u2014", ", ")
-    text = text.replace("\u2013", ", ")
-    text = text.replace("---", ", ")
-    text = text.replace(" -- ", ", ")
-    text = text.replace("--", ", ")
+    """Hard-fix punctuation the model generates despite instructions.
+
+    Protects two structural patterns from the dash normalization below:
+    markdown table separator rows (|---|---|) and standalone horizontal-rule
+    lines (a line that is just "---"). The naive \s*---\s* form (whitespace
+    including newlines) swallows the blank lines around a standalone rule,
+    merging the paragraph before it with the heading after it onto one
+    line -- which then fails the H2-heading-at-line-start shape check.
+    Only normalize "---" when used inline as a dash substitute (same-line
+    whitespace only); genuine em/en-dash characters are left untouched --
+    the article-review/comparison prompts explicitly require em-dashes in
+    their own H2 templates (e.g. "## {Product} -- Strengths and
+    Trade-offs"), so stripping them here was corrupting prompt-mandated
+    formatting, not fixing a real punctuation problem.
+    """
+    protect_re = re.compile(r"^[ \t]*(\|[ \t:|-]+\||-{3,})[ \t]*$", re.MULTILINE)
+    stashed = {}
+    def _stash(m):
+        key = "\x00TBLSEP" + str(len(stashed)) + "\x00"
+        stashed[key] = m.group(0)
+        return key
+    text = protect_re.sub(_stash, text)
+
+    text = re.sub(r"[ \t]*---[ \t]*", " \u2014 ", text)
+    text = re.sub(r"[ \t]+--[ \t]+", " \u2014 ", text)
+    text = re.sub(r"(?<=\w)--(?=\w)", "\u2014", text)
     text = re.sub(r"\(\s*\)", "", text)
     text = re.sub(r",\s*\)", ")", text)
     text = re.sub(r"\(\s*,", "(", text)
     text = re.sub(r",\s*,", ",", text)
     text = re.sub(r",\s*\.", ".", text)
     text = re.sub(r"[^\S\n]{2,}", " ", text)
+    for key, original in stashed.items():
+        text = text.replace(key, original)
     return text
 
 
