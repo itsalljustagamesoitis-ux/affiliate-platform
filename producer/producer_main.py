@@ -111,7 +111,7 @@ def select_articles(pipeline: list, args) -> list:
     if args.hub:
         pending = [a for a in pending if a.get("hub") == args.hub]
 
-    pending.sort(key=lambda a: (a.get("kd", 99), -a.get("volume", 0)))
+    pending.sort(key=lambda a: (a.get("kd") if a.get("kd") is not None else 99, -a.get("volume", 0)))
     if args.count is None:
         return pending
     return pending[:args.count]
