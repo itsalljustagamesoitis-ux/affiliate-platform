@@ -61,6 +61,16 @@ setting_byline: a home garage workshop with a pegboard of tools softly visible o
 setting_about: A real home workshop or garage with a workbench, a few cordless power tools, and warm ambient light — no readable brand logos
 action_description: Standing at a workbench examining a cordless drill, relaxed and in their element, sleeves pushed up
 
+### bedroom-comfort
+setting_byline: a cozy, lived-in bedroom, soft natural window light, a folded blanket and pillow softly visible out of focus behind
+setting_about: A warm, lived-in bedroom with a mix of textures visible — a folded weighted blanket, a pillow, soft natural light through a window
+action_description: Sitting on the edge of the bed adjusting a blanket or pillow, relaxed and mid-conversation, not posed
+
+### watch-care
+setting_byline: a small home workbench, a loupe, a few tools, and a couple of watches softly visible out of focus behind, warm desk-lamp lighting
+setting_about: A home workbench setting with a loupe, small tools, and a couple of watches visible, warm desk-lamp lighting, candid 35mm look
+action_description: Bent over a watch strap or tool at the workbench, focused mid-task, sleeves pushed up
+
 ### default
 setting_byline: home office with bookshelves and soft natural light from a window
 setting_about: A comfortable, well-appointed home workspace with personal objects visible

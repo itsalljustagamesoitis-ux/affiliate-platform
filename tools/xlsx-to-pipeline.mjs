@@ -65,7 +65,10 @@ const VALID_TYPES = new Set(['buyer_guide', 'roundup', 'comparison', 'review', '
  * @returns {string}
  */
 // Cross-site type aliases (e.g. 'guide' → 'informational')
-const TYPE_ALIASES = { guide: 'informational', 'how-to': 'informational', 'how to': 'informational', how_to: 'informational' }
+const TYPE_ALIASES = {
+  guide: 'informational', 'how-to': 'informational', 'how to': 'informational', how_to: 'informational',
+  how_to_guide: 'informational',
+}
 
 function normalizeType(raw) {
   if (!raw) return raw
@@ -199,16 +202,28 @@ console.log(`  Found sheet: ${sheetName} (${rawRows.length} rows)`)
     if (!has('AI Overview') && has('AI Overview flag')) row['AI Overview'] = row['AI Overview flag']
     // 'Premium Brand' — alias from 'Premium Brand flag'
     if (!has('Premium Brand') && has('Premium Brand flag')) row['Premium Brand'] = row['Premium Brand flag']
+    // 'Hub' — alias from 'Hub Label' (minimal-schema exports carry Hub Slug + Hub Label but no 'Hub' column)
+    if (!has('Hub') && has('Hub Label')) row['Hub'] = row['Hub Label']
   }
-  if (!has('#') || !has('Cluster') || !has('AI Overview') || !has('Premium Brand')) {
+  if (!has('#') || !has('Cluster') || !has('AI Overview') || !has('Premium Brand') || !has('Hub')) {
     const mapped = []
     if (!has('#'))            mapped.push('# (auto-generated)')
     if (!has('Cluster'))      mapped.push('Cluster ← Category')
     if (!has('AI Overview'))  mapped.push('AI Overview ← AI Overview flag')
     if (!has('Premium Brand')) mapped.push('Premium Brand ← Premium Brand flag')
+    if (!has('Hub'))          mapped.push('Hub ← Hub Label')
     console.log(`  [INFO] Column aliases applied: ${mapped.join(', ')}`)
   }
 }
+
+// Columns that are genuinely optional metadata in the CC schema — the row
+// mapper below already defaults these to null/false when absent per-row, so
+// a minimal export that omits the columns entirely (not just leaves cells
+// blank) should not fail validation.
+const OPTIONAL_COLS = [
+  'Hub URL', 'Locked URL', 'Required Product Count', 'Angle', 'H2 Structure',
+  'Quality', 'AI Overview', 'Premium Brand', 'Source Seed',
+]
 
 // ── Schema detection ──────────────────────────────────────────────────────────
 // Simple schema: has 'archetype' + 'hub' columns but not 'Article Type'.
@@ -306,13 +321,18 @@ if (isSimpleSchema) {
 } else {
   // CC schema validations (original)
 
-  // Validation 3: required columns
-  const missingCols = REQUIRED_COLS.filter(col => !firstRowCols.has(col))
+  // Validation 3: required columns (OPTIONAL_COLS may be entirely absent — the
+  // row mapper defaults those to null/false per-row regardless)
+  const missingCols = REQUIRED_COLS.filter(col => !firstRowCols.has(col) && !OPTIONAL_COLS.includes(col))
+  const missingOptionalCols = OPTIONAL_COLS.filter(col => !firstRowCols.has(col))
   if (missingCols.length > 0) {
     fail(`Missing required columns: ${missingCols.join(', ')}`)
     errors++
   } else {
     pass('Required columns present')
+  }
+  if (missingOptionalCols.length > 0) {
+    console.log(c.yellow(`  [INFO] Optional columns absent, defaulting to null/false: ${missingOptionalCols.join(', ')}`))
   }
 
   // Validation 4: every row has #, Slug, Hub, Cluster, Article Type

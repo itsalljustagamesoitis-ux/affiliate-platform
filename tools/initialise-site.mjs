@@ -77,9 +77,12 @@ const DEPLOY_LAG     = 30_000
 
 const BINARY_EXTS = new Set([
   '.jpg', '.jpeg', '.png', '.gif', '.webp', '.ico', '.bmp', '.tiff',
-  '.svg', '.woff', '.woff2', '.ttf', '.eot', '.otf',
+  '.woff', '.woff2', '.ttf', '.eot', '.otf',
   '.pdf', '.zip', '.tar', '.gz', '.mp3', '.mp4', '.wav',
 ])
+// .svg is deliberately NOT in this list -- the site-shell template's logo
+// files are text/XML containing {{BRAND_NAME}} etc. tokens that need
+// substitution, not opaque binary assets.
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -259,8 +262,15 @@ function buildSiteConfig(spec) {
       font_headings:    spec.visual.font_headings,
       font_body:        spec.visual.font_body,
       slots: 5,
+      logo_paths: {
+        favicon:      '/favicon.ico',
+        header_svg:   '/images/brand/logo-header.svg',
+        header_png:   '/images/brand/logo-header.svg',
+        footer_svg:   '/images/brand/logo-footer.svg',
+        social_square: '/images/brand/logo-header.svg',
+      },
     },
-    images: { base_url: '/images' },
+    images: { base_url: '/images', pexels_niche_keyword: spec.niche.split('-')[0] },
     style_policy: {
       word_count:            { min: 2000, max: 3500 },
       dollar_figures:        { allowed: true },
@@ -293,6 +303,8 @@ function buildPersonaYaml(spec) {
     name_formal:     spec.persona.display_name,
     name_used:       firstName,
     display_name:    spec.persona.display_name,
+    role:            spec.persona.role ?? 'Founder & Editor',
+    testing_claims:  spec.persona.testing_claims ?? false,
     bio:             spec.persona.bio,
     bio_short:       spec.persona.bio,
     bio_full:        spec.persona.bio_full ?? spec.persona.bio,
@@ -300,6 +312,14 @@ function buildPersonaYaml(spec) {
     location_detail: spec.persona.location_detail ?? spec.persona.location,
     background:      spec.persona.background ?? '',
     voice_notes:     spec.persona.voice_notes,
+    // Lock-eligibility fields (lock-persona.mjs REQUIRED_FIELDS) — genuinely
+    // bespoke per persona, so these come from the spec rather than a generic
+    // default. Omitted entirely if the spec doesn't supply them, so a missing
+    // value fails lock validation loudly instead of locking in an empty list.
+    ...(spec.persona.defers_to           && { defers_to:           spec.persona.defers_to }),
+    ...(spec.persona.forbidden_patterns  && { forbidden_patterns:  spec.persona.forbidden_patterns }),
+    ...(spec.persona.allowed_patterns    && { allowed_patterns:    spec.persona.allowed_patterns }),
+    ...(spec.persona.editorial_constraints && { editorial_constraints: spec.persona.editorial_constraints }),
     photo_byline:    `/images/brand/${spec.persona.slug}-byline.jpg`,
     photo_about:     `/images/brand/${spec.persona.slug}-about.jpg`,
     photos: {
@@ -412,6 +432,7 @@ async function phase1(spec, slug, state) {
   const TOKENS = {
     '{{SITE_SLUG}}':             spec.slug,
     '{{SITE_DOMAIN}}':           spec.domain,
+    '{{BRAND_NAME}}':            spec.brand_name,
     '{{SITE_DESCRIPTION}}':      spec.description ?? spec.niche,
     '{{SITE_NICHE}}':            spec.niche,
     '{{AMAZON_ASSOCIATES_ID}}':  spec.amazon_associates_id,

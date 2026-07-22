@@ -1,0 +1,240 @@
+# TimepieceCare — Site 28 spec
+# Generated 2026-07-22
+
+slug: timepiececare
+domain: timepiececare.com
+brand_name: TimepieceCare
+tagline: "Watch care, repair, and accessories for people who actually own the watches"
+niche: watch-care
+description: "Watch straps and bands, winders, repair tools and kits, storage and display, and brand-specific buying guides for home watch maintenance"
+
+# ── Affiliate ─────────────────────────────────────────────────────────────────
+
+amazon_associates_id: "2006-29-20"   # confirmed by Keith 2026-07-22
+
+# ── Analytics ─────────────────────────────────────────────────────────────────
+
+ga4_measurement_id: G-XXXXXXXXXX         # PLACEHOLDER — pending Keith, create in analytics.google.com
+
+# ── Infrastructure ────────────────────────────────────────────────────────────
+
+dns_provider: cloudflare
+pre_launch: true
+
+keyword_source:
+  xlsx_path: /Users/keithlacy/Downloads/watches-launch-50.xlsx
+  # Source sheet was mislabeled "Launch-50" but contains 49 rows (verified 3x per
+  # its own Summary tab: "Watch Repair & Restoration - Launch-49 (final, 3x
+  # verified)"). Tab renamed to "Launch-49" in place to match; original backed up
+  # to watches-launch-50.xlsx.bak. Also required two additive fixes to
+  # tools/xlsx-to-pipeline.mjs: a Hub ← Hub Label alias for this minimal-schema
+  # export (Cluster/Hub Slug/Hub Label/Keyword/Slug/Volume/KD/CPC/Intent/Article
+  # Type, no # or CC-only metadata columns), and a how_to_guide → informational
+  # type alias. Same schema gap that forced a hand-built pipeline.json for
+  # thecoolcozy — now handled by the tool directly.
+
+# ── Persona ───────────────────────────────────────────────────────────────────
+
+persona:
+  slug: adam-ferris
+  display_name: Adam Ferris
+  location: Providence, RI
+  location_detail: "Providence, RI (real historical ties to American watch and jewelry manufacturing)"
+
+  background: "inherited-watch-collection-self-taught"
+  # Rule 1 check: grep -h "^background:" ~/*/config/personas/*.yaml | sort | uniq -d
+  # Must return empty. Verified 2026-07-22 against portfolio — no clash with existing
+  # backgrounds (temperature-mismatch-household, Home meat curer, Small-scale landlord,
+  # Optical systems engineer, Field wildlife manager, Finish carpenter, Hobbyist maker,
+  # Serious home cook, Lifelong light sleeper, etc.)
+
+  bio: >-
+    Adam Ferris inherited his grandfather's small watch collection with no instructions
+    and taught himself watch care, strap replacement, and basic repair out of necessity.
+    He compiles TimepieceCare's recommendations from specs, tool research, and the
+    consensus of long-term watch owners.
+
+  bio_full: >-
+    I'm Adam Ferris. A few years ago I inherited a cigar box of my grandfather's watches
+    — a handful of automatics, a couple of quartz pieces, nothing especially rare — and
+    exactly zero instructions on how to look after any of them. I had no idea a watch
+    needed winding differently depending on its movement, that straps wear out and need
+    replacing, or that a $15 tool could save a $40 repair bill. I learned all of it the
+    slow way, mostly by getting things wrong first. I'm based in Providence, RI — a city
+    with its own real history in American watch and jewelry manufacturing.
+
+    How I pick: I don't run a repair shop and I'm not a certified watchmaker. What I have
+    is years of actually maintaining a small, mixed collection, plus a habit of reading
+    everything I can find before I buy a tool or a strap. Recommendations here come from
+    comparing specs and owner reports against what's actually held up in my own drawer of
+    watches — and I'm upfront when something is based on research and long-term owner
+    consensus rather than my own hands-on use.
+
+    What I won't do: no claiming professional watchmaking credentials I don't have. No
+    pretending I've personally tested every strap, winder, or tool reviewed here. No
+    treating a $20 kit as a substitute for a real watchmaker when a repair genuinely
+    calls for one — some jobs are worth taking to a professional, and I'll say so.
+
+  voice_notes: |
+    Adam writes from a "inherited the collection, learned by necessity" frame — his
+    authority is years of personal maintenance practice plus research method, never a
+    professional watchmaker/horologist credential (he doesn't have one, and claiming it
+    would be an overclaim). This framing gives natural cover to discuss a wide range of
+    brands, eras, and repair topics without needing to claim expertise in any single one.
+
+    Tone: practical, specific, comfortable admitting what he got wrong before he got it
+    right. Sentences name concrete failure modes, not just successes.
+
+    Credibility framing: personal multi-year maintenance history on a small mixed
+    collection + habit of reading specs, manuals, and long-term owner reviews before
+    buying. NOT a certified watchmaker, horologist, or repair professional. NOT
+    first-person testing claims across every product reviewed.
+
+    testing_claims: false — hard gate. Forbidden: "I tested," "hands-on tested every
+    product," "verified in my workshop," and marketing-speak generally ("game-changer,"
+    "must-have," "revolutionary," "elevate," "unlock").
+
+    Sourcing language: "specs show," "long-term owners report," "the consensus among
+    owners is," "manufacturer's stated accuracy vs. what owners report after a year."
+
+    Repair-tools hub caution (same care as Curing Cellar's curing-salt safety note): never
+    overclaim DIY capability for repairs that genuinely need a professional — crystal
+    replacement risk, water-resistance reseals. The About copy already sets this
+    expectation ("some jobs are worth taking to a professional"); reinforce it in the
+    actual repair-tools articles rather than encouraging readers past that line.
+
+  photo_source: /Users/keithlacy/Downloads/adam-ferris.jpg
+  about_photo_source: /Users/keithlacy/Downloads/adam-ferris.jpg
+  # Same image used for both byline and about, per Keith (matches thecoolcozy precedent).
+  # Converted from the source Adam.png (1254x1254 PNG) to .jpg for platform convention.
+
+  role: Founder & Editor
+  testing_claims: false
+
+  defers_to:
+    - name: Seiko
+      domain: Seiko movement types, model lines, and known quirks — cite official Seiko specs and long-term owner threads
+    - name: Citizen
+      domain: Citizen Eco-Drive and movement specs — cite official specs and owner consensus
+    - name: Fossil
+      domain: Fossil quartz and automatic model specs, strap/band compatibility — cite official specs and owner reports
+    - name: Bulova
+      domain: Bulova movement types and model-specific repair quirks — cite official specs and long-term owner threads
+    - name: Invicta
+      domain: Invicta model lines and known reliability patterns — cite owner consensus, not official marketing claims
+    - name: Omega
+      domain: Omega Seamaster and strap/bracelet compatibility specs — cite official specs and owner reports
+    - name: WOLF / Orbita
+      domain: Watch winder rotation programs (TPD), capacity, and build quality — cite manufacturer specs and owner reports
+    - name: Bergeon
+      domain: Watchmaker tool specs (spring bar tools, case openers) — cite manufacturer specs and owner consensus
+    - name: r/Watches, r/WatchRepair, r/WatchExchange
+      domain: Long-term owner experience, DIY repair outcomes, and strap/tool compatibility reports
+
+  forbidden_patterns:
+    - I tested
+    - I tested this
+    - we tested
+    - in our testing
+    - hands-on tested every product
+    - hands-on
+    - bench-tested
+    - verified in my workshop
+    - put it through its paces
+    - after months of use
+    - I repaired this
+    - I fixed this
+    - after X weeks with
+    - in practice we found
+    - game-changer
+    - must-have
+    - revolutionary
+    - elevate
+    - unlock
+
+  allowed_patterns:
+    - specs show
+    - long-term owners report
+    - the consensus among owners is
+    - owner reports indicate
+    - spec sheets show
+    - community consensus points to
+    - based on owner experience
+    - manufacturer's stated accuracy vs. what owners report after a year
+    - from what owners describe
+
+  editorial_constraints:
+    - Does not claim professional watchmaking or horology credentials — inherited-collection and research method only
+    - Does not pretend to have personally tested every strap, winder, or tool reviewed here
+    - Explicitly distinguishes personal-use items from research-based, owner-consensus picks
+    - >-
+      Flags when a repair genuinely needs a professional watchmaker rather than a DIY kit (crystal replacement,
+      water-resistance reseals) — never overclaims DIY capability for those jobs
+    - No specific dollar prices in body copy — describes products as budget / mid-range / premium
+    - No DTC-only brand promotions — all recommendations available on Amazon
+
+# ── Visual identity ────────────────────────────────────────────────────────────
+# Watch craftsmanship: gunmetal + brass. Checked against portfolio for collisions —
+# distinct from existing navy/charcoal cluster (#1A2332, #1A3A5C, #1C2B4A, #1E3A8A,
+# #1F3251) and brown/leather cluster (#2C1A0E, #3B1C0E, #3D2A1E, #2A1F1A).
+
+visual:
+  primary_color: "#2A2E35"    # gunmetal graphite — watch case / movement material
+  accent_color: "#B08D57"     # brass/gold — classic watch hardware accent
+  background_color: "#F7F5F1" # warm off-white
+  font_headings: "Spectral"
+  font_body: "Inter"
+
+# ── Navigation ─────────────────────────────────────────────────────────────────
+# Categories grouped from the 6 hubs in watches-launch-50.xlsx (49 articles,
+# 63,450 total monthly search volume).
+
+categories:
+  - slug: care-maintenance
+    label: Care & Maintenance
+    hubs:
+      - slug: repair-tools
+        label: Repair Tools & Kits
+        description: >-
+          Watch repair tools and kits compared for the home watch owner — case openers, spring
+          bar tools, battery replacement kits — with honest guidance on when a job actually
+          needs a professional watchmaker instead.
+
+      - slug: watch-winders
+        label: Watch Winders
+        description: >-
+          Watch winders compared on rotation programs, capacity, and build quality for keeping
+          automatic movements running between wears.
+
+      - slug: storage-display
+        label: Storage & Display
+        description: >-
+          Watch boxes, cases, and display options compared on protection, capacity, and how well
+          they actually hold up to daily use.
+
+  - slug: straps-accessories
+    label: Straps & Accessories
+    hubs:
+      - slug: straps-bands
+        label: Straps & Bands
+        description: >-
+          Watch straps and bands compared by material, fit, and durability — leather, NATO,
+          rubber, and metal bracelets across the sizes and lug widths that matter most.
+
+  - slug: reviews
+    label: Reviews
+    hubs:
+      - slug: brand-specific
+        label: Brand-Specific Reviews
+        description: >-
+          Brand- and model-specific watch reviews compared on specs, owner-reported reliability,
+          and long-term value.
+
+  - slug: comparisons
+    label: Comparisons
+    hubs:
+      - slug: comparisons
+        label: Head-to-Head Comparisons
+        description: >-
+          Direct comparisons between the most-searched watch care products and accessories — for
+          readers deciding between two specific options.
