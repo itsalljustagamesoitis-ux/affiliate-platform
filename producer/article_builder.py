@@ -1171,6 +1171,12 @@ def _fix_punctuation(text: str) -> str:
     text = re.sub(r"[^\S\n]{2,}", " ", text)
     for key, original in stashed.items():
         text = text.replace(key, original)
+    # The model sometimes drops a horizontal-rule line right after a product's
+    # CTA link, presumably as a visual separator before the next ### heading.
+    # It reads as a legitimate standalone rule (so the general protection above
+    # leaves it alone), but it breaks the "last line must be the CTA sentence"
+    # per-product shape check. Strip only this specific placement.
+    text = re.sub(r"(Check current price on Amazon\.[^\n]*)\n+[ \t]*-{3,}[ \t]*\n", r"\1\n", text)
     return text
 
 
