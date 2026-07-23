@@ -14,8 +14,6 @@ if (!process.env.SITE_URL && !_cfg?.site?.domain) {
 
 const siteUrl = process.env.SITE_URL ?? `https://${_cfg.site.domain}`
 
-const isCloudflareProduction = process.env.CF_PAGES === '1' && process.env.CF_PAGES_BRANCH === 'main'
-
 if (!process.env.GOOGLE_SITE_VERIFICATION) {
   // DNS TXT verification is equally valid — warn only, never throw
   console.warn('\x1b[33m⚠ GOOGLE_SITE_VERIFICATION not set — GSC meta tag will not render (fine if using DNS verification)\x1b[0m')
@@ -23,13 +21,15 @@ if (!process.env.GOOGLE_SITE_VERIFICATION) {
 const bingVal = process.env.BING_SITE_VERIFICATION
 const isPlaceholder = bingVal && bingVal.includes('PLACEHOLDER')
 const isBingMissing = !bingVal
-const bingMsg = '⚠ BING_SITE_VERIFICATION not set — Bing meta tag will not render'
-if (isBingMissing && isCloudflareProduction) {
-  throw new Error(bingMsg)
-} else if (isPlaceholder) {
+// Bing Webmaster Tools can import already-verified GSC sites directly (no
+// separate meta tag or DNS record needed for Bing at all) -- that's the
+// standard verification path here, so this must warn like GOOGLE_SITE_VERIFICATION
+// above, never throw. It previously hard-failed the production branch build,
+// which assumed meta-tag/DNS verification was the only valid path.
+if (isPlaceholder) {
   console.warn('\x1b[33m⚠ BING_SITE_VERIFICATION is placeholder — replace before launch\x1b[0m')
 } else if (isBingMissing) {
-  console.warn('\x1b[33m' + bingMsg + '\x1b[0m')
+  console.warn('\x1b[33m⚠ BING_SITE_VERIFICATION not set — Bing meta tag will not render (fine if verified via GSC import or DNS)\x1b[0m')
 }
 
 export default defineConfig({
