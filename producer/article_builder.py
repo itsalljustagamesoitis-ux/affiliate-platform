@@ -441,20 +441,52 @@ def build_prompt(
             f"**{p1.get('name', 'Product A')}** vs **{p2.get('name', 'Product B')}**."
         )
 
-    siblings = article.get("_siblings", [])
     sibling_block = ""
-    if siblings:
-        sibling_lines = "\n".join(
-            f'- [{s["keyword"].title()}](/{s["slug"]}/)'
-            for s in siblings[:6]
-        )
-        sibling_block = (
-            f"\nINTERNAL LINKS — SIBLING ARTICLES:\n"
-            f"These articles are already published on the site in the same topic area.\n"
-            f"Link to 2-3 of them naturally where relevant in the body "
-            f"— not in a list, but as contextual anchor text mid-sentence.\n"
-            f"{sibling_lines}\n"
-        )
+    role = article.get("role")
+    if role == "HEAD":
+        # HEAD articles must link to every spoke that names them as parent_head (Fix 4).
+        # Mandatory, not "link to 2-3" — build-validator's orphaned-spoke-link check
+        # fails the build if any of these links don't land in the rendered output.
+        spokes = article.get("_spokes", [])
+        if spokes:
+            spoke_lines = "\n".join(
+                f'- [{s["keyword"].title()}](/{s["slug"]}/)'
+                for s in spokes
+            )
+            sibling_block = (
+                f"\nINTERNAL LINKS — REQUIRED, ALL SPOKES:\n"
+                f"This is the HEAD article for this topic. You MUST link to every one of the "
+                f"following spoke articles somewhere in the body (a \"Related guides\" section "
+                f"near the end works well, or contextual anchors mid-sentence — your choice, "
+                f"but every link below must appear at least once):\n"
+                f"{spoke_lines}\n"
+            )
+    elif role == "spoke":
+        # Spokes must link back to their parent_head (Fix 4) — mandatory.
+        parent = article.get("_parent_head_article")
+        if parent:
+            sibling_block = (
+                f"\nINTERNAL LINK — REQUIRED, PARENT GUIDE:\n"
+                f"This article is a spoke of [{parent['keyword'].title()}](/{parent['slug']}/). "
+                f"You MUST link to it at least once in the body, naturally, as a contextual anchor "
+                f"(e.g. pointing readers to the fuller buying guide for the general category).\n"
+            )
+    else:
+        # No role structure on this site/article — fall back to the original soft
+        # same-hub sibling suggestion.
+        siblings = article.get("_siblings", [])
+        if siblings:
+            sibling_lines = "\n".join(
+                f'- [{s["keyword"].title()}](/{s["slug"]}/)'
+                for s in siblings[:6]
+            )
+            sibling_block = (
+                f"\nINTERNAL LINKS — SIBLING ARTICLES:\n"
+                f"These articles are already published on the site in the same topic area.\n"
+                f"Link to 2-3 of them naturally where relevant in the body "
+                f"— not in a list, but as contextual anchor text mid-sentence.\n"
+                f"{sibling_lines}\n"
+            )
 
     # For non-platform-prompted types, include H2 structure in prompt
     h2_block = ""
@@ -657,7 +689,10 @@ def generate_article(
         if system_text else system_text
     )
     resp = client.messages.create(
-        model="claude-sonnet-4-6",
+        # PRODUCER_BODY_MODEL overrides the body-generation model for a single run
+        # (env var, not a global default change) — see platform-scope-and-producer-
+        # fixes brief Part 3. Default is unchanged for every site that doesn't set it.
+        model=os.environ.get("PRODUCER_BODY_MODEL", "claude-sonnet-4-6"),
         # 8192: platform system prompt is ~23K chars vs legacy ~4K — output budget compressed at 4096
         max_tokens=8192,
         system=system_block,
@@ -931,6 +966,19 @@ def build_frontmatter(
     # R10: category from article (populated by enrich_article)
     category = article.get("category_label", article.get("category_slug", ""))
 
+    # Head-term / spoke structure (Fix 1 / Fix 4) — optional, only emitted when the
+    # pipeline row actually sets role. Absent on sites that don't use this structure.
+    role_fields = ""
+    role = article.get("role")
+    if role in ("HEAD", "spoke"):
+        role_fields += f'role: "{role}"\n'
+        parent_head = article.get("parent_head")
+        if role == "spoke" and parent_head:
+            role_fields += f'parent_head: "{parent_head}"\n'
+        axis = article.get("axis")
+        if role == "spoke" and axis:
+            role_fields += f'axis: "{axis}"\n'
+
     return f"""---
 title: "{safe_title}"
 slug: "{article['slug']}"
@@ -943,7 +991,7 @@ hero_image: "{hero_image}"
 hero_image_alt: "{hero_alt}"
 description: "{safe_desc}"
 target_keyword: "{article['keyword']}"
-products:
+{role_fields}products:
 {products_yaml}
 tags: {json.dumps(tags)}
 disclosure_required: true

@@ -41,19 +41,16 @@ def load_products(site_root: Path) -> dict:
         # Platform builder also uses 'amazon_asin'; Rainforest uses 'asin'
         if "amazon_asin" not in p and "asin" in p:
             p["amazon_asin"] = p["asin"]
-        # build_frontmatter reads default_pros/cons to populate article_specific_pros/cons;
-        # Rainforest products set these keys to [] rather than omitting them, so check
-        # for emptiness (not just key presence) or the placeholder defaults never fire.
-        if not p.get("default_pros"):
-            brand = p.get("brand") or ""
-            hub = p.get("hub") or ""
-            hub_label = hub.replace("-", " ") if hub else "product"
-            p["default_pros"] = [
-                f"Well-reviewed {hub_label} option" if hub_label else "Highly rated",
-                f"From {brand}" if brand else "Strong customer ratings",
-            ]
-        if not p.get("default_cons"):
-            p["default_cons"] = ["Verify specifications match your needs before purchasing"]
+        # build_frontmatter reads default_pros/cons to populate article_specific_pros/cons.
+        # No generic fallback text here — tools/generate-product-pros-cons.py (launch Point
+        # 10.5) must populate real, product-specific pros/cons before the producer runs.
+        # Falling back to placeholder strings here made the gap invisible: 275/277 strengthmill
+        # articles shipped with identical boilerplate pros/cons because this fallback fired
+        # silently. Leaving default_pros/default_cons unset instead makes a missed Point 10.5
+        # run a visible, catchable failure (empty product card) rather than a plausible-looking
+        # generic one. See claude-code-platform-scope-and-producer-fixes-brief.md Fix 3.
+        p.setdefault("default_pros", [])
+        p.setdefault("default_cons", [])
         products[key] = p
     return products
 

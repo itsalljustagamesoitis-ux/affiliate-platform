@@ -73,8 +73,26 @@ export async function run(ctx) {
     return { status: 'fail', message: 'Cannot parse data/pipeline.json' }
   }
 
-  if (articleCount < 150) {
-    return { status: 'fail', message: `Pipeline has only ${articleCount} articles — minimum 150 required (§1.11)` }
+  // Was a hard fail citing "§1.11" — that section is "Placeholders are obvious,
+  // not plausible" and has nothing to do with article count. No recorded
+  // rationale for 150 specifically was found anywhere in PIPELINE.md/CHANGELOG.md/
+  // CURRENT_RUNBOOK.md (the only genuine "150" specs are the image-bank floor and
+  // the ⌈articles/4⌉ per-hub product floor, both unrelated). Downgraded to a
+  // warning with a per-site override per platform-scope-and-producer-fixes brief.
+  const MIN_ARTICLE_FLOOR = 150
+  let floorOverride = null
+  try {
+    const siteCfg = yaml.load(readFileSync(join(siteDir, 'site.config.yaml'), 'utf-8'))
+    floorOverride = siteCfg?.pipeline?.min_article_count_override ?? null
+  } catch { /* site.config.yaml missing or unparsable — fall through to default floor */ }
+
+  const effectiveFloor = floorOverride ?? MIN_ARTICLE_FLOOR
+  if (articleCount < effectiveFloor) {
+    log.warn(
+      `Pipeline has only ${articleCount} articles — below the ${effectiveFloor}-article floor `
+      + `(${floorOverride !== null ? 'per site.config.yaml pipeline.min_article_count_override' : 'default, no override set'}). `
+      + `Proceeding — this is a warning, not a blocker.`
+    )
   }
 
   log.info(`Producer run: ${articleCount} articles in pipeline`)

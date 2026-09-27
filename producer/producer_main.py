@@ -283,6 +283,23 @@ def run(args, site_root: Path):
             and a["slug"] != article["slug"]
         ]
 
+        # Head-term / spoke linking (Fix 4) — role-aware, on top of the generic
+        # same-hub siblings above. Only populated for articles that opt in via
+        # role/parent_head in pipeline.json; build_prompt() falls back to the
+        # generic sibling block when role is unset.
+        if article.get("role") == "HEAD":
+            article["_spokes"] = [
+                a for a in pipeline
+                if a.get("parent_head") == article["slug"]
+                and a.get("published", False)
+            ]
+        elif article.get("role") == "spoke" and article.get("parent_head"):
+            article["_parent_head_article"] = next(
+                (a for a in pipeline
+                 if a["slug"] == article["parent_head"] and a.get("role") == "HEAD"),
+                None,
+            )
+
         try:
             print("  Generating...", end="", flush=True)
             body, title, description, product_keys = generate_article(

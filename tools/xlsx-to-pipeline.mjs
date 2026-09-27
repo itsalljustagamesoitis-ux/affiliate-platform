@@ -110,6 +110,21 @@ function humanizeHubSlug(hubSlug) {
 }
 
 /**
+ * Strips leading/trailing slashes from a slug cell. Some keyword-plan exports
+ * (e.g. chickens-launch-100.csv) write slugs wrapped in slashes ("/coops/",
+ * "/chicken-coop/") to show the route directly, but every consumer downstream
+ * (navigation.yaml hub.slug, pipeline.json article.slug, [hub].astro's
+ * getStaticPaths) expects a bare slug. Stripping here, once, at ingestion,
+ * avoids malformed routes rather than requiring every call site to remember.
+ * @param {any} v
+ * @returns {string|null}
+ */
+function stripSlashes(v) {
+  if (v === null || v === undefined || v === '') return null
+  return String(v).trim().replace(/^\/+/, '').replace(/\/+$/, '')
+}
+
+/**
  * Coerces a cell value to integer or null.
  * @param {any} v
  * @returns {number|null}
@@ -385,7 +400,7 @@ if (isSimpleSchema) {
   const badHubSlugs = []
   for (let i = 0; i < rawRows.length; i++) {
     const row = rawRows[i]
-    const hubSlug = row['Hub Slug'] ? String(row['Hub Slug']).trim() : String(row['Cluster']).trim()
+    const hubSlug = row['Hub Slug'] ? stripSlashes(row['Hub Slug']) : String(row['Cluster']).trim()
     if (hubSlug && !HUB_SLUG_PATTERN.test(hubSlug)) {
       badHubSlugs.push(`row ${i + 2}: '${hubSlug}'`)
     }
@@ -411,7 +426,7 @@ const articles = isSimpleSchema
       const hub      = String(row['hub']).trim()
       return {
         id:          idx + 1,
-        slug:        slugifyKeyword(keyword),
+        slug:        stripSlashes(slugifyKeyword(keyword)),
         keyword,
         type:        normalizeType(row['archetype']),
         hub,
@@ -432,10 +447,10 @@ const articles = isSimpleSchema
     })
   : rawRows.map(row => ({
       id:                     toInt(row['#']),
-      slug:                   String(row['Slug']).trim(),
+      slug:                   stripSlashes(row['Slug']),
       category:               String(row['Hub']).trim(),
-      hub:                    row['Hub Slug'] ? String(row['Hub Slug']).trim() : String(row['Cluster']).trim(),
-      hub_slug:               row['Hub Slug'] ? String(row['Hub Slug']).trim() : null,
+      hub:                    row['Hub Slug'] ? stripSlashes(row['Hub Slug']) : String(row['Cluster']).trim(),
+      hub_slug:               row['Hub Slug'] ? stripSlashes(row['Hub Slug']) : null,
       hub_label:              String(row['Hub']).trim(),
       cluster:                String(row['Cluster']).trim(),
       locked_url:             row['Locked URL'] ? String(row['Locked URL']).trim() : null,
@@ -499,6 +514,14 @@ if (rejectPatterns.length > 0) {
 // Strip common modifier words from keyword tokens; within each hub, any two
 // articles whose stripped token-sets match are near-duplicates. Keep the
 // highest-volume article; mark the rest status:"dupe" (they won't be produced).
+//
+// v2 (platform-scope-and-producer-fixes brief, Fix 2): adds singularization and
+// repeated-token collapse. The v1 key missed known real-world collisions —
+// "power-rack" vs "power-racks" (plural not stripped) and "power-power-rack"
+// (repeated token not collapsed, since .sort().join() keeps duplicates in an
+// array). This is the same semanticSignature() logic build-validator.mjs runs
+// at build time as a hard fail; this import-time pass is the same rule as an
+// early warning, not the enforcement point — see build-validator.mjs for that.
 
 const MODIFIER_WORDS = new Set([
   'best', 'good', 'great', 'top', 'worst',
@@ -506,23 +529,30 @@ const MODIFIER_WORDS = new Set([
   'premium', 'basic', 'simple', 'easy',
   'a', 'an', 'the',
 ])
+// Price-tier words are a real editorial axis (see build-validator.mjs) — an
+// article can opt out of having them stripped by setting `axis: "price"`.
+// The modifier list itself is not weakened; this is a per-article exemption.
+const PRICE_WORDS = new Set(['affordable', 'cheap', 'budget', 'inexpensive', 'expensive', 'premium'])
 
-function semanticKey(keyword) {
-  return keyword
+function semanticKey(keyword, axis) {
+  const stripSet = axis === 'price'
+    ? new Set([...MODIFIER_WORDS].filter(w => !PRICE_WORDS.has(w)))
+    : MODIFIER_WORDS
+  const tokens = keyword
     .toLowerCase()
     .replace(/['']/g, '')
     .replace(/[^a-z0-9\s]+/g, ' ')
     .split(/\s+/)
-    .filter(t => t && !MODIFIER_WORDS.has(t))
-    .sort()
-    .join(' ')
+    .filter(t => t && !stripSet.has(t))
+    .map(t => (t.length > 3 && t.endsWith('s') ? t.slice(0, -1) : t)) // singularize
+  return [...new Set(tokens)].sort().join(' ') // Set collapses repeated tokens
 }
 
 {
   // Group by (hub, semanticKey) — only consider articles with a volume to rank by
   const groups = new Map()
   for (const a of articles) {
-    const key = `${a.hub}::${semanticKey(a.keyword || a.slug.replace(/-/g, ' '))}`
+    const key = `${a.hub}::${semanticKey(a.keyword || a.slug.replace(/-/g, ' '), a.axis)}`
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key).push(a)
   }

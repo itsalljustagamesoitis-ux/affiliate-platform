@@ -29,6 +29,16 @@ const ArticleSchema = z.object({
   hero_image_alt: z.string().optional(),
   description: z.string().max(200),
   target_keyword: z.string(),
+  // Head-term / spoke structure (Fix 1 / Fix 4). role and parent_head are optional
+  // so existing content without this structure keeps validating; build-validator.mjs
+  // enforces the head-term/orphan rules once a site opts in by setting these fields.
+  role: z.enum(['HEAD', 'spoke']).optional(),
+  parent_head: z.string().optional(),
+  // Editorial axis a spoke covers relative to its HEAD (e.g. "price" —
+  // exempts it from price-word stripping in the keyword-variant collision
+  // check; see build-validator.mjs semanticSignature()). Open string, not an
+  // enum, since axes are additive as new ones come up (size, material, etc.).
+  axis: z.string().optional(),
   products: z.array(ProductRefSchema).default([]),
   tags: z.array(z.string()).default([]),
   rating: z.number().min(1).max(5).optional(),
