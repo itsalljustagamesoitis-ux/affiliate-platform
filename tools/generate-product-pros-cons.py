@@ -83,7 +83,7 @@ def is_skippable(product: dict) -> bool:
 
 # ── Prompt ────────────────────────────────────────────────────────────────────
 
-def build_prompt(key: str, product: dict) -> str:
+def build_prompt(key: str, product: dict, avoid_openings: list = None) -> str:
     title = product.get("title") or product.get("name") or key
     if len(title) > 120:
         title = title[:117].rsplit(" ", 1)[0] + "..."
@@ -92,13 +92,29 @@ def build_prompt(key: str, product: dict) -> str:
     hub_label = hub.replace("-", " ")
     asin = product.get("asin") or product.get("amazon_asin") or "unknown"
 
+    # Each product is generated in an isolated call with no visibility into
+    # siblings in the same hub -- when several products share an obvious numeric
+    # spec (capacity, wattage, port count), every call independently reaches for
+    # it as pro #1, producing "20LB capacity reduces...", "10-gallon capacity
+    # reduces...", "25lbs capacity reduces..." across a whole product batch.
+    # Passing back the actual opening clauses already used this run and banning
+    # them is cheap (a few words of context) and catches this without a bigger
+    # restructure to batch-generate a hub's products in one call.
+    avoid_block = ""
+    if avoid_openings:
+        avoid_list = "\n".join(f'- "{o}"' for o in avoid_openings)
+        avoid_block = f"""
+Other products in this same category, generated earlier in this run, already opened their first pro with:
+{avoid_list}
+Do not open your first pro the same way (same leading word + same claim shape, e.g. "[spec] capacity reduces refilling/maintenance"). Lead with a different attribute (port count, material, mechanism, weatherproofing, price tier) or restructure the sentence, even if capacity is still the most obvious spec."""
+
     return f"""Generate honest pros and cons for this product, based only on what is inferable from its title, brand, and category. Do not invent specific defects or features that the title does not suggest.
 
 Product: {title}
 Brand: {brand}
 Category: {hub_label}
 ASIN: {asin}
-
+{avoid_block}
 Return JSON ONLY (no markdown, no explanation):
 {{
   "pros": ["...", "..."],
@@ -106,7 +122,7 @@ Return JSON ONLY (no markdown, no explanation):
 }}
 
 Guidelines:
-- Pros: 2-3 items, each 6-12 words. Focus on features named in the title (specific mechanism, capacity, build material), brand reputation in this category, or price-tier value implied by the listing.
+- Pros: 2-3 items, each 6-12 words. Focus on features named in the title (specific mechanism, capacity, build material), brand reputation in this category, or price-tier value implied by the listing. Vary which feature leads and how the sentence is structured — don't default to the same "[spec] [verb] [benefit]" template every time.
 - Cons: 1-2 items, each 6-12 words. Use honest class-level or price-tier tradeoffs. Examples of acceptable cons: "Manual lever requires technique to dial in", "Single boiler limits simultaneous brewing and steaming", "Blade grinder produces uneven particle size".
 - Bad cons (DO NOT WRITE): specific defects, reliability claims, "breaks after X months", customer complaint language. These are claims you cannot verify from the title alone.
 - If the title contains a model name or spec (e.g. "20 Bar", "burr grinder", "double-walled"), reference it directly in a pro.
@@ -115,8 +131,9 @@ Guidelines:
 
 # ── API ───────────────────────────────────────────────────────────────────────
 
-def generate_pros_cons(client: anthropic.Anthropic, key: str, product: dict) -> dict:
-    prompt = build_prompt(key, product)
+def generate_pros_cons(client: anthropic.Anthropic, key: str, product: dict,
+                       avoid_openings: list = None) -> dict:
+    prompt = build_prompt(key, product, avoid_openings=avoid_openings)
     for attempt in range(3):
         try:
             msg = client.messages.create(
@@ -247,6 +264,8 @@ def main():
 
     total_input = total_output = 0
     processed = skipped_errors = 0
+    from collections import defaultdict
+    hub_openings = defaultdict(list)  # hub -> recent pro[0] opening clauses, this run only
 
     for i, (key, product) in enumerate(candidates, 1):
         title_short = (product.get("title") or product.get("name") or key)[:60]
@@ -254,7 +273,8 @@ def main():
         print(f"[{i:4d}/{len(candidates)}] {hub:16s}  {title_short}")
 
         try:
-            result = generate_pros_cons(client, key, product)
+            result = generate_pros_cons(client, key, product,
+                                        avoid_openings=hub_openings[hub][-5:])
         except Exception as e:
             print(f"    ERROR: {e} — skipping")
             skipped_errors += 1
@@ -266,6 +286,10 @@ def main():
         total_input += result["input_tokens"]
         total_output += result["output_tokens"]
         processed += 1
+        if result["pros"]:
+            # Track first ~6 words of this product's lead pro so the next
+            # same-hub product's prompt can avoid opening the same way.
+            hub_openings[hub].append(" ".join(result["pros"][0].split()[:6]))
 
         print(f"    pros: {result['pros']}")
         print(f"    cons: {result['cons']}")

@@ -351,8 +351,22 @@ def check_output_shape(
 # ---------------------------------------------------------------------------
 
 def build_eeat_brief(eeat: dict, persona: dict) -> str:
+    """Returns "" when the vault has nothing for this article's cluster — callers
+    must not print an empty directive block (see build_prompt)."""
     persona_name = persona.get("name", "PERSONA").upper()
-    lines = []
+    has_content = bool(eeat.get("experiences") or eeat.get("failures") or eeat.get("opinions"))
+    if not has_content:
+        return ""
+    lines = [
+        f"{persona_name}'S ESTABLISHED EXPERIENCE FOR THIS TOPIC — USE IT:",
+        "The items below are real, persona-specific experience already established for "
+        f"{persona_name.title()} and tagged as relevant to this article's category. This is "
+        "not optional flavor text — a buyer_guide with real category experience available and "
+        "unused reads as generic. Anchor the opening paragraph, or a relevant buying-guide "
+        "subsection, in at least one of these specifically. Do not invent additional detail "
+        "beyond what's stated here.",
+        "",
+    ]
     if eeat.get("experiences"):
         lines.append(f"{persona_name}'S RELEVANT EXPERIENCES:")
         for e in eeat["experiences"]:

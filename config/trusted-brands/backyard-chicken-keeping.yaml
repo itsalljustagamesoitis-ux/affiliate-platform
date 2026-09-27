@@ -1,0 +1,25 @@
+# Trusted, Amazon-sold brands for the backyard-chicken-keeping niche (thecluckpost).
+# Sourced from chickens-launch-100.csv's merchant_route column (AMAZON-NATIVE /
+# the Amazon-sold half of SPLIT rows) — the merchant check Keith did per-hub
+# before this launch. These are preferences, not exclusions: a generic listing
+# still fills a slot when too few trusted-brand results exist for a keyword.
+#
+# Deliberately excluded (DTC-only per merchant_route, handled by dtc-brands
+# instead — see config/dtc-brands.yaml / config/dtc-brands.mjs):
+#   Carolina Coops, Chicken Coop Company, Best Nest Box
+- Omlet
+- OverEZ
+- Zylina
+- RentACoop
+- Grandpa's Feeders
+- Little Giant
+- Duncan's
+- Harris Farms
+- Brinsea
+- Nurture Right
+- Premier 1
+- ChickenGuard
+- Run-Chicken
+- Chickcozy
+- Farm Innovators
+- HenGear

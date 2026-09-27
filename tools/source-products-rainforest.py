@@ -49,6 +49,7 @@ TOOLS_DIR = Path(__file__).parent
 HUB_TEMPLATES_PATH = TOOLS_DIR / "hub-templates.yaml"
 DTC_BRANDS_DIR    = TOOLS_DIR.parent / "config/dtc-brands"   # per-niche dir (v1.6)
 DTC_BRANDS_CONFIG = TOOLS_DIR.parent / "config/dtc-brands.yaml"  # legacy fallback
+TRUSTED_BRANDS_DIR = TOOLS_DIR.parent / "config/trusted-brands"  # per-niche dir
 
 # Title words that must appear in a result for each product hub.
 # Hubs not listed here are informational; no category restriction is applied.
@@ -92,6 +93,37 @@ def load_dtc_brands(niche: str) -> list:
     else:
         return []
     return [b.lower() for b in brands if b]
+
+
+def load_trusted_brands(niche: str) -> list:
+    """
+    Return lowercased trusted brand names for the niche that ARE sold on Amazon
+    and should be preferred over generic/white-label listings when a search
+    returns both. Unlike DTC brands (excluded entirely), trusted brands are a
+    ranking preference, not a filter — a trusted-brand result is moved ahead
+    of equally-qualified generic results, but generic results still fill
+    remaining slots if too few trusted-brand results exist.
+
+    Lookup: config/trusted-brands/<niche>.yaml — plain list of brand names.
+    Absent file = no preference applied (existing behavior unchanged).
+    """
+    niche_file = TRUSTED_BRANDS_DIR / f"{niche}.yaml"
+    if not niche_file.exists():
+        return []
+    with open(niche_file, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or []
+    return [str(b).strip().lower() for b in data if b]
+
+
+def _matches_trusted_brand(result: dict, trusted_brands: list) -> bool:
+    if not trusted_brands:
+        return False
+    brand = (result.get("brand") or result.get("manufacturer") or "").strip().lower()
+    title = (result.get("title") or "").strip().lower()
+    for tb in trusted_brands:
+        if tb == brand or re.search(r"\b" + re.escape(tb) + r"\b", title):
+            return True
+    return False
 
 
 def dtc_brands_in_keyword(keyword: str, dtc_brands: list) -> list:
@@ -226,7 +258,8 @@ def is_book_article(article: dict) -> bool:
     return "book" in keyword or "book" in slug
 
 
-def search(keyword: str, api_key: str, dry_run: bool, category_id: str = "") -> list:
+def search(keyword: str, api_key: str, dry_run: bool, category_id: str = "",
+           trusted_brands: list = None) -> list:
     if dry_run:
         return []
     try:
@@ -247,6 +280,16 @@ def search(keyword: str, api_key: str, dry_run: bool, category_id: str = "") -> 
         results = resp.json().get("search_results", [])
         qualified = [r for r in results if r.get("ratings_total", 0) >= MIN_REVIEWS]
         pool = qualified if len(qualified) >= MIN_RESULTS else results
+        if trusted_brands:
+            # Trusted-brand results move to the front of the pool (stable sort --
+            # relative order within each group is preserved) before truncation to
+            # MAX_RESULTS. A generic keyword like "chicken feeder" returns mostly
+            # white-label listings by Rainforest's own relevance ranking; without
+            # this, a trusted brand a few slots outside MAX_RESULTS never gets
+            # sourced even though it's exactly the kind of pick the merchant check
+            # identified as trustworthy. Preference, not a filter -- generic
+            # results still fill remaining slots when too few trusted matches exist.
+            pool = sorted(pool, key=lambda r: not _matches_trusted_brand(r, trusted_brands))
         return pool[:MAX_RESULTS]
     except Exception as e:
         print(f"    API error: {e}")
@@ -405,6 +448,11 @@ def main():
         print(f"DTC policy:  {len(dtc_brands)} brands → NOT_ON_AMAZON (niche: {site_niche or 'unknown'})")
         print()
 
+    trusted_brands = load_trusted_brands(site_niche)
+    if trusted_brands:
+        print(f"Trusted-brand preference: {len(trusted_brands)} brands (niche: {site_niche or 'unknown'})")
+        print()
+
     pipeline_data = load_pipeline(pipeline_path)
     products = load_products(products_path)
     articles = pipeline_data.get("articles", [])
@@ -483,7 +531,8 @@ def main():
             continue
 
         book_category = "283155" if is_book_article(article) else ""
-        results = search(keyword, api_key, args.dry_run, category_id=book_category)
+        results = search(keyword, api_key, args.dry_run, category_id=book_category,
+                         trusted_brands=trusted_brands)
         time.sleep(0.4)
 
         if not results:
