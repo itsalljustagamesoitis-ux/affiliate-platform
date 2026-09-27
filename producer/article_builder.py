@@ -27,6 +27,24 @@ PLATFORM_ROOT = Path(__file__).parent.parent
 
 
 # ---------------------------------------------------------------------------
+# Response helpers
+# ---------------------------------------------------------------------------
+
+def _extract_text(resp) -> str:
+    """Return the first text block's content, skipping thinking/other block
+    types. claude-sonnet-5 (and other current-generation models) default to
+    adaptive thinking when `thinking` is omitted, so resp.content[0] can be a
+    ThinkingBlock rather than a TextBlock -- content[0].text then raises
+    AttributeError. Whether a given call actually emits a visible thinking
+    block is itself adaptive/non-deterministic, so this failure was
+    intermittent, not tied to a specific prompt."""
+    for block in resp.content:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    raise ValueError(f"No text block in response content: {[getattr(b, 'type', b) for b in resp.content]}")
+
+
+# ---------------------------------------------------------------------------
 # Catalog-growth helpers (CATALOG-BEHAVIOUR.md Section 2)
 # ---------------------------------------------------------------------------
 
@@ -625,7 +643,7 @@ Return JSON only — no other text:
             max_tokens=300,
             messages=[{"role": "user", "content": prompt}],
         )
-        data = _parse(resp.content[0].text.strip())
+        data = _parse(_extract_text(resp).strip())
         if data is None:
             continue
         title = data.get("title", "")
@@ -712,7 +730,7 @@ def generate_article(
         system=system_block,
         messages=[{"role": "user", "content": prompt}],
     )
-    body = resp.content[0].text.strip()
+    body = _extract_text(resp).strip()
     body = _strip_json_ld_fence(body)
     dollar_allowed = site_config.get("style_policy", {}).get("dollar_figures", {}).get("allowed", False)
     body = _fix_punctuation(body)
