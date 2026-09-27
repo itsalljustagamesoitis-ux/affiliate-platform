@@ -725,8 +725,14 @@ def generate_article(
         # (env var, not a global default change) — see platform-scope-and-producer-
         # fixes brief Part 3. Default is unchanged for every site that doesn't set it.
         model=os.environ.get("PRODUCER_BODY_MODEL", "claude-sonnet-4-6"),
-        # 8192: platform system prompt is ~23K chars vs legacy ~4K — output budget compressed at 4096
-        max_tokens=8192,
+        # 16000: current-generation models (Sonnet 5+) default to adaptive
+        # thinking when `thinking` is omitted, and thinking tokens draw from
+        # this same budget. At 8192 (sized for the pre-thinking model), a
+        # request whose adaptive thinking runs long enough hits the cap
+        # before emitting any visible text at all -- content is empty, not
+        # truncated. Hit this live on thecluckpost's chicken-feeder regen
+        # (claude-sonnet-5): output=8192 exactly, zero text blocks.
+        max_tokens=16000,
         system=system_block,
         messages=[{"role": "user", "content": prompt}],
     )
