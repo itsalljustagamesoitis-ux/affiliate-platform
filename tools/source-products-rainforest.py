@@ -135,22 +135,28 @@ def _matches_trusted_brand(result: dict, trusted_brands: list) -> bool:
     return False
 
 
-def load_hub_trusted_brands(niche: str, hub: str) -> list:
+def load_hub_trusted_products(niche: str, hub: str) -> list:
     """
-    Structured per-hub brand list for HEAD-article sourcing: [{"brand": ...,
-    "search_terms": [...]}]. Distinct from load_trusted_brands() (a flat
-    niche-wide list used only as a ranking preference on generic spoke
-    keyword search) -- this is for direct brand-name lookups, used instead
-    of generic keyword search for HEAD articles. A generic head-term search
-    ("chicken coop") returns whatever the market's search-volume leaders are,
-    which by definition skews budget/flat-pack -- it will never surface a
-    premium brand like Omlet or OverEZ that doesn't compete on head-term
-    search volume. Direct brand lookup is the only way to get them in.
+    Structured per-hub, pre-verified product list for HEAD-article sourcing:
+    [{"brand": ..., "asin": ..., "name_hint": ...}]. Distinct from
+    load_trusted_brands() (a flat niche-wide brand-name list used only as a
+    ranking preference on generic spoke keyword search) -- this is a fixed
+    ASIN catalog looked up directly, used instead of any search for HEAD
+    articles.
+
+    Stored as ASINs, not brand names to search, because search-term lookup
+    is non-deterministic: the exact same query returned a real product on
+    one run and nothing on the next (confirmed live, "Eglu Go Up"), and can
+    be diluted by incidental word choice ("<brand> chicken coop" surfacing
+    the brand's accessories instead of its coop -- also confirmed live). A
+    human vets each product once, the ASIN goes in the config, and every
+    future sourcing run gets the exact same listing with zero ranking step
+    to vary or dilute.
 
     Lookup: config/trusted-brands/<niche>/<hub>.yaml. Absent file/dir = no
-    per-hub brand data for this hub -- caller falls back to normal keyword
-    search (this is expected for hubs with no named Amazon-sold brands in
-    the merchant check, e.g. bedding, runs, tractors).
+    per-hub product data for this hub -- caller falls back to normal keyword
+    search (expected for hubs with no named Amazon-sold brands in the
+    merchant check, e.g. bedding, runs, tractors).
     """
     hub_file = TRUSTED_BRANDS_DIR / niche / f"{hub}.yaml"
     if not hub_file.exists():
@@ -158,58 +164,33 @@ def load_hub_trusted_brands(niche: str, hub: str) -> list:
     with open(hub_file, encoding="utf-8") as f:
         data = yaml.safe_load(f) or []
     return [
-        {"brand": str(e["brand"]).strip(), "search_terms": [str(t).strip() for t in e.get("search_terms", [])]}
-        for e in data if e.get("brand")
+        {"brand": str(e["brand"]).strip(), "asin": str(e["asin"]).strip(),
+         "name_hint": str(e.get("name_hint", "")).strip()}
+        for e in data if e.get("brand") and e.get("asin")
     ]
 
 
-def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub: str = "",
-                          category_terms: dict = None) -> list:
-    """
-    Direct brand-name lookup for HEAD articles: one search per configured
-    search_term, keeping only results whose brand/manufacturer or title
-    actually names the target brand (rejects a generic result that happened
-    to rank for a branded query). Takes the single best-reviewed qualifying
-    hit per search term, so a brand with two product lines (e.g. Omlet's
-    Eglu Cube and Eglu Go Up) can contribute up to two products, not a flood
-    of near-duplicate listings under one line.
-    """
+def lookup_trusted_products(entries: list, api_key: str, dry_run: bool) -> list:
+    """Direct ASIN lookup for every configured trusted product -- see
+    load_hub_trusted_products(). A stale/delisted ASIN degrades to a skipped
+    entry (get_product_by_asin returns {}), not a crash or a silent
+    off-category substitute."""
     collected = []
-    for entry in brand_entries:
-        brand = entry["brand"]
-        brand_lower = brand.lower()
-        for term in entry["search_terms"]:
-            if dry_run:
-                continue
-            results = search(term, api_key, dry_run, trusted_brands=None)
-            time.sleep(0.4)
-            # Category check BEFORE brand-match selection, not after. apply_category_policy's
-            # "fall back to unfiltered if the filter kills everything" safety clause is correct
-            # for its normal caller (a keyword search should never return literally nothing),
-            # but wrong here: if none of this brand's results for THIS term are on-category
-            # (e.g. every "Omlet Eglu Cube chicken coop" hit is actually an Omlet waterer),
-            # the right outcome is zero contribution from this term, not the top-reviewed
-            # off-category hit. Filter narrowly here and skip the shared fallback behavior.
-            if hub and category_terms:
-                spec = category_terms.get(hub)
-                if spec:
-                    require, exclude = spec.get("require", []), spec.get("exclude", [])
-                    results = [r for r in results if not any(t in (r.get("title") or "").lower() for t in exclude)]
-                    if require:
-                        results = [r for r in results if any(t in (r.get("title") or "").lower() for t in require)]
-                    # no fallback -- empty is the correct outcome when nothing qualifies
-            brand_matches = [
-                r for r in results
-                if brand_lower == (r.get("brand") or r.get("manufacturer") or "").strip().lower()
-                or re.search(r"\b" + re.escape(brand_lower) + r"\b", (r.get("title") or "").lower())
-            ]
-            if not brand_matches:
-                print(f"         [brand-lookup] '{term}' -> no on-category {brand} match in results")
-                continue
-            brand_matches.sort(key=lambda r: -(r.get("ratings_total") or 0))
-            best = brand_matches[0]
-            print(f"         [brand-lookup] '{term}' -> {best.get('title','')[:70]} (ASIN {best.get('asin')}, reviews={best.get('ratings_total','?')})")
-            collected.append(best)
+    for entry in entries:
+        if dry_run:
+            continue
+        product = get_product_by_asin(entry["asin"], api_key, dry_run)
+        time.sleep(0.4)
+        if not product:
+            print(f"         [asin-lookup] {entry['brand']} ({entry['asin']}) -> not found / delisted, skipping")
+            continue
+        if not product.get("sold_by_amazon_or_brand"):
+            print(f"         [asin-lookup] {entry['brand']} ({entry['asin']}) -> sold by third party "
+                  f"'{product.get('seller_name')}', not Amazon.com or the brand -- skipping")
+            continue
+        print(f"         [asin-lookup] {entry['brand']} ({entry['asin']}) -> "
+              f"{product.get('title','')[:70]} (reviews={product.get('ratings_total','?')})")
+        collected.append(product)
     return collected
 
 
@@ -391,6 +372,52 @@ def is_book_article(article: dict) -> bool:
     keyword = (article.get("keyword") or "").lower()
     slug = (article.get("slug") or "").lower()
     return "book" in keyword or "book" in slug
+
+
+def get_product_by_asin(asin: str, api_key: str, dry_run: bool) -> dict:
+    """
+    Direct, deterministic product lookup by ASIN (Rainforest type=product),
+    not a keyword search. For pre-verified trusted-brand products stored as
+    ASINs in config/trusted-brands/<niche>/<hub>.yaml -- a search-term lookup
+    is inherently non-deterministic (Amazon's own ranking varies call to
+    call, confirmed live: the same "Eglu Go Up" query returned the real
+    product on one run and nothing on the next) and can be diluted by
+    incidental word choice (see load_hub_trusted_products history). An ASIN
+    lookup has no ranking step to get diluted or vary -- it's the same
+    listing every time. Returns {} on any failure (missing ASIN, API error,
+    delisted product) rather than raising, so a stale ASIN in config
+    degrades to "skip this one," not a crash.
+    """
+    if dry_run:
+        return {}
+    try:
+        resp = requests.get(
+            "https://api.rainforestapi.com/request",
+            params={"api_key": api_key, "type": "product", "amazon_domain": "amazon.com", "asin": asin},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        product = resp.json().get("product", {})
+        if not product or not product.get("title"):
+            return {}
+        buybox = product.get("buybox_winner", {}) or {}
+        seller_name = ((buybox.get("seller") or {}).get("name") or "").strip()
+        return {
+            "asin": product.get("asin", asin),
+            "title": product.get("title", ""),
+            "brand": product.get("brand"),
+            "manufacturer": product.get("manufacturer") or product.get("brand"),
+            "ratings_total": product.get("ratings_total", 0),
+            "link": product.get("link", f"https://www.amazon.com/dp/{asin}"),
+            "seller_name": seller_name,
+            "sold_by_amazon_or_brand": (
+                seller_name.lower() in ("amazon.com", "")
+                or (product.get("brand") or "").strip().lower() in seller_name.lower()
+            ),
+        }
+    except Exception as e:
+        print(f"    API error (ASIN {asin}): {e}")
+        return {}
 
 
 def search(keyword: str, api_key: str, dry_run: bool, category_id: str = "",
@@ -673,17 +700,18 @@ def main():
         book_category = "283155" if is_book_article(article) else ""
         budget_pick_asin = None  # tracked so the single budget pick can be labeled below
 
-        # HEAD articles with a configured per-hub brand list: source by direct
-        # brand lookup, not generic keyword search. A generic head-term search
-        # structurally can't surface a brand that doesn't compete on head-term
-        # search volume (see search_by_brand_terms docstring) -- this is the
-        # fix for HEAD articles returning all-budget/flat-pack results.
-        # Spokes always use keyword search, still subject to the fit checks
-        # below. Hubs with no per-hub brand file (no named Amazon-sold brands
-        # in the merchant check) fall back to keyword search for their HEAD too.
-        hub_brands = load_hub_trusted_brands(site_niche, hub) if article.get("role") == "HEAD" else []
+        # HEAD articles with a configured per-hub product list: source by
+        # direct ASIN lookup, not generic keyword search or brand-name search.
+        # A generic head-term search structurally can't surface a brand that
+        # doesn't compete on head-term search volume (see
+        # load_hub_trusted_products docstring) -- this is the fix for HEAD
+        # articles returning all-budget/flat-pack results. Spokes always use
+        # keyword search, still subject to the fit checks below. Hubs with no
+        # per-hub product file (no named Amazon-sold brands in the merchant
+        # check) fall back to keyword search for their HEAD too.
+        hub_brands = load_hub_trusted_products(site_niche, hub) if article.get("role") == "HEAD" else []
         if hub_brands:
-            results = search_by_brand_terms(hub_brands, api_key, args.dry_run, hub=hub, category_terms=category_terms)
+            results = lookup_trusted_products(hub_brands, api_key, args.dry_run)
             if len(results) < 3:
                 # At most one budget/generic option, clearly labeled -- not a silent
                 # fallback to the same all-generic list this mechanism exists to avoid.
