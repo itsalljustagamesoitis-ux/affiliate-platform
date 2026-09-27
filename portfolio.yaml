@@ -218,7 +218,7 @@ sites:
     github_repo: null
     deploy_pattern: direct_upload
     status: live
-    launched: '2026-06-08'
+    launched: "2026-06-08"
     notes: >-
       Site 19. Back pain products affiliate (YMYL-adjacent). Persona: Dr. Ryan Chen, 41, physical therapist. 6 hubs, 194
       articles. Amazon tag backpainnotebook-20.
@@ -231,7 +231,7 @@ sites:
     github_repo: null
     deploy_pattern: direct_upload
     status: live
-    launched: '2026-06-10'
+    launched: "2026-06-10"
     notes: >-
       Site 20. Knee pain products affiliate (YMYL-adjacent). Persona: Mark Donovan, 54, building inspector (former
       carpenter). 10 hubs, 276 articles. Amazon tag kneeworkbook-20. GA4 pending Keith setup.
@@ -245,7 +245,7 @@ sites:
     github_repo: itsalljustagamesoitis-ux/blackshore-site
     deploy_pattern: direct_upload
     status: live
-    launched: '2026-06-12'
+    launched: "2026-06-12"
     notes: >-
       Brand site (not affiliate). Craft soap brand — byblackshore.com. No persona, no Amazon tag. 9 hubs, 284 articles +
       42 journal essays. Deploy: wrangler pages deploy dist --project-name=blackshore-site. GA4 G-2B32HXQ4CV confirmed
@@ -253,7 +253,7 @@ sites:
   - slug: threedprinterpicks
     domain: 3dprinterpicks.com
     status: live
-    launched: '2026-06-25'
+    launched: "2026-06-25"
     deploy_pattern: direct_upload
     persona: dan-whitaker
     tracking_id: 3dprinterpicks-20
@@ -343,8 +343,9 @@ sites:
   - slug: thecoolcozy
     domain: thecoolcozy.com
     persona: priya-anand
-    tracking_id: thecoolcozy-20
-    ga4_id: G-XXXXXXXXXX
+    tracking_id: "2006-31-20"
+    amazon_tag_confirmed: true
+    ga4_id: G-TW2X9F3V0Z
     cloudflare_project: thecoolcozy
     github_repo: null
     deploy_pattern: direct_upload
@@ -364,9 +365,33 @@ sites:
   - slug: timepiececare
     domain: timepiececare.com
     persona: adam-ferris
-    tracking_id: '2006-29-20'
+    tracking_id: "2006-29-20"
     ga4_id: G-XXXXXXXXXX
     cloudflare_project: timepiececare
     github_repo: itsalljustagamesoitis-ux/timepiececare
     status: pre_launch
     launched: null
+  - slug: thecorkedcollection
+    domain: thecorkedcollection.com
+    status: pre_launch
+    deploy_pattern: direct_upload
+    tracking_id: "2006-30-20"
+    ga4_id: G-C3BXTCF6ZZ
+    persona: grant-ellison
+    cloudflare_project: thecorkedcollection
+    github_repo: null
+  - slug: thecluckpost
+    domain: thecluckpost.com
+    status: pre_launch
+    deploy_pattern: direct_upload
+    tracking_id: "2006-32-20"
+    ga4_id: G-F23ZC2K26L
+    persona: nell-harrigan
+    cloudflare_project: null
+    github_repo: null
+    notes: >-
+      Backyard chicken keeping affiliate. Persona: Nell Harrigan, Addison
+      County, VT. 13 hubs, 100-article pipeline sourced and product-ready.
+      Domain registered, not yet attached to a Pages project (no
+      cloudflare_project yet -- deploy/wiring is the last step in this
+      launch, not done).
