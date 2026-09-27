@@ -382,7 +382,9 @@ def build_eeat_brief(eeat: dict, persona: dict) -> str:
         "not optional flavor text — a buyer_guide with real category experience available and "
         "unused reads as generic. Anchor the opening paragraph, or a relevant buying-guide "
         "subsection, in at least one of these specifically. Do not invent additional detail "
-        "beyond what's stated here.",
+        "beyond what's stated here. This is a small addition to an already-complete article — "
+        "it does not replace or shorten any required section. Every 'What to Look For' "
+        "subsection and the full Buying Guide word count target still apply in full.",
         "",
     ]
     if eeat.get("experiences"):
