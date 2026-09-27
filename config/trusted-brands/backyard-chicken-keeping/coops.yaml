@@ -3,13 +3,21 @@
 # tools/source-products-rainforest.py). Source: chickens-launch-100.csv
 # merchant_route for hub_slug=coops. Carolina Coops / Chicken Coop Company
 # excluded -- DTC-only, not sold on Amazon (Amazon-only decision).
+#
+# Search terms are the bare product-line name, NOT "<brand> chicken coop" --
+# appending "chicken coop" diluted Amazon's own search relevance toward
+# Omlet's accessories (waterer, door opener) instead of the actual coop.
+# Confirmed live: "Omlet Eglu Cube" surfaces the real coop (31 reviews);
+# "Omlet Eglu Cube chicken coop" does not.
+#
+# Zylina dropped entirely -- confirmed live, a bare "Zylina" search returns
+# only a 2-review waterer/feeder combo and unrelated pet-habitat products,
+# no viable coop at any review count. Not a search-term problem; Zylina
+# doesn't appear to sell a standalone coop on Amazon worth recommending.
 - brand: Omlet
   search_terms:
-    - "Omlet Eglu Cube chicken coop"
-    - "Omlet Eglu Go Up chicken coop"
+    - "Omlet Eglu Cube"
+    - "Omlet Eglu Go Up"
 - brand: OverEZ
   search_terms:
-    - "OverEZ chicken coop"
-- brand: Zylina
-  search_terms:
-    - "Zylina chicken coop"
+    - "OverEZ chicken coop kit"
