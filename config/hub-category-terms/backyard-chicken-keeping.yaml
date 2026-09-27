@@ -1,25 +1,64 @@
-# Required title terms per hub -- a search result must contain at least one
-# of these words to be kept for this hub. Fixes apply_category_policy()
-# silently no-opping for every niche except rmflyfishing (see the comment on
-# HUB_CATEGORY_TERMS in source-products-rainforest.py). Confirmed live: a
-# waterer and a feeder both passed as "coops" results with zero filtering
-# before this file existed.
+# Require/exclude title terms per hub. require alone isn't enough in this
+# niche: accessory hubs are coop-adjacent and legitimately reference the
+# parent structure in their own title -- "Omlet Automatic Chicken Coop Door
+# Opener" contains "coop" as a bare substring without being one. exclude
+# terms catch what require-only can't. Confirmed needed live: the coop
+# brand-lookup surfaced a door opener and a feeder, both passing a
+# require-only ["coop"] filter trivially.
 #
 # eggs-and-breeds is deliberately absent -- informational hub, no products
 # expected, no category constraint needed.
-coops: ["coop", "coops", "hen house", "chicken house"]
-feeders: ["feeder", "feeders"]
-waterers: ["waterer", "waterers", "watering", "drinker", "drinkers"]
-incubators: ["incubator", "incubators"]
-bedding: ["bedding", "litter", "shavings"]
-runs: ["run", "runs", "enclosure", "pen"]
-nesting: ["nesting box", "nest box", "nesting", "nestbox"]
-brooders: ["brooder", "brooders", "brooding"]
-coop-doors: ["door", "doors"]
-tractors: ["tractor", "tractors"]
+
+coops:
+  require: ["chicken coop", "hen house", "chicken house", "coop and run", "walk-in coop", "walk in coop"]
+  exclude: ["feeder", "waterer", "door opener", "incubator", "brooder", "nesting box",
+            "nest box", "heater", "fence", "netting", "hardware cloth"]
+
+feeders:
+  require: ["feeder", "feeders"]
+  exclude: ["waterer", "drinker", "incubator", "brooder"]
+
+waterers:
+  require: ["waterer", "waterers", "watering", "drinker", "drinkers"]
+  exclude: ["feeder", "feeders", "incubator", "brooder"]
+
+incubators:
+  require: ["incubator", "incubators"]
+  exclude: ["feeder", "waterer", "brooder", "coop"]
+
+bedding:
+  require: ["bedding", "litter", "shavings"]
+  exclude: ["feeder", "waterer", "incubator", "brooder"]
+
+runs:
+  require: ["chicken run", "run kit", "enclosure", "pen"]
+  exclude: ["feeder", "waterer", "incubator", "brooder", "door opener"]
+
+nesting:
+  require: ["nesting box", "nest box", "nestbox"]
+  exclude: ["feeder", "waterer", "incubator", "brooder"]
+
+brooders:
+  require: ["brooder", "brooders", "brooding"]
+  exclude: ["feeder", "waterer", "incubator", "coop"]
+
+coop-doors:
+  require: ["coop door", "door opener", "door kit"]
+  exclude: ["feeder", "waterer", "incubator", "brooder"]
+
+tractors:
+  require: ["chicken tractor", "tractor"]
+  exclude: ["feeder", "waterer", "incubator", "brooder"]
+
 # coop-setup bundles several unrelated topics (heater, fencing, ventilation,
 # lighting, hardware cloth, roosting bars) under one hub_slug -- see the
-# head-term coverage audit. One broad term list, not per-HEAD-topic.
-coop-setup: ["heater", "fence", "fencing", "netting", "ventilation", "fan",
-             "roosting bar", "roost", "hardware cloth", "light", "lighting"]
-feed-health: ["treat", "treats", "grit", "mealworm", "mealworms", "mite", "feed"]
+# head-term coverage audit. One broad require list, not per-HEAD-topic;
+# exclude list still catches the obviously-wrong-category cases.
+coop-setup:
+  require: ["heater", "fence", "fencing", "netting", "ventilation", "fan",
+            "roosting bar", "roost", "hardware cloth", "light", "lighting"]
+  exclude: ["feeder", "waterer", "incubator", "brooder"]
+
+feed-health:
+  require: ["treat", "treats", "grit", "mealworm", "mealworms", "mite"]
+  exclude: ["coop", "feeder", "waterer", "incubator", "brooder"]

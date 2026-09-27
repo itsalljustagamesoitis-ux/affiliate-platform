@@ -191,10 +191,13 @@ def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub:
             # the right outcome is zero contribution from this term, not the top-reviewed
             # off-category hit. Filter narrowly here and skip the shared fallback behavior.
             if hub and category_terms:
-                terms = category_terms.get(hub)
-                if terms:
-                    on_category = [r for r in results if any(t in (r.get("title") or "").lower() for t in terms)]
-                    results = on_category  # no fallback -- empty is the correct outcome
+                spec = category_terms.get(hub)
+                if spec:
+                    require, exclude = spec.get("require", []), spec.get("exclude", [])
+                    results = [r for r in results if not any(t in (r.get("title") or "").lower() for t in exclude)]
+                    if require:
+                        results = [r for r in results if any(t in (r.get("title") or "").lower() for t in require)]
+                    # no fallback -- empty is the correct outcome when nothing qualifies
             brand_matches = [
                 r for r in results
                 if brand_lower == (r.get("brand") or r.get("manufacturer") or "").strip().lower()
@@ -278,27 +281,59 @@ def apply_brand_policy(results: list, keyword: str) -> list:
 
 def load_hub_category_terms(niche: str) -> dict:
     """
-    Per-niche hub -> required-title-terms map for apply_category_policy().
-    Lookup: config/hub-category-terms/<niche>.yaml. Falls back to the legacy
-    hardcoded HUB_CATEGORY_TERMS (rmflyfishing-only) when no niche file
-    exists, so existing behavior for that site is unchanged.
+    Per-niche hub -> {"require": [...], "exclude": [...]} for apply_category_policy().
+    A result must contain >=1 require term (if any are set) AND 0 exclude terms.
+
+    require alone is not enough in a niche where accessory hubs are coop-
+    adjacent and legitimately reference the parent structure in their own
+    title -- "Omlet Automatic Chicken Coop Door Opener" contains "coop" as
+    a substring without being one. exclude terms (door opener, feeder,
+    waterer, heater, ...) catch what a require-only list can't.
+
+    Lookup: config/hub-category-terms/<niche>.yaml. Each hub's value can be
+    a flat list (legacy shorthand, require-only) or a {require, exclude} dict.
+    Falls back to the legacy hardcoded HUB_CATEGORY_TERMS (rmflyfishing-only,
+    require-only) when no niche file exists, so that site's behavior is
+    unchanged.
     """
     niche_file = HUB_CATEGORY_TERMS_DIR / f"{niche}.yaml"
     if not niche_file.exists():
-        return HUB_CATEGORY_TERMS
+        return {k: {"require": v, "exclude": []} for k, v in HUB_CATEGORY_TERMS.items()}
     with open(niche_file, encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
-    return {k: [str(t).lower() for t in v] for k, v in data.items()}
+    out = {}
+    for hub, val in data.items():
+        if isinstance(val, list):
+            out[hub] = {"require": [str(t).lower() for t in val], "exclude": []}
+        else:
+            out[hub] = {
+                "require": [str(t).lower() for t in val.get("require", [])],
+                "exclude": [str(t).lower() for t in val.get("exclude", [])],
+            }
+    return out
 
 
 def apply_category_policy(results: list, hub: str, category_terms: dict = None) -> list:
-    """Remove results whose title contains no hub-relevant terms. No-ops on info hubs
-    (hubs with no configured terms) or if the filter would kill every result."""
-    terms = (category_terms or HUB_CATEGORY_TERMS).get(hub)
-    if not terms:
+    """Remove results that fail the hub's require/exclude terms. No-ops on info hubs
+    (hubs with no configured terms) or if the require filter would kill every result
+    (exclude terms still apply even then -- a wrong-category result should never survive
+    just because everything else also failed the require check)."""
+    spec = (category_terms or {k: {"require": v, "exclude": []} for k, v in HUB_CATEGORY_TERMS.items()}).get(hub)
+    if not spec:
         return results
-    filtered = [r for r in results if any(t in r.get("title", "").lower() for t in terms)]
-    return filtered if filtered else results  # fall back if filter kills everything
+    require, exclude = spec.get("require", []), spec.get("exclude", [])
+    if not require and not exclude:
+        return results
+
+    def excluded(r):
+        title = r.get("title", "").lower()
+        return any(t in title for t in exclude)
+
+    survivors = [r for r in results if not excluded(r)]
+    if not require:
+        return survivors
+    filtered = [r for r in survivors if any(t in r.get("title", "").lower() for t in require)]
+    return filtered if filtered else survivors  # fall back within already-exclude-filtered set
 
 
 # ── Credentials ───────────────────────────────────────────────────────────────
