@@ -1,8 +1,10 @@
+# Serves the "chicken brooder" HEAD. "heat lamp for chicks" HEAD is a
+# different product category (heating device, not a brooder box/enclosure)
+# and is handled separately -- see Premier 1 heating-plate ASIN in the
+# pipeline note for that article.
 - brand: Brinsea
-  search_terms: ["Brinsea EcoGlow chick brooder"]
+  asin: B07NJZM1F5
+  name_hint: "Ecoglow Safety 600 Chick or Duckling Brooder, up to 20 chicks"
 - brand: RentACoop
-  search_terms: ["RentACoop chick brooder"]
-- brand: Premier 1
-  search_terms: ["Premier 1 chick brooder"]
-- brand: Farm Innovators
-  search_terms: ["Farm Innovators chick brooder"]
+  asin: B0CVNN5HX4
+  name_hint: "Big Red Barn Chick Brooder"

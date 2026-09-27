@@ -1,8 +1,13 @@
+# Harris Farms' incubator IS the Nurture Right 360 -- same product serves
+# both the generic "egg incubator" HEAD and the "nurture right 360 review"
+# HEAD (the review article's product list is set directly, see pipeline
+# note, but this entry covers the generic HEAD's need for it too).
 - brand: Brinsea
-  search_terms: ["Brinsea egg incubator"]
-- brand: Nurture Right
-  search_terms: ["Nurture Right 360 egg incubator"]
+  asin: B01NBXXQNH
+  name_hint: "Ovation 56 EX Egg Incubator, Automatic Turning & Humidity Control"
 - brand: Little Giant
-  search_terms: ["Little Giant egg incubator"]
+  asin: B00KKRDQAE
+  name_hint: "White Miller 9300 Digital Still Air Incubator"
 - brand: Harris Farms
-  search_terms: ["Harris Farms egg incubator"]
+  asin: B0793HHZ1L
+  name_hint: "Nurture Right Egg Incubator with Auto Turner, 22 eggs"

@@ -1,10 +1,12 @@
-- brand: Premier 1
-  search_terms: ["Premier 1 chicken waterer"]
-- brand: Farm Innovators
-  search_terms: ["Farm Innovators chicken waterer"]
-- brand: OverEZ
-  search_terms: ["OverEZ chicken waterer"]
+# Serves both waterers HEADs (chicken waterer, heated chicken waterer) --
+# Premier 1 and Farm Innovators are both heated models, RentACoop is a
+# standard high-rise waterer, giving reasonable coverage for either HEAD.
 - brand: RentACoop
-  search_terms: ["RentACoop chicken waterer"]
-- brand: Miller
-  search_terms: ["Miller chicken waterer"]
+  asin: B07RB7GLJH
+  name_hint: "2 Gallon High Rise Chicken Waterer with Cups & Nipples"
+- brand: Premier 1
+  asin: B07KRLX1MJ
+  name_hint: "All-Season Heated Poultry Waterer, 3 Gallon"
+- brand: Farm Innovators
+  asin: B005BV1WLE
+  name_hint: "HB-60P Heated Poultry Waterer, 2-Gal, 60W"
