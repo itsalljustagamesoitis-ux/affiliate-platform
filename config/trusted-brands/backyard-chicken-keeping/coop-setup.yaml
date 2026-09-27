@@ -1,0 +1,9 @@
+# coop-setup covers heaters/fencing/ventilation/lighting -- a mixed-topic hub
+# (see head-term coverage audit). Brand names named in the merchant check are
+# generic to the hub as a whole, not tied to a specific one of its 8 HEAD
+# topics -- treat as a lookup candidate for any coop-setup HEAD, not a
+# guarantee of a match for every one of them.
+- brand: Premier 1
+  search_terms: ["Premier 1 electric chicken fence"]
+- brand: Farm Innovators
+  search_terms: ["Farm Innovators chicken coop heater"]

@@ -1,0 +1,15 @@
+# Per-hub trusted-brand list for HEAD-article sourcing (direct brand lookup,
+# not generic keyword search — see search_by_brand_terms() in
+# tools/source-products-rainforest.py). Source: chickens-launch-100.csv
+# merchant_route for hub_slug=coops. Carolina Coops / Chicken Coop Company
+# excluded -- DTC-only, not sold on Amazon (Amazon-only decision).
+- brand: Omlet
+  search_terms:
+    - "Omlet Eglu Cube chicken coop"
+    - "Omlet Eglu Go Up chicken coop"
+- brand: OverEZ
+  search_terms:
+    - "OverEZ chicken coop"
+- brand: Zylina
+  search_terms:
+    - "Zylina chicken coop"

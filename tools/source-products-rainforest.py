@@ -126,6 +126,70 @@ def _matches_trusted_brand(result: dict, trusted_brands: list) -> bool:
     return False
 
 
+def load_hub_trusted_brands(niche: str, hub: str) -> list:
+    """
+    Structured per-hub brand list for HEAD-article sourcing: [{"brand": ...,
+    "search_terms": [...]}]. Distinct from load_trusted_brands() (a flat
+    niche-wide list used only as a ranking preference on generic spoke
+    keyword search) -- this is for direct brand-name lookups, used instead
+    of generic keyword search for HEAD articles. A generic head-term search
+    ("chicken coop") returns whatever the market's search-volume leaders are,
+    which by definition skews budget/flat-pack -- it will never surface a
+    premium brand like Omlet or OverEZ that doesn't compete on head-term
+    search volume. Direct brand lookup is the only way to get them in.
+
+    Lookup: config/trusted-brands/<niche>/<hub>.yaml. Absent file/dir = no
+    per-hub brand data for this hub -- caller falls back to normal keyword
+    search (this is expected for hubs with no named Amazon-sold brands in
+    the merchant check, e.g. bedding, runs, tractors).
+    """
+    hub_file = TRUSTED_BRANDS_DIR / niche / f"{hub}.yaml"
+    if not hub_file.exists():
+        return []
+    with open(hub_file, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or []
+    return [
+        {"brand": str(e["brand"]).strip(), "search_terms": [str(t).strip() for t in e.get("search_terms", [])]}
+        for e in data if e.get("brand")
+    ]
+
+
+def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub: str = "") -> list:
+    """
+    Direct brand-name lookup for HEAD articles: one search per configured
+    search_term, keeping only results whose brand/manufacturer or title
+    actually names the target brand (rejects a generic result that happened
+    to rank for a branded query). Takes the single best-reviewed qualifying
+    hit per search term, so a brand with two product lines (e.g. Omlet's
+    Eglu Cube and Eglu Go Up) can contribute up to two products, not a flood
+    of near-duplicate listings under one line.
+    """
+    collected = []
+    for entry in brand_entries:
+        brand = entry["brand"]
+        brand_lower = brand.lower()
+        for term in entry["search_terms"]:
+            if dry_run:
+                continue
+            results = search(term, api_key, dry_run, trusted_brands=None)
+            time.sleep(0.4)
+            brand_matches = [
+                r for r in results
+                if brand_lower == (r.get("brand") or r.get("manufacturer") or "").strip().lower()
+                or re.search(r"\b" + re.escape(brand_lower) + r"\b", (r.get("title") or "").lower())
+            ]
+            if not brand_matches:
+                print(f"         [brand-lookup] '{term}' -> no {brand} match in results")
+                continue
+            brand_matches.sort(key=lambda r: -(r.get("ratings_total") or 0))
+            best = brand_matches[0]
+            print(f"         [brand-lookup] '{term}' -> {best.get('title','')[:70]} (ASIN {best.get('asin')}, reviews={best.get('ratings_total','?')})")
+            collected.append(best)
+    if hub:
+        collected = apply_category_policy(collected, hub)
+    return collected
+
+
 def dtc_brands_in_keyword(keyword: str, dtc_brands: list) -> list:
     """Return any DTC brand names (lowercase) found as whole words in the keyword."""
     kw = keyword.lower()
@@ -531,9 +595,36 @@ def main():
             continue
 
         book_category = "283155" if is_book_article(article) else ""
-        results = search(keyword, api_key, args.dry_run, category_id=book_category,
-                         trusted_brands=trusted_brands)
-        time.sleep(0.4)
+        budget_pick_asin = None  # tracked so the single budget pick can be labeled below
+
+        # HEAD articles with a configured per-hub brand list: source by direct
+        # brand lookup, not generic keyword search. A generic head-term search
+        # structurally can't surface a brand that doesn't compete on head-term
+        # search volume (see search_by_brand_terms docstring) -- this is the
+        # fix for HEAD articles returning all-budget/flat-pack results.
+        # Spokes always use keyword search, still subject to the fit checks
+        # below. Hubs with no per-hub brand file (no named Amazon-sold brands
+        # in the merchant check) fall back to keyword search for their HEAD too.
+        hub_brands = load_hub_trusted_brands(site_niche, hub) if article.get("role") == "HEAD" else []
+        if hub_brands:
+            results = search_by_brand_terms(hub_brands, api_key, args.dry_run, hub=hub)
+            if len(results) < 3:
+                # At most one budget/generic option, clearly labeled -- not a silent
+                # fallback to the same all-generic list this mechanism exists to avoid.
+                budget_results = search(keyword, api_key, args.dry_run, category_id=book_category)
+                time.sleep(0.4)
+                budget_results = apply_category_policy(budget_results, hub)
+                budget_results = [r for r in budget_results if not _matches_trusted_brand(r, [e["brand"].lower() for e in hub_brands])]
+                if budget_results:
+                    budget_results.sort(key=lambda r: -(r.get("ratings_total") or 0))
+                    picked = budget_results[0]
+                    budget_pick_asin = picked.get("asin")
+                    results.append(picked)
+                    print(f"         [budget pick] {picked.get('title','')[:70]} (ASIN {budget_pick_asin})")
+        else:
+            results = search(keyword, api_key, args.dry_run, category_id=book_category,
+                             trusted_brands=trusted_brands)
+            time.sleep(0.4)
 
         if not results:
             print(f"         → no results, skipping")
@@ -541,8 +632,12 @@ def main():
 
         # Policy 1 — Brand match: reject competitor brands when keyword names a brand
         # Policy 2 — Category match: reject off-hub products (e.g. reels in a rods search)
-        results = apply_brand_policy(results, keyword)
-        results = apply_category_policy(results, hub)
+        # Skipped for brand-lookup results -- apply_brand_policy assumes a generic
+        # keyword search and would incorrectly restrict a multi-brand HEAD result
+        # set down to whichever brand happens to appear in the bare keyword.
+        if not hub_brands:
+            results = apply_brand_policy(results, keyword)
+            results = apply_category_policy(results, hub)
 
         if not results:
             print(f"         → no results after policy filters, skipping")
@@ -570,13 +665,21 @@ def main():
             used_keys.add(key)
             asin_to_key[asin] = key
             tmpl = hub_templates.get(hub, {})
+            notes = tmpl.get("notes_for_writers", "").strip() or None
+            if budget_pick_asin and asin == budget_pick_asin:
+                notes = (
+                    "Budget/generic option, deliberately included alongside named-brand "
+                    "picks above. Label it explicitly as the budget-tier choice in the "
+                    "copy -- do not present it as equivalent build quality to the "
+                    "named-brand options."
+                )
             products[key] = {
                 "name": title,
                 "brand": brand or None,
                 "amazon_asin": asin,
                 "hub": hub,
                 "price_band": tmpl.get("price_band", "mid"),
-                "notes_for_writers": tmpl.get("notes_for_writers", "").strip() or None,
+                "notes_for_writers": notes,
                 "default_pros": [],
                 "default_cons": [],
                 "source_url": link,
