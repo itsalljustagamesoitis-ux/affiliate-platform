@@ -53,6 +53,14 @@ TRUSTED_BRANDS_DIR = TOOLS_DIR.parent / "config/trusted-brands"  # per-niche dir
 
 # Title words that must appear in a result for each product hub.
 # Hubs not listed here are informational; no category restriction is applied.
+# Legacy hardcoded fallback -- rmflyfishing's hubs specifically. Kept so that
+# site's behavior doesn't change, but this dict was never niche-configurable:
+# apply_category_policy() looks a hub up here, and for every OTHER niche's
+# hub (coops, feeders, waterers, ...) that lookup returns nothing, silently
+# disabling category enforcement entirely for that niche. Confirmed live on
+# thecluckpost: a waterer and a feeder both passed as "coops" hub results
+# with zero filtering. See load_hub_category_terms() -- niches should define
+# config/hub-category-terms/<niche>.yaml instead of relying on this fallback.
 HUB_CATEGORY_TERMS: dict = {
     "rods":          ["rod", "rods"],
     "reels":         ["reel", "reels"],
@@ -62,6 +70,7 @@ HUB_CATEGORY_TERMS: dict = {
     "fly-tying":     ["tying", "vise", "bobbin", "dubbing"],
     "accessories":   ["net", "pack", "vest", "bag", "pliers", "forceps", "sling"],
 }
+HUB_CATEGORY_TERMS_DIR = TOOLS_DIR.parent / "config/hub-category-terms"
 
 
 def load_hub_templates() -> dict:
@@ -154,7 +163,8 @@ def load_hub_trusted_brands(niche: str, hub: str) -> list:
     ]
 
 
-def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub: str = "") -> list:
+def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub: str = "",
+                          category_terms: dict = None) -> list:
     """
     Direct brand-name lookup for HEAD articles: one search per configured
     search_term, keeping only results whose brand/manufacturer or title
@@ -186,7 +196,7 @@ def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub:
             print(f"         [brand-lookup] '{term}' -> {best.get('title','')[:70]} (ASIN {best.get('asin')}, reviews={best.get('ratings_total','?')})")
             collected.append(best)
     if hub:
-        collected = apply_category_policy(collected, hub)
+        collected = apply_category_policy(collected, hub, category_terms=category_terms)
     return collected
 
 
@@ -256,9 +266,25 @@ def apply_brand_policy(results: list, keyword: str) -> list:
     return filtered if filtered else results  # fall back if filter kills everything
 
 
-def apply_category_policy(results: list, hub: str) -> list:
-    """Remove results whose title contains no hub-relevant terms. No-ops on info hubs."""
-    terms = HUB_CATEGORY_TERMS.get(hub)
+def load_hub_category_terms(niche: str) -> dict:
+    """
+    Per-niche hub -> required-title-terms map for apply_category_policy().
+    Lookup: config/hub-category-terms/<niche>.yaml. Falls back to the legacy
+    hardcoded HUB_CATEGORY_TERMS (rmflyfishing-only) when no niche file
+    exists, so existing behavior for that site is unchanged.
+    """
+    niche_file = HUB_CATEGORY_TERMS_DIR / f"{niche}.yaml"
+    if not niche_file.exists():
+        return HUB_CATEGORY_TERMS
+    with open(niche_file, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return {k: [str(t).lower() for t in v] for k, v in data.items()}
+
+
+def apply_category_policy(results: list, hub: str, category_terms: dict = None) -> list:
+    """Remove results whose title contains no hub-relevant terms. No-ops on info hubs
+    (hubs with no configured terms) or if the filter would kill every result."""
+    terms = (category_terms or HUB_CATEGORY_TERMS).get(hub)
     if not terms:
         return results
     filtered = [r for r in results if any(t in r.get("title", "").lower() for t in terms)]
@@ -517,6 +543,11 @@ def main():
         print(f"Trusted-brand preference: {len(trusted_brands)} brands (niche: {site_niche or 'unknown'})")
         print()
 
+    category_terms = load_hub_category_terms(site_niche)
+    if category_terms is not HUB_CATEGORY_TERMS:
+        print(f"Category policy: niche-specific terms loaded for {len(category_terms)} hub(s)")
+        print()
+
     pipeline_data = load_pipeline(pipeline_path)
     products = load_products(products_path)
     articles = pipeline_data.get("articles", [])
@@ -607,13 +638,13 @@ def main():
         # in the merchant check) fall back to keyword search for their HEAD too.
         hub_brands = load_hub_trusted_brands(site_niche, hub) if article.get("role") == "HEAD" else []
         if hub_brands:
-            results = search_by_brand_terms(hub_brands, api_key, args.dry_run, hub=hub)
+            results = search_by_brand_terms(hub_brands, api_key, args.dry_run, hub=hub, category_terms=category_terms)
             if len(results) < 3:
                 # At most one budget/generic option, clearly labeled -- not a silent
                 # fallback to the same all-generic list this mechanism exists to avoid.
                 budget_results = search(keyword, api_key, args.dry_run, category_id=book_category)
                 time.sleep(0.4)
-                budget_results = apply_category_policy(budget_results, hub)
+                budget_results = apply_category_policy(budget_results, hub, category_terms=category_terms)
                 budget_results = [r for r in budget_results if not _matches_trusted_brand(r, [e["brand"].lower() for e in hub_brands])]
                 if budget_results:
                     budget_results.sort(key=lambda r: -(r.get("ratings_total") or 0))
@@ -637,7 +668,7 @@ def main():
         # set down to whichever brand happens to appear in the bare keyword.
         if not hub_brands:
             results = apply_brand_policy(results, keyword)
-            results = apply_category_policy(results, hub)
+            results = apply_category_policy(results, hub, category_terms=category_terms)
 
         if not results:
             print(f"         → no results after policy filters, skipping")

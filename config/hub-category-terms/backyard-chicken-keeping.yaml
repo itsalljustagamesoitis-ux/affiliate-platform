@@ -1,0 +1,25 @@
+# Required title terms per hub -- a search result must contain at least one
+# of these words to be kept for this hub. Fixes apply_category_policy()
+# silently no-opping for every niche except rmflyfishing (see the comment on
+# HUB_CATEGORY_TERMS in source-products-rainforest.py). Confirmed live: a
+# waterer and a feeder both passed as "coops" results with zero filtering
+# before this file existed.
+#
+# eggs-and-breeds is deliberately absent -- informational hub, no products
+# expected, no category constraint needed.
+coops: ["coop", "coops", "hen house", "chicken house"]
+feeders: ["feeder", "feeders"]
+waterers: ["waterer", "waterers", "watering", "drinker", "drinkers"]
+incubators: ["incubator", "incubators"]
+bedding: ["bedding", "litter", "shavings"]
+runs: ["run", "runs", "enclosure", "pen"]
+nesting: ["nesting box", "nest box", "nesting", "nestbox"]
+brooders: ["brooder", "brooders", "brooding"]
+coop-doors: ["door", "doors"]
+tractors: ["tractor", "tractors"]
+# coop-setup bundles several unrelated topics (heater, fencing, ventilation,
+# lighting, hardware cloth, roosting bars) under one hub_slug -- see the
+# head-term coverage audit. One broad term list, not per-HEAD-topic.
+coop-setup: ["heater", "fence", "fencing", "netting", "ventilation", "fan",
+             "roosting bar", "roost", "hardware cloth", "light", "lighting"]
+feed-health: ["treat", "treats", "grit", "mealworm", "mealworms", "mite", "feed"]
