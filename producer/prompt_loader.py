@@ -40,6 +40,33 @@ _BUYING_GUIDE_REMINDER = (
     "to the thinnest subsection — a genuine point, not padding."
 )
 
+# "What to Look For" has the same 400-600 word target in the prompt body text
+# but, unlike Buying Guide, no explicit reminder -- and it's the section that
+# actually came in short in practice. Confirmed live on thecluckpost: 4 of the
+# first 6 full-batch generations failed on length (this section and/or total
+# body), all under claude-sonnet-5. The model appears to write more concisely
+# by default than claude-sonnet-4-6, which these validator thresholds were
+# tuned against -- these two reminders don't change the target, they just
+# make the floor an explicit check instead of an implicit expectation, the
+# same fix that already worked for Buying Guide.
+_WHAT_TO_LOOK_FOR_REMINDER = (
+    "\n\n**WORD COUNT CHECK — WHAT TO LOOK FOR SECTION:** "
+    "Before finalizing, count the words in your ## What to Look For section. "
+    "It must total 400–600 words across all H3 subsections. "
+    "If it falls below 400, add one additional specific, criteria-relevant sentence "
+    "to the thinnest subsection — a genuine point, not padding."
+)
+
+_TOTAL_LENGTH_REMINDER = (
+    "\n\n**TOTAL WORD COUNT CHECK:** "
+    "Before finalizing, estimate the total body word count against the "
+    "{min}–{max} word target. Aim for the middle of that range, not the "
+    "floor -- treat {min} as a minimum you clear comfortably, not a target "
+    "to land near. If your draft is running short, the fix is a genuinely "
+    "useful additional point in the thinnest section (What to Look For or "
+    "Buying Guide), not padding any section with restatement."
+)
+
 
 def _normalise_type(article_type: str) -> str:
     """Map raw pipeline type strings to prompt keys."""
@@ -142,6 +169,8 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
 
     if norm_type == "buyer_guide":
         text += _BUYING_GUIDE_REMINDER
+        text += _WHAT_TO_LOOK_FOR_REMINDER
+        text += _TOTAL_LENGTH_REMINDER.format(min=f"{wc['min']:,}", max=f"{wc['max']:,}")
 
     metadata = {
         "product_count": pc,
