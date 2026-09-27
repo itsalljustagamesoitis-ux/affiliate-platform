@@ -729,12 +729,18 @@ def generate_article(
         model=os.environ.get("PRODUCER_BODY_MODEL", "claude-sonnet-4-6"),
         # 16000: current-generation models (Sonnet 5+) default to adaptive
         # thinking when `thinking` is omitted, and thinking tokens draw from
-        # this same budget. At 8192 (sized for the pre-thinking model), a
-        # request whose adaptive thinking runs long enough hits the cap
-        # before emitting any visible text at all -- content is empty, not
-        # truncated. Hit this live on thecluckpost's chicken-feeder regen
-        # (claude-sonnet-5): output=8192 exactly, zero text blocks.
+        # this same budget.
         max_tokens=16000,
+        # Explicitly disabled, not omitted. Confirmed live on thecluckpost: with
+        # thinking on (the default when omitted), a single call spent its entire
+        # 16000-token budget on invisible thinking and returned a 1046-word
+        # truncated body -- worse than the plain length-shortfall failures this
+        # was meant to fix. This call has no tools and needs fluent persona prose,
+        # not step-by-step reasoning, so thinking buys nothing here and only
+        # competes with the visible output for the same budget. Accepted on both
+        # Sonnet 5 (explicit opt-out of the adaptive default) and Sonnet 4.6
+        # (already the default when omitted, so this is a harmless no-op there).
+        thinking={"type": "disabled"},
         system=system_block,
         messages=[{"role": "user", "content": prompt}],
     )
