@@ -709,16 +709,19 @@ def main():
         # keyword search, still subject to the fit checks below. Hubs with no
         # per-hub product file (no named Amazon-sold brands in the merchant
         # check) fall back to keyword search for their HEAD too.
-        hub_brands = load_hub_trusted_products(site_niche, hub) if article.get("role") == "HEAD" else []
-        if hub_brands:
-            results = lookup_trusted_products(hub_brands, api_key, args.dry_run)
-            if len(results) < 3:
-                # At most one budget/generic option, clearly labeled -- not a silent
-                # fallback to the same all-generic list this mechanism exists to avoid.
+        hub_products = load_hub_trusted_products(site_niche, hub) if article.get("role") == "HEAD" else []
+        if hub_products:
+            results = lookup_trusted_products(hub_products, api_key, args.dry_run)
+            # Target 5 trusted products per HEAD article; a budget/generic supplement
+            # (at most one, clearly labeled) fills the gap below that, down to a floor
+            # of 4 total. Below 5 trusted matches is the expected case, not a failure --
+            # not every brand sells every size/model, and one confirmed-unavailable
+            # brand (e.g. no distinct "OverEZ Large" listing exists on Amazon) is fine.
+            if len(results) < 5:
                 budget_results = search(keyword, api_key, args.dry_run, category_id=book_category)
                 time.sleep(0.4)
                 budget_results = apply_category_policy(budget_results, hub, category_terms=category_terms)
-                budget_results = [r for r in budget_results if not _matches_trusted_brand(r, [e["brand"].lower() for e in hub_brands])]
+                budget_results = [r for r in budget_results if not _matches_trusted_brand(r, [e["brand"].lower() for e in hub_products])]
                 if budget_results:
                     budget_results.sort(key=lambda r: -(r.get("ratings_total") or 0))
                     picked = budget_results[0]
@@ -739,7 +742,7 @@ def main():
         # Skipped for brand-lookup results -- apply_brand_policy assumes a generic
         # keyword search and would incorrectly restrict a multi-brand HEAD result
         # set down to whichever brand happens to appear in the bare keyword.
-        if not hub_brands:
+        if not hub_products:
             results = apply_brand_policy(results, keyword)
             results = apply_category_policy(results, hub, category_terms=category_terms)
 
