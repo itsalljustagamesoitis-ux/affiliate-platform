@@ -11,8 +11,12 @@
 
 coops:
   require: ["chicken coop", "hen house", "chicken house", "coop and run", "walk-in coop", "walk in coop"]
-  exclude: ["feeder", "waterer", "door opener", "incubator", "brooder", "nesting box",
-            "nest box", "heater", "fence", "netting", "hardware cloth"]
+  # "nesting box"/"nest box" deliberately NOT excluded -- a real coop bundling
+  # a nesting box as an included feature is normal and shouldn't be rejected
+  # for mentioning it. Confirmed live: excluding it wrongly rejected a genuine
+  # 91-review OverEZ coop ("OverEZ Classic Medium Chicken Coop... Nesting Box").
+  exclude: ["feeder", "waterer", "door opener", "incubator", "brooder",
+            "heater", "fence", "netting", "hardware cloth"]
 
 feeders:
   require: ["feeder", "feeders"]

@@ -17,7 +17,13 @@
 - brand: Omlet
   search_terms:
     - "Omlet Eglu Cube"
-    - "Omlet Eglu Go Up"
+    - "Eglu Go Up"
+    # "Omlet Eglu Go Up" (with the Omlet prefix) returns zero results:
+    # confirmed live, this exact 4-word phrase doesn't match anything on
+    # Amazon's side. "Eglu Go Up" alone surfaces the real 22-review listing
+    # ("Omlet Portable Chicken Coop Go Up") -- brand-match still verifies
+    # via title substring since Rainforest doesn't return a brand field for
+    # this ASIN.
 - brand: OverEZ
   search_terms:
     - "OverEZ chicken coop kit"
