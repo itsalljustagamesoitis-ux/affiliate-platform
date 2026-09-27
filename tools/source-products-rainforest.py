@@ -183,20 +183,30 @@ def search_by_brand_terms(brand_entries: list, api_key: str, dry_run: bool, hub:
                 continue
             results = search(term, api_key, dry_run, trusted_brands=None)
             time.sleep(0.4)
+            # Category check BEFORE brand-match selection, not after. apply_category_policy's
+            # "fall back to unfiltered if the filter kills everything" safety clause is correct
+            # for its normal caller (a keyword search should never return literally nothing),
+            # but wrong here: if none of this brand's results for THIS term are on-category
+            # (e.g. every "Omlet Eglu Cube chicken coop" hit is actually an Omlet waterer),
+            # the right outcome is zero contribution from this term, not the top-reviewed
+            # off-category hit. Filter narrowly here and skip the shared fallback behavior.
+            if hub and category_terms:
+                terms = category_terms.get(hub)
+                if terms:
+                    on_category = [r for r in results if any(t in (r.get("title") or "").lower() for t in terms)]
+                    results = on_category  # no fallback -- empty is the correct outcome
             brand_matches = [
                 r for r in results
                 if brand_lower == (r.get("brand") or r.get("manufacturer") or "").strip().lower()
                 or re.search(r"\b" + re.escape(brand_lower) + r"\b", (r.get("title") or "").lower())
             ]
             if not brand_matches:
-                print(f"         [brand-lookup] '{term}' -> no {brand} match in results")
+                print(f"         [brand-lookup] '{term}' -> no on-category {brand} match in results")
                 continue
             brand_matches.sort(key=lambda r: -(r.get("ratings_total") or 0))
             best = brand_matches[0]
             print(f"         [brand-lookup] '{term}' -> {best.get('title','')[:70]} (ASIN {best.get('asin')}, reviews={best.get('ratings_total','?')})")
             collected.append(best)
-    if hub:
-        collected = apply_category_policy(collected, hub, category_terms=category_terms)
     return collected
 
 
