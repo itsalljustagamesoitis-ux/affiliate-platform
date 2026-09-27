@@ -28,7 +28,12 @@ waterers:
 
 incubators:
   require: ["incubator", "incubators"]
-  exclude: ["feeder", "waterer", "brooder", "coop"]
+  # "chicken coop"/"hen house" as phrases, NOT bare "coop" -- "RentACoop" (a
+  # real, valid brand name) contains "coop" as a substring and was getting
+  # wrongly excluded. Confirmed live: rejected "RentACoop Big Red Barn Chick
+  # Brooder" entirely, zero results, for the brooders hub (same bug, this
+  # hub's exclude list had the same bare "coop" term).
+  exclude: ["feeder", "waterer", "brooder", "chicken coop", "hen house"]
 
 bedding:
   require: ["bedding", "litter", "shavings"]
@@ -44,7 +49,9 @@ nesting:
 
 brooders:
   require: ["brooder", "brooders", "brooding"]
-  exclude: ["feeder", "waterer", "incubator", "coop"]
+  # bare "coop" wrongly rejected "RentACoop Big Red Barn Chick Brooder" --
+  # see the identical fix and comment on incubators, above.
+  exclude: ["feeder", "waterer", "incubator", "chicken coop", "hen house"]
 
 coop-doors:
   require: ["coop door", "door opener", "door kit"]
@@ -65,4 +72,4 @@ coop-setup:
 
 feed-health:
   require: ["treat", "treats", "grit", "mealworm", "mealworms", "mite"]
-  exclude: ["coop", "feeder", "waterer", "incubator", "brooder"]
+  exclude: ["chicken coop", "hen house", "feeder", "waterer", "incubator", "brooder"]
