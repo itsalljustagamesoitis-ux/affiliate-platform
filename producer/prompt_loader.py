@@ -57,6 +57,18 @@ _WHAT_TO_LOOK_FOR_REMINDER = (
     "to the thinnest subsection — a genuine point, not padding."
 )
 
+_HUB_LINK_REMINDER = (
+    "\n\n**HUB LINK CHECK — BEFORE FINALIZING:** "
+    "This article requires three separate links to the hub page, each a site-relative "
+    "path (e.g. `[dinnerware](/dinnerware/)`, never an absolute URL) with different anchor "
+    "text at each occurrence: "
+    "(1) in paragraph 1 of the intro, "
+    "(2) in the final paragraph of the last 'What to Look For' subsection, "
+    "(3) in at least one 'Buying Guide' subsection. "
+    "Before finalizing, search your draft for all three. If any is missing, add it now — "
+    "this is a hard structural requirement, not optional."
+)
+
 _TOTAL_LENGTH_REMINDER = (
     "\n\n**TOTAL WORD COUNT CHECK:** "
     "Before finalizing, estimate the total body word count against the "
@@ -170,6 +182,7 @@ def load_prompt(article_type: str, site_config: dict, persona: dict) -> tuple:
     if norm_type == "buyer_guide":
         text += _BUYING_GUIDE_REMINDER
         text += _WHAT_TO_LOOK_FOR_REMINDER
+        text += _HUB_LINK_REMINDER
         text += _TOTAL_LENGTH_REMINDER.format(min=f"{wc['min']:,}", max=f"{wc['max']:,}")
 
     metadata = {
