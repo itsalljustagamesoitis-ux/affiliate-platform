@@ -106,6 +106,12 @@ const imageUrl = primary?.image ? (primary.image?.startsWith('http') || primary.
 
     {primary && <BottomLineCTA product={primary} />}
 
+    {data.role === 'spoke' && data.parent_head && (
+      <p class="review-parent-head-link">
+        This review is one of several options covered in our main <a href={`/${data.parent_head}/`}>buying guide</a> for this category.
+      </p>
+    )}
+
     <AuthorBio />
 
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />
