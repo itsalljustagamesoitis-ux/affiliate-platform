@@ -70,8 +70,11 @@ export interface PersonaConfig {
   photo_byline: string
   photo_about: string
   location: string
-  background: string
-  bio_short: string
+  background: string        // INTERNAL persona spec: never render
+  bio_short: string         // INTERNAL: never render in the author box
+  bio_public?: string       // approved short public bio (no credentials, no testing language)
+  role_public?: string      // approved short role label, e.g. "Freelance writer"
+  testing_claims?: boolean  // true only if the persona genuinely tests products
   bio_full: string
   voice_notes: string
   social?: {

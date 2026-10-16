@@ -804,6 +804,7 @@ FORMATTING:
 - H1: article title only (do not include in body)
 - H2 for all main sections, H3 for subsections
 - NO em dashes (—) or double dashes (--) anywhere. Use commas, periods, or parentheses instead.
+- Numeric ranges use a plain hyphen or the word "to" (28-70mm, 1 to 5 stops, 90-94%). NEVER put a comma between the two ends of a range (not "28, 70mm").
 - No horizontal rules.
 - FAQ section: exactly 5 Q&A pairs.
 
@@ -851,8 +852,7 @@ def build_frontmatter(
         # test_no_em_dashes_in_frontmatter), but a bare replace leaves the
         # original spaces around the dash intact, producing "word , word"
         # instead of "word, word" -- collapse the surrounding whitespace too.
-        s = re.sub(r"\s*[\u2014\u2013]\s*", ", ", s)
-        s = re.sub(r",\s*,", ",", s).rstrip(", ")
+        s = _dashes_to_commas(s)
         return s.replace('"', '\\"')
 
     def _derive_pros_cons(product: dict, hub: str) -> tuple[list[str], list[str]]:
@@ -996,8 +996,7 @@ def build_frontmatter(
     def _clean_yaml(s: str) -> str:
         # See _cy() above -- same fix, collapse whitespace around the dash
         # instead of leaving a stray space before the comma.
-        s = re.sub(r"\s*[\u2014\u2013]\s*", ", ", s)
-        s = re.sub(r",\s*,", ",", s).rstrip(", ")
+        s = _dashes_to_commas(s)
         return s.replace('"', '\\"')
 
     safe_title = _clean_yaml(title) if title else article["keyword"].title()
@@ -1246,6 +1245,14 @@ def _strip_json_ld_fence(text: str) -> str:
     text = re.sub(r"[ \t]*```[a-zA-Z]*[ \t]*\n(?=" + re.escape(marker) + r")", "", text)
     text = re.sub(r"(</script>)[ \t]*\n[ \t]*```[ \t]*$", r"\1", text)
     return text
+
+
+def _dashes_to_commas(s: str) -> str:
+    """Replace em/en-dash clause separators with ", " without corrupting numeric
+    ranges. "28\u201370mm" must stay a range ("28-70mm"), never become "28, 70mm"."""
+    s = re.sub(r"(?<=\d)\s*[\u2013\u2014]\s*(?=\d)", "-", s)
+    s = re.sub(r"\s*[\u2014\u2013]\s*", ", ", s)
+    return re.sub(r",\s*,", ",", s).rstrip(", ")
 
 
 def _fix_punctuation(text: str) -> str:

@@ -153,3 +153,10 @@ class TestGeneratedArticles:
             if img and not (image_dir / img).exists():
                 bad.append(f"{a['_file']}: {img}")
         assert not bad, f"Hero image files missing:\n" + "\n".join(bad)
+
+
+def test_dashes_to_commas_preserves_numeric_ranges():
+    from producer.article_builder import _dashes_to_commas
+    assert _dashes_to_commas("Best 28–70mm lens") == "Best 28-70mm lens"
+    assert _dashes_to_commas("1 – 5 stops") == "1-5 stops"
+    assert _dashes_to_commas("Sturdy — and light") == "Sturdy, and light"
