@@ -25,14 +25,15 @@ const MODE_KEYS = {
   'sitemap-lastmod': 'sitemap_lastmod',
 }
 
-const NEG_RE = /(\bnot\b|n't|\bno\b|\bnever\b|rather than|without|neither|\bnor\b)[^.]{0,40}$/i
-const negBefore = (t, i) => NEG_RE.test(t.slice(Math.max(0, i - 50), i))
+const NEG_RE = /(\bnot\b|n't|\bno\b|\bnever\b|rather than|without|neither|\bnor\b|\bclaim(?:s|ing|ed)?\b|\bfake\b|\bpretend(?:s|ing)?\b|\bconsult\b|\bsee an?\b|\bask an?\b|\btalk to an?\b|\bspeak (?:to|with) an?\b|\bfind an?\b|\bhire an?\b)[^.]{0,40}$/i
+const NEG_AFTER_RE = /^[^.]{0,30}(n't|\bnot\b|\bnever\b)/i   // "hands-on experience I don't have"
+const negBefore = (t, i, len = 0) => NEG_RE.test(t.slice(Math.max(0, i - 50), i)) || (len > 0 && NEG_AFTER_RE.test(t.slice(i + len, i + len + 40)))
 
-const CRED_RE = /(contributes? to [A-Z][\w&' .-]+|contributor (to|for|at) [A-Z]\w+|writes? for [A-Z][\w&' .-]+|(\d+|several|many|dozens of) published (articles|pieces|stories)|published (in|by|on) [A-Z]\w+|featured (in|on) [A-Z]\w+|as seen (in|on)|(board[- ])?certified|licensed|registered (nurse|dietitian)|member of [A-Z][\w ]+|former(ly)? (editor|writer|reporter|staff)|award[- ]winning|\bPetaPixel\b|\bWirecutter\b|Outside Magazine|Backpacker|Field & Stream|Bon App|Serious Eats|America's Test Kitchen)/gi
+const CRED_RE = /([Cc]ontributes? to [A-Z][\w&' .-]+|[Cc]ontributor (?:to|for|at) [A-Z]\w+|[Ww]rites? for [A-Z][\w&' .-]+|(?:\d+|[Ss]everal|[Mm]any|[Dd]ozens of) published (?:articles|pieces|stories)|[Pp]ublished (?:in|by|on) [A-Z]\w+|[Ff]eatured (?:in|on) [A-Z]\w+|[Aa]s seen (?:in|on)|(?:[Bb]oard[- ])?[Cc]ertified|[Ll]icensed|[Rr]egistered (?:nurse|dietitian)|[Mm]ember of [A-Z][\w ]+|[Ff]ormer(?:ly)? (?:editor|writer|reporter|staff)|[Aa]ward[- ]winning|\bPetaPixel\b|\bWirecutter\b|Outside Magazine|Backpacker|Field & Stream|Bon App|Serious Eats|America's Test Kitchen)/g
 
 const PERSONA_KEY_RE = /(\br\/[A-Za-z0-9_]+|subreddits?\b|\breads:|\bactive in\b|\bprimary system\b|\bhome studio\b|\bworks from home\b|\balso owns\b|\bsecondary:|location_detail|voice_notes|\bbackground:|bio_short|bio_full|name_formal|\b(wife|husband|married|kids?|children|daughter|son)\b)/i
 
-const STRONG_TEST_RE = /\b(we(?:'ve)? tested|i(?:'ve)? tested|we(?:'ve)? tried|i(?:'ve)? tried|after testing|our (?:hands-on )?testing|our tests?|hands-on (?:testing|experience|review|time|test)|lab[- ]tested|field[- ]tested|tried every|tested (?:and reviewed|& reviewed|top|every|dozens|over|\d+|picks|models|options|in real|for (?:fit|stability|durability|accuracy|comfort))|(?:reviewed|compared) (?:and|&) tested|(?:reviewed|options|picks|models|grinders|brands) tested|has tested|have tested|testing (?:knee|braces|gear|and reviewing))\b/gi
+const STRONG_TEST_RE = /\b(we(?:'ve)? tested|i(?:'ve)? tested|we(?:'ve)? tried|i(?:'ve)? tried|after testing|our (?:hands-on )?testing|our tests?|hands-on (?:testing|experience|review|test)|tried every|tested (?:and reviewed|& reviewed|top|every|dozens|over|\d+|picks|models|options|in real|for (?:fit|stability|durability|accuracy|comfort))|(?:reviewed|compared) (?:and|&) tested|(?:reviewed|options|picks|grinders) tested|testing (?:knee|braces|gear|and reviewing))\b/gi
 const TITLE_TEST_RE = /\b(tested|testing|hands[- ]on|tried|lab[- ]tested|field[- ]tested)\b/i
 
 const DASH_UNITS = '(?:mm|%|°|"|in\\b|ft\\b|lbs?\\b|kg\\b|W\\b|V\\b|mAh|GB|TB|fps|K\\b|stops?|hours?|minutes?|days?|weeks?|years?|people|inch|cm|oz|gal|psi|MP|ISO)'
@@ -81,6 +82,12 @@ export function checkHtmlDefects(raw, rel, ctx) {
       if (!negBefore(abText, m.index)) push('credential-claim', `Author box credential claim: "${m[0]}"`)
     }
   }
+  // ── internal persona fields must not render anywhere (home, about, reviews...) ──
+  const pageText = textOf(raw)
+  for (const f of ['background', 'bio_short']) {
+    const v = norm(ctx.persona?.[f])
+    if (v.length >= 40 && pageText.includes(v.slice(0, 40))) push('author-box-leak', `Page renders internal persona field "${f}"`)
+  }
   // ── about page credentials ────────────────────────────────────────────────
   if (/^about(\/|$)/.test(rel)) {
     for (const m of main.matchAll(CRED_RE)) {
@@ -95,7 +102,7 @@ export function checkHtmlDefects(raw, rel, ctx) {
       if (m && !negBefore(t, m.index)) push('testing-claim', `"${m[0]}" in ${label}: ${t.slice(0, 120)}`)
     }
     for (const m of main.matchAll(STRONG_TEST_RE)) {
-      if (negBefore(main, m.index)) continue
+      if (negBefore(main, m.index, m[0].length)) continue
       push('testing-claim', `Testing claim in body: "...${main.slice(Math.max(0, m.index - 40), m.index + m[0].length + 30)}..."`)
       break // one per page is enough to fail the build
     }
@@ -103,18 +110,24 @@ export function checkHtmlDefects(raw, rel, ctx) {
 
   // ── dash corruption: "28, 70mm" ──────────────────────────────────────────
   const dashHits = []
-  for (const m of main.matchAll(DASH_RE)) {
+  // Amazon product titles legitimately contain lists ("Outlets x 5, 3600W"): ignore product-name text
+  const mainDash = textOf((raw.replace(/class="[^"]*(?:__name|__title)[^"]*"[^>]*>[^<]*/g, '>').match(/<main[^>]*>([\s\S]*?)<\/main>/) ?? [, raw])[1])
+  for (const m of mainDash.matchAll(DASH_RE)) {
     const a = parseFloat(m[1]), b = parseFloat(m[2])
-    const pre = main.slice(Math.max(0, m.index - 3), m.index)
-    const post = main.slice(m.index + m[0].length, m.index + m[0].length + 6)
-    if (a < b && !pre.includes('/') && !/^\s?(mm)?,\s\d/.test(post)) dashHits.push(m[0])
+    const pre = mainDash.slice(Math.max(0, m.index - 3), m.index)
+    const post = mainDash.slice(m.index + m[0].length, m.index + m[0].length + 6)
+    if (/\b(?:set|pack|box|case|bundle|lot) of\s*$/i.test(mainDash.slice(Math.max(0, m.index - 12), m.index))) continue   // "Set of 4, 14 oz"
+    const mixedDecimal = m[1].includes('.') !== m[2].includes('.')   // "VocClear 2.0, 30% Clearer" is a list, not a range
+    if (a < b && !mixedDecimal && !pre.includes('/') && !/[x×]\s$/i.test(pre) && !pre.includes(':') && !pre.includes('(') && !/[A-Za-z]$/.test(pre) && !/^\s?(mm)?,\s\d/.test(post)) dashHits.push(m[0])
   }
   if (dashHits.length) push('dash-corruption', `${dashHits.length} likely broken range(s): ${dashHits.slice(0, 4).map(h => `"${h}"`).join(', ')}`)
 
   // ── stale years in title / h1 ─────────────────────────────────────────────
   for (const [label, t] of [['title', title], ['h1', h1]]) {
-    const m = t.match(/\b(20[12]\d)\b/g)?.find(y => Number(y) < ctx.currentYear)
-    if (m) push('stale-year', `Past year ${m} in ${label}: ${t.slice(0, 120)}`)
+    // Freshness-style years only ("for 2024", "Picks 2025:", "(2024)"); not model years like "2024 Tacoma"
+    const sm = t.match(/(?:\b(?:for|in|of|best|updated)\s+|:\s*|\(\s*)(20[12]\d)\b|\b(20[12]\d)(?=\s*(?::|\||\)|picks|guide|buyer|review|roundup|update|edition))/i)
+    const yr = sm && (sm[1] ?? sm[2])
+    if (yr && Number(yr) < ctx.currentYear) push('stale-year', `Past year ${yr} in ${label}: ${t.slice(0, 120)}`)
   }
   return out
 }
