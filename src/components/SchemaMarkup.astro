@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content'
-import { getSiteConfig, getPersona, resolveProduct, getHubLabel, getCategorySlug } from '../lib/config'
+import { getSiteConfig, getPersona, resolveProduct, getHubLabel, getCategorySlug, productDisplayName } from '../lib/config'
 
 interface Props {
   article: CollectionEntry<'articles'>
@@ -46,12 +46,18 @@ const articleSchema: Record<string, unknown> = {
 if (isReview && primaryProduct) {
   articleSchema.itemReviewed = {
     '@type': 'Product',
-    name: `${primaryProduct.brand} ${primaryProduct.name}`,
+    name: productDisplayName(primaryProduct),
     image: primaryProduct.image ?? imageUrl,
   }
+}
+// reviewRating only emitted when the article has a real editorial rating --
+// `data.rating ?? 4.5` was fabricating a rating with no basis on every
+// review that hadn't set one, which risks a Google structured-data policy
+// violation for unsubstantiated ratings.
+if (isReview && primaryProduct && data.rating != null) {
   articleSchema.reviewRating = {
     '@type': 'Rating',
-    ratingValue: data.rating ?? 4.5,
+    ratingValue: data.rating,
     bestRating: 5,
     worstRating: 1,
   }

@@ -9,12 +9,14 @@
 import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import yaml from 'js-yaml'
+import { loadSiteContext, checkHtmlDefects, checkSitemapLastmod } from './lib/content-defect-checks.mjs'
 
 // All paths resolve relative to the site CWD (where `npm run build` is invoked),
 // not relative to this script file — the script lives in node_modules/@platform/core/scripts/
 const SITE_ROOT = process.cwd()
 const DIST = resolve(SITE_ROOT, 'dist')
 const MIN_HTML_BYTES = 500
+const DEFECT_CTX = loadSiteContext(SITE_ROOT)
 
 // Resolve the configured Amazon tag so we can verify it's actually in affiliate URLs
 const _cfg = yaml.load(readFileSync(resolve(SITE_ROOT, 'site.config.yaml'), 'utf8'))
@@ -60,6 +62,17 @@ function checkFile(fullPath) {
   if (size < MIN_HTML_BYTES) {
     fail('empty-page', rel, `${size} bytes — minimum is ${MIN_HTML_BYTES}`)
     return // Nothing else to check on a near-empty file
+  }
+
+  // ── 1b. Content defects: persona leakage, credentials, testing claims,
+  // dash corruption, stale years (see scripts/lib/content-defect-checks.mjs).
+  // One report per check per page; per-site modes live in site.config.yaml `validators:`.
+  const seenDefects = new Set()
+  for (const d of checkHtmlDefects(raw, rel, DEFECT_CTX)) {
+    if (seenDefects.has(d.check)) continue
+    seenDefects.add(d.check)
+    if (d.level === 'warn') warnings.push(`  WARN [${d.check}] ${rel}\n       ${d.msg}`)
+    else fail(d.check, rel, d.msg)
   }
 
   // ── 2. Missing local images ──────────────────────────────────────────────
@@ -348,6 +361,10 @@ if (ARTICLE_TYPE_MAP.size > 0 && existsSync(DIST)) {
 console.log(`\nValidating build output in ${DIST} …\n`)
 if (existsSync(DIST)) buildDistFileSet(DIST)
 walk(DIST)
+for (const d of checkSitemapLastmod(DIST, DEFECT_CTX)) {
+  if (d.level === 'warn') warnings.push(`  WARN [${d.check}] sitemap\n       ${d.msg}`)
+  else fail(d.check, 'sitemap-*.xml', d.msg)
+}
 
 if (warnings.length > 0) {
   console.warn(`⚠ ${warnings.length} warning(s) — these are non-blocking but should be fixed:\n`)
