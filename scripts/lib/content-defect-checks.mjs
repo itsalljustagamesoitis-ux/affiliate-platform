@@ -23,7 +23,12 @@ const MODE_KEYS = {
   'dash-corruption': 'dash_corruption',
   'stale-year': 'stale_year',
   'sitemap-lastmod': 'sitemap_lastmod',
+  'sourcing-claim': 'sourcing_claims',
 }
+// Checks that start as warnings (promote per site with validators: { sourcing_claims: fail })
+const DEFAULT_LEVEL = { 'sourcing-claim': 'warn' }
+// Attributions that imply the author read reviews, forums or named outlets. Invented unless the brief supplied them.
+const SOURCING_RE = /\b(owner (?:report|review|consensus|feedback|experience)s?|verified (?:buyer|owner|purchase)s?|reviewers? (?:commonly|note|report|say|praise|complain)|communit(?:y|ies) (?:consensus|report|discussion|feedback)|field reports?|photographers (?:report|note|say)|users (?:report|say|note)|DPReview|LensRentals|r\/[A-Za-z0-9_]+)\b/gi
 
 const NEG_RE = /(\bnot\b|n['’]t|\bnone\b|\bsubstitute\b|\breplaces?\b|\bno\b|\bnever\b|rather than|without|neither|\bnor\b|\bclaim(?:s|ing|ed)?\b|\bfake\b|\bpretend(?:s|ing)?\b|\bconsult\b|\bsee an?\b|\bask an?\b|\btalk to an?\b|\bspeak (?:to|with) an?\b|\bfind an?\b|\bhire an?\b)[^.]{0,40}$/i
 const NEG_AFTER_RE = /^[^.]{0,30}(n['’]t|\bnot\b|\bnever\b)/i   // "hands-on experience I don't have"
@@ -58,7 +63,7 @@ const norm = (s) => String(s ?? '').replace(/\s+/g, ' ').trim()
 export function checkHtmlDefects(raw, rel, ctx) {
   const out = []
   const push = (check, msg) => {
-    const mode = ctx.modes?.[MODE_KEYS[check]] ?? 'fail'
+    const mode = ctx.modes?.[MODE_KEYS[check]] ?? DEFAULT_LEVEL[check] ?? 'fail'
     if (mode !== 'off') out.push({ check, msg, level: mode })
   }
   const title = textOf((raw.match(/<title>([\s\S]*?)<\/title>/) ?? [])[1] ?? '')
@@ -107,6 +112,10 @@ export function checkHtmlDefects(raw, rel, ctx) {
       break // one per page is enough to fail the build
     }
   }
+
+  // ── invented sourcing: "owner reports", "verified buyers", "DPReview says" ──
+  const srcHits = [...main.matchAll(SOURCING_RE)].map((m) => m[0])
+  if (srcHits.length) push('sourcing-claim', `${srcHits.length} sourcing attribution(s) the site cannot support, e.g. "${srcHits[0]}"`)
 
   // ── dash corruption: "28, 70mm" ──────────────────────────────────────────
   const dashHits = []
