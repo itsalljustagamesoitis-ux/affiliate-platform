@@ -3,9 +3,10 @@
 Replace the `home-intro__text` paragraph content in `index.astro` with:
 
 ```
-Recommendations based on verified owner research, audiological sourcing, and hearing aid community consensus.
-No sponsored content. No affiliate-influenced picks.
+Buying guides are compiled from manufacturer specifications and current product listings. This site earns a commission on qualifying purchases made through links on this page. Guides are shopping research, not professional advice.
 ```
+
+Do not claim owner research, community consensus, expert sourcing, "no sponsored content" or "no affiliate-influenced picks": the site does not test products and is paid when readers buy through its links.
 
 And update the `description` meta tag in the BaseLayout call from:
 ```
