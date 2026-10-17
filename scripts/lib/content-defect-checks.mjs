@@ -24,9 +24,15 @@ const MODE_KEYS = {
   'stale-year': 'stale_year',
   'sitemap-lastmod': 'sitemap_lastmod',
   'sourcing-claim': 'sourcing_claims',
+  'raw-product-name': 'raw_product_names',
+  'award-conflict': 'award_conflict',
+  'duplicate-alt': 'duplicate_alt',
+  'generic-con': 'generic_cons',
+  'where-to-buy-partial': 'where_to_buy',
 }
 // Checks that start as warnings (promote per site with validators: { sourcing_claims: fail })
-const DEFAULT_LEVEL = { 'sourcing-claim': 'warn' }
+const DEFAULT_LEVEL = { 'sourcing-claim': 'warn', 'raw-product-name': 'warn', 'award-conflict': 'warn', 'duplicate-alt': 'warn', 'generic-con': 'warn', 'where-to-buy-partial': 'warn' }
+const GENERIC_CON_RE = /\b(?:may require|requires? (?:regular|periodic|significant|more|careful|ongoing)|limits? (?:flexibility|scalability|capacity|growth)|typical of|adds? weight|may sacrifice|may need|not (?:ideal|suitable) for all|stationary structure|smaller capacity|larger footprint|large footprint)\b/i
 // Attributions that imply the author read reviews, forums or named outlets. Invented unless the brief supplied them.
 const SOURCING_RE = /\b(owner (?:report|review|consensus|feedback|experience)s?|verified (?:buyer|owner|purchase)s?|reviewers? (?:commonly|note|report|say|praise|complain)|communit(?:y|ies) (?:consensus|report|discussion|feedback)|field reports?|photographers (?:report|note|say)|users (?:report|say|note)|DPReview|LensRentals|r\/[A-Za-z0-9_]+)\b/gi
 
@@ -116,6 +122,24 @@ export function checkHtmlDefects(raw, rel, ctx) {
   // ── invented sourcing: "owner reports", "verified buyers", "DPReview says" ──
   const srcHits = [...main.matchAll(SOURCING_RE)].map((m) => m[0])
   if (srcHits.length) push('sourcing-claim', `${srcHits.length} sourcing attribution(s) the site cannot support, e.g. "${srcHits[0]}"`)
+
+  // ── template/data quality on product pages (warn by default; promote per site) ──
+  const cards = [...raw.matchAll(/<div class="product-card"[^>]*>([\s\S]*?)<\/div>\s*<\/div>\s*<\/div>/g)].map(m => m[1])
+  const cardNames = [...raw.matchAll(/class="product-card__name"[^>]*>([\s\S]*?)<\/h3>/g)].map(m => textOf(m[1]))
+  const longNames = cardNames.filter(n => n.length > 70)
+  if (longNames.length) push('raw-product-name', `${longNames.length} product name(s) over 70 chars (raw Amazon title; add short_name): "${longNames[0].slice(0, 90)}"`)
+  const roleBadges = [...raw.matchAll(/class="product-card__role"[^>]*>([^<]*)</g)].map(m => m[1].trim())
+  if (roleBadges.filter(r => r === 'Best Overall').length > 1) push('award-conflict', 'More than one product is badged "Best Overall"')
+  if (cardNames.length >= 2 && roleBadges.includes('Best Overall') && roleBadges[0] !== 'Best Overall') push('award-conflict', `"Best Overall" is not the first-listed pick (first is "${roleBadges[0]}")`)
+  const mainHtml = (raw.match(/<main[^>]*>([\s\S]*?)<\/main>/) ?? [, raw])[1]
+  const alts = [...mainHtml.matchAll(/<img\b[^>]*\balt="([^"]+)"/g)].map(m => m[1].trim().toLowerCase())
+  const altDup = alts.filter((a, i) => alts.indexOf(a) !== i)
+  if (altDup.length) push('duplicate-alt', `${altDup.length} image(s) share identical alt text, e.g. "${altDup[0].slice(0, 80)}"`)
+  const conTexts = [...raw.matchAll(/pros-cons--cons[\s\S]*?<\/ul>/g)].flatMap(m => [...m[0].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(x => textOf(x[1])))
+  const genCons = conTexts.filter(c => GENERIC_CON_RE.test(c))
+  if (genCons.length) push('generic-con', `${genCons.length} generic con(s), e.g. "${genCons[0].slice(0, 90)}"`)
+  const wtb = raw.match(/class="bottom-cta-box"[\s\S]*?<\/div>\s*<\/div>|class="bottom-cta-box"[\s\S]*?<\/div>/)
+  if (wtb && cardNames.length >= 3 && (wtb[0].match(/<a /g) ?? []).length < Math.min(cardNames.length, 3)) push('where-to-buy-partial', `Where to Buy lists ${(wtb[0].match(/<a /g) ?? []).length} product(s) but the page recommends ${cardNames.length}`)
 
   // ── dash corruption: "28, 70mm" ──────────────────────────────────────────
   const dashHits = []

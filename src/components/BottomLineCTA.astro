@@ -3,14 +3,40 @@ import type { ResolvedProduct } from '../lib/config'
 import { productDisplayName } from '../lib/config'
 
 interface Props {
-  product: ResolvedProduct
+  product?: ResolvedProduct
+  // v2: one row per pick, in listed order. Takes precedence over `product`.
+  products?: ResolvedProduct[]
 }
 
-const { product } = Astro.props
-const isAmazon = product.affiliate_link?.type === 'amazon'
+const { product, products } = Astro.props
+const isAmazon = product?.affiliate_link?.type === 'amazon'
+const rows = (products ?? []).filter(p => p.affiliate_link)
+const rowLabel: Record<string, string> = { best_overall: 'Best overall', best_value: 'Best value', best_budget: 'Best budget', best_premium: 'Best premium' }
 ---
 
-{product.affiliate_link && (
+{rows.length > 0 && (
+  <div class="bottom-cta-box">
+    <p class="bottom-cta-box__eyebrow">Where to Buy</p>
+    <ul class="bottom-cta-list">
+      {rows.map(p => {
+        const amazon = p.affiliate_link?.type === 'amazon'
+        return (
+          <li>
+            <span class="bottom-cta-list__name">{productDisplayName(p)}{p.role && rowLabel[p.role] ? <em> ({rowLabel[p.role]})</em> : null}</span>
+            <a
+              href={p.affiliate_link!.url}
+              class={amazon ? 'btn btn--amazon btn--sm' : 'btn btn--primary btn--sm'}
+              rel={amazon ? 'nofollow sponsored noopener' : 'nofollow noopener'}
+              target="_blank"
+            >{amazon ? 'See price on Amazon' : 'Check availability'}</a>
+          </li>
+        )
+      })}
+    </ul>
+  </div>
+)}
+
+{!products && product?.affiliate_link && (
   <div class="bottom-cta-box">
     <p class="bottom-cta-box__eyebrow">Where to Buy</p>
     <strong class="bottom-cta-box__name">{productDisplayName(product)}</strong>
@@ -46,6 +72,9 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
     color: var(--color-text-muted, #666);
     margin: 0;
   }
+  .bottom-cta-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.6rem; }
+  .bottom-cta-list li { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .bottom-cta-list__name em { font-style: normal; color: var(--color-text-muted, #666); font-size: 0.875rem; }
   .bottom-cta-box__name {
     font-size: 1rem;
     display: block;

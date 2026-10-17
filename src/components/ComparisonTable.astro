@@ -7,7 +7,18 @@ interface Props {
   attributes?: string[]
 }
 
-const { products, attributes = ['price_band', 'pros', 'cons'] } = Astro.props
+const { products, attributes: attrsProp } = Astro.props
+
+// Spec mode: when 2+ products carry `specs`, columns are the spec keys most of them share (max 4).
+const specCounts = new Map<string, number>()
+for (const p of products) for (const k of Object.keys(p.specs ?? {})) specCounts.set(k, (specCounts.get(k) ?? 0) + 1)
+const specKeys = [...specCounts.entries()]
+  .filter(([, n]) => n >= Math.max(2, Math.ceil(products.length / 2)))
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 4)
+  .map(([k]) => k)
+const specMode = !attrsProp && products.filter(p => p.specs).length >= 2 && specKeys.length >= 2
+const attributes = specMode ? specKeys.map(k => `spec:${k}`) : (attrsProp ?? ['price_band', 'pros', 'cons'])
 
 const attrLabels: Record<string, string> = {
   price_band: 'Price Range',
@@ -28,7 +39,7 @@ const priceBandLabel: Record<string, string> = {
       <tr>
         <th scope="col">Product</th>
         {attributes.map(attr => (
-          <th scope="col">{attrLabels[attr] ?? attr}</th>
+          <th scope="col">{attr.startsWith('spec:') ? attr.slice(5) : (attrLabels[attr] ?? attr)}</th>
         ))}
         <th scope="col">Buy</th>
       </tr>
@@ -45,6 +56,7 @@ const priceBandLabel: Record<string, string> = {
               {attr === 'price_band' && priceBandLabel[p.price_band]}
               {attr === 'pros' && p.pros[0]}
               {attr === 'cons' && p.cons[0]}
+              {attr.startsWith('spec:') && (p.specs?.[attr.slice(5)] ?? '—')}
             </td>
           ))}
           <td>

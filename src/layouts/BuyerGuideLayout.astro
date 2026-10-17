@@ -25,6 +25,7 @@ interface Props {
 const { article, prev, next } = Astro.props
 const { data } = article
 const cfg = getSiteConfig()
+const v2 = cfg.layout?.buyer_guide_v2 === true
 
 const url = new URL(`/${data.slug}/`, Astro.site).href
 const heroUrl = `${cfg.images.base_url}/${data.hero_image}`
@@ -60,13 +61,20 @@ const resolvedProducts = data.products
 
     {data.safety_topics?.length && <SafetyNotice topics={data.safety_topics} />}
 
-    {resolvedProducts.length > 0 && <QuickPicks products={resolvedProducts} />}
+    {!v2 && resolvedProducts.length > 0 && <QuickPicks products={resolvedProducts} />}
 
     {resolvedProducts.length >= 2 && <ComparisonTable products={resolvedProducts} />}
 
+    {v2 && resolvedProducts.length > 0 && (
+      <aside class="article-page__picks">
+        <h2>Top Picks</h2>
+        {resolvedProducts.map(product => <ProductCard product={product} showRole />)}
+      </aside>
+    )}
+
     <div class="article-page__content"><slot /></div>
 
-    {resolvedProducts.length > 0 && (
+    {!v2 && resolvedProducts.length > 0 && (
       <aside class="article-page__picks">
         <h2>Detailed Reviews</h2>
         {resolvedProducts.map(product => <ProductCard product={product} showRole />)}
@@ -75,7 +83,9 @@ const resolvedProducts = data.products
 
     {data.faq?.length && <FAQ items={data.faq} />}
 
-    {resolvedProducts[0] && <BottomLineCTA product={resolvedProducts[0]} />}
+    {v2
+      ? resolvedProducts.length > 0 && <BottomLineCTA products={resolvedProducts} />
+      : resolvedProducts[0] && <BottomLineCTA product={resolvedProducts[0]} />}
 
     <AuthorBio />
     <RelatedArticles currentSlug={data.slug} currentHub={data.hub} currentTags={data.tags} />

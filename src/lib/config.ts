@@ -52,6 +52,11 @@ export interface SiteConfig {
     // Approved second-route programmes (e.g. ['bh', 'adorama', 'mpb', 'keh']). Empty or absent: no alt offers render anywhere.
     programs_enabled?: string[]
   }
+  // Opt-in template behaviour. Absent: layouts render exactly as before.
+  layout?: {
+    // Merged "Top Picks" section, single-source award badges, Where to Buy for every pick, spec table when specs exist.
+    buyer_guide_v2?: boolean
+  }
   analytics: {
     ga4_measurement_id: string | null
     bing_uet_tag: string | null
@@ -256,6 +261,8 @@ export interface ResolvedProduct {
   affiliate_link: AffiliateLink | null
   alt_offers: AltOffer[]
   role?: string
+  short_name?: string
+  specs?: Record<string, string>
 }
 
 export interface AltOffer {
@@ -293,11 +300,14 @@ export function resolveProduct(
       (o) => (getSiteConfig().affiliate.programs_enabled ?? []).includes(o.program) && /^https:\/\//.test(o.url),
     ),
     role: ref.role,
+    short_name: product.short_name ?? undefined,
+    specs: product.specs ?? undefined,
   }
 }
 
 /** Return a display name that never repeats the brand prefix. */
-export function productDisplayName(product: { brand: string | null; name: string | null }): string {
+export function productDisplayName(product: { brand: string | null; name: string | null; short_name?: string }): string {
+  if (product.short_name) return product.short_name
   const name = product.name ?? ''
   if (!product.brand) return name
   return name.toLowerCase().startsWith(product.brand.toLowerCase())

@@ -1,6 +1,6 @@
 ---
 import type { ResolvedProduct } from '../lib/config'
-import { getSiteConfig } from '../lib/config'
+import { getSiteConfig, productDisplayName } from '../lib/config'
 
 interface Props {
   product: ResolvedProduct
@@ -31,6 +31,7 @@ const imageUrl = !product.image
     : `${cfg.images.base_url}/${product.image}`
 
 const isAmazon = product.affiliate_link?.type === 'amazon'
+const shownName = product.short_name ? productDisplayName(product) : product.name
 ---
 
 <div class="product-card" id={`product-${product.id}`}>
@@ -44,7 +45,7 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
       <div class="product-card__image">
         <img
           src={imageUrl}
-          alt={product.name}
+          alt={shownName}
           width="280"
           height="210"
           loading="lazy"
@@ -61,10 +62,10 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
             rel={product.affiliate_link.type === 'amazon' ? 'nofollow sponsored noopener' : 'nofollow noopener'}
             target="_blank"
           >
-            {product.name}
+            {shownName}
           </a>
         ) : (
-          <>{product.name}</>
+          <>{shownName}</>
         )}
       </h3>
 

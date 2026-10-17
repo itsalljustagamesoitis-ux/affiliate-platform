@@ -37,7 +37,7 @@ if (picks.length === 0) return
           {imageUrl && (
             <img
               src={imageUrl}
-              alt={p.name}
+              alt={p.short_name ?? p.name}
               class="quick-pick__img"
               width="160"
               height="120"
