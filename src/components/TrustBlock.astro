@@ -21,7 +21,7 @@ const persona = getPersona()
     />
     <div>
       <strong>{persona.name_formal}</strong>
-      <p>{persona.background}</p>
+      {persona.role_public && <p>{persona.role_public}</p>}
     </div>
   </div>
 ) : (
@@ -36,7 +36,7 @@ const persona = getPersona()
     />
     <div class="trust-block__body">
       <h3>About {persona.name_used}</h3>
-      <p>{persona.bio_short}</p>
+      {persona.bio_public && <p>{persona.bio_public}</p>}
       <a href="/about/" class="trust-block__link">Read full bio →</a>
     </div>
   </div>
