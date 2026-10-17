@@ -58,6 +58,13 @@ const priceBandLabel: Record<string, string> = {
                 {p.affiliate_url.includes('amazon.com') ? 'Buy on Amazon' : 'Check Price'}
               </a>
             ) : '—'}
+            {p.alt_offers?.length > 0 && (
+              <div class="comparison-table__alt">
+                {p.alt_offers.map((o) => (
+                  <a href={o.url} class="btn btn--secondary btn--sm" rel="nofollow sponsored noopener" target="_blank" data-program={o.program}>{o.label}</a>
+                ))}
+              </div>
+            )}
           </td>
         </tr>
       ))}

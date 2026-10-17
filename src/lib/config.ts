@@ -49,6 +49,8 @@ export interface SiteConfig {
     amazon_tracking_id: string
     awin_publisher_id: string
     awin_clickref_pattern: string
+    // Approved second-route programmes (e.g. ['bh', 'adorama', 'mpb', 'keh']). Empty or absent: no alt offers render anywhere.
+    programs_enabled?: string[]
   }
   analytics: {
     ga4_measurement_id: string | null
@@ -100,6 +102,7 @@ export interface ProductRecord {
   notes_for_writers?: string
   last_verified?: string
   current_price?: string | null
+  alt_offers?: AltOffer[]
 }
 
 export type ProductDatabase = Record<string, ProductRecord>
@@ -251,7 +254,14 @@ export interface ResolvedProduct {
   cons: string[]
   affiliate_url: string | null
   affiliate_link: AffiliateLink | null
+  alt_offers: AltOffer[]
   role?: string
+}
+
+export interface AltOffer {
+  program: string   // key listed in affiliate.programs_enabled
+  label: string     // button text, e.g. "Check price at B&H"
+  url: string       // tracking URL issued by the approved programme (https only)
 }
 
 export function resolveProduct(
@@ -278,6 +288,10 @@ export function resolveProduct(
     cons: ref.article_specific_cons ?? product.default_cons ?? [],
     affiliate_url: affiliateLink?.url ?? null,
     affiliate_link: affiliateLink,
+    // Only offers from approved programmes with an https tracking URL ever render; nothing renders until a site opts in.
+    alt_offers: (product.alt_offers ?? []).filter(
+      (o) => (getSiteConfig().affiliate.programs_enabled ?? []).includes(o.program) && /^https:\/\//.test(o.url),
+    ),
     role: ref.role,
   }
 }

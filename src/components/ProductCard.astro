@@ -100,6 +100,15 @@ const isAmazon = product.affiliate_link?.type === 'amazon'
             : `Check availability at ${product.brand ?? 'retailer'}`}
         </a>
       )}
+      {product.alt_offers?.length > 0 && (
+        <div class="product-card__alt">
+          {product.alt_offers.map((o) => (
+            <a href={o.url} class="btn btn--secondary" rel="nofollow sponsored noopener" target="_blank" data-product={product.name} data-program={o.program}>
+              {o.label}
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   </div>
 </div>
