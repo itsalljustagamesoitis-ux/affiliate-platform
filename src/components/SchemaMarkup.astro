@@ -1,6 +1,6 @@
 ---
 import type { CollectionEntry } from 'astro:content'
-import { getSiteConfig, getPersona, resolveProduct, getHubLabel, getCategorySlug } from '../lib/config'
+import { getSiteConfig, getPersona, getHubLabel, getCategorySlug, resolveProduct, productDisplayName } from '../lib/config'
 
 interface Props {
   article: CollectionEntry<'articles'>
@@ -14,15 +14,10 @@ const persona = getPersona()
 
 const siteUrl = `https://${cfg.site.domain}`
 const imageUrl = `${siteUrl}${cfg.images.base_url}/${data.hero_image}`
-const isReview = data.type === 'review'
-
-// Primary product for review schema
-const primaryRef = data.products?.find((p: any) => p.role === 'primary') ?? data.products?.[0]
-const primaryProduct = primaryRef ? resolveProduct(primaryRef, data.slug) : null
 
 const articleSchema: Record<string, unknown> = {
   '@context': 'https://schema.org',
-  '@type': isReview ? 'Review' : 'Article',
+  '@type': 'Article',
   headline: data.title,
   description: data.description,
   url,
@@ -41,20 +36,6 @@ const articleSchema: Record<string, unknown> = {
   },
   image: { '@type': 'ImageObject', url: imageUrl },
   mainEntityOfPage: { '@type': 'WebPage', '@id': url },
-}
-
-if (isReview && primaryProduct) {
-  articleSchema.itemReviewed = {
-    '@type': 'Product',
-    name: `${primaryProduct.brand} ${primaryProduct.name}`,
-    image: primaryProduct.image ?? imageUrl,
-  }
-  articleSchema.reviewRating = {
-    '@type': 'Rating',
-    ratingValue: data.rating ?? 4.5,
-    bestRating: 5,
-    worstRating: 1,
-  }
 }
 
 const categorySlug = getCategorySlug(data.category)
@@ -79,8 +60,39 @@ const faqSchema = data.faq?.length ? {
     acceptedAnswer: { '@type': 'Answer', text: item.answer },
   })),
 } : null
+
+// Review schema — only emitted when the article carries an editorial `rating`
+// (content.config.ts ArticleSchema.rating, 1-5) and references a primary
+// product. Rating is an internal editorial assessment, not a hands-on test
+// claim — same FTC-safe framing as the rest of the article body.
+const primaryProductRef = data.products?.[0]
+const primaryProduct = primaryProductRef ? resolveProduct(primaryProductRef, data.slug) : null
+const reviewSchema = (data.rating != null && primaryProduct) ? {
+  '@context': 'https://schema.org',
+  '@type': 'Review',
+  itemReviewed: {
+    '@type': 'Product',
+    name: productDisplayName(primaryProduct),
+  },
+  reviewRating: {
+    '@type': 'Rating',
+    ratingValue: data.rating,
+    bestRating: 5,
+    worstRating: 1,
+  },
+  author: {
+    '@type': 'Person',
+    name: persona.name_formal,
+  },
+  publisher: {
+    '@type': 'Organization',
+    name: cfg.site.brand_name,
+  },
+  datePublished: data.date.toISOString(),
+} : null
 ---
 
 <script type="application/ld+json" set:html={JSON.stringify(articleSchema)} />
 <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
 {faqSchema && <script type="application/ld+json" set:html={JSON.stringify(faqSchema)} />}
+{reviewSchema && <script type="application/ld+json" set:html={JSON.stringify(reviewSchema)} />}
