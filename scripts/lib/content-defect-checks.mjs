@@ -25,15 +25,15 @@ const MODE_KEYS = {
   'sitemap-lastmod': 'sitemap_lastmod',
 }
 
-const NEG_RE = /(\bnot\b|n't|\bno\b|\bnever\b|rather than|without|neither|\bnor\b|\bclaim(?:s|ing|ed)?\b|\bfake\b|\bpretend(?:s|ing)?\b|\bconsult\b|\bsee an?\b|\bask an?\b|\btalk to an?\b|\bspeak (?:to|with) an?\b|\bfind an?\b|\bhire an?\b)[^.]{0,40}$/i
-const NEG_AFTER_RE = /^[^.]{0,30}(n't|\bnot\b|\bnever\b)/i   // "hands-on experience I don't have"
+const NEG_RE = /(\bnot\b|n['’]t|\bnone\b|\bsubstitute\b|\breplaces?\b|\bno\b|\bnever\b|rather than|without|neither|\bnor\b|\bclaim(?:s|ing|ed)?\b|\bfake\b|\bpretend(?:s|ing)?\b|\bconsult\b|\bsee an?\b|\bask an?\b|\btalk to an?\b|\bspeak (?:to|with) an?\b|\bfind an?\b|\bhire an?\b)[^.]{0,40}$/i
+const NEG_AFTER_RE = /^[^.]{0,30}(n['’]t|\bnot\b|\bnever\b)/i   // "hands-on experience I don't have"
 const negBefore = (t, i, len = 0) => NEG_RE.test(t.slice(Math.max(0, i - 50), i)) || (len > 0 && NEG_AFTER_RE.test(t.slice(i + len, i + len + 40)))
 
 const CRED_RE = /([Cc]ontributes? to [A-Z][\w&' .-]+|[Cc]ontributor (?:to|for|at) [A-Z]\w+|[Ww]rites? for [A-Z][\w&' .-]+|(?:\d+|[Ss]everal|[Mm]any|[Dd]ozens of) published (?:articles|pieces|stories)|[Pp]ublished (?:in|by|on) [A-Z]\w+|[Ff]eatured (?:in|on) [A-Z]\w+|[Aa]s seen (?:in|on)|(?:[Bb]oard[- ])?[Cc]ertified|[Ll]icensed|[Rr]egistered (?:nurse|dietitian)|[Mm]ember of [A-Z][\w ]+|[Ff]ormer(?:ly)? (?:editor|writer|reporter|staff)|[Aa]ward[- ]winning|\bPetaPixel\b|\bWirecutter\b|Outside Magazine|Backpacker|Field & Stream|Bon App|Serious Eats|America's Test Kitchen)/g
 
 const PERSONA_KEY_RE = /(\br\/[A-Za-z0-9_]+|subreddits?\b|\breads:|\bactive in\b|\bprimary system\b|\bhome studio\b|\bworks from home\b|\balso owns\b|\bsecondary:|location_detail|voice_notes|\bbackground:|bio_short|bio_full|name_formal|\b(wife|husband|married|kids?|children|daughter|son)\b)/i
 
-const STRONG_TEST_RE = /\b(we(?:'ve)? tested|i(?:'ve)? tested|we(?:'ve)? tried|i(?:'ve)? tried|after testing|our (?:hands-on )?testing|our tests?|hands-on (?:testing|experience|review|test)|tried every|tested (?:and reviewed|& reviewed|top|every|dozens|over|\d+|picks|models|options|in real|for (?:fit|stability|durability|accuracy|comfort))|(?:reviewed|compared) (?:and|&) tested|(?:reviewed|options|picks|grinders) tested|testing (?:knee|braces|gear|and reviewing))\b/gi
+const STRONG_TEST_RE = /\b(we(?:'ve)? tested|i(?:'ve)? tested|we(?:'ve)? tried|i(?:'ve)? tried|after testing|our (?:hands-on )?testing|our tests?|hands-on (?:testing|review|test)|tried every|(?<![-\w])tested (?:and reviewed|& reviewed|top|every|dozens|over|\d+|picks|models|options|in real|for (?:fit|stability|durability|accuracy|comfort))|(?:reviewed|compared) (?:and|&) tested|(?:reviewed|options|picks|grinders) tested|testing (?:knee|braces|gear|and reviewing))\b/gi
 const TITLE_TEST_RE = /\b(tested|testing|hands[- ]on|tried|lab[- ]tested|field[- ]tested)\b/i
 
 const DASH_UNITS = '(?:mm|%|°|"|in\\b|ft\\b|lbs?\\b|kg\\b|W\\b|V\\b|mAh|GB|TB|fps|K\\b|stops?|hours?|minutes?|days?|weeks?|years?|people|inch|cm|oz|gal|psi|MP|ISO)'
@@ -111,11 +111,12 @@ export function checkHtmlDefects(raw, rel, ctx) {
   // ── dash corruption: "28, 70mm" ──────────────────────────────────────────
   const dashHits = []
   // Amazon product titles legitimately contain lists ("Outlets x 5, 3600W"): ignore product-name text
-  const mainDash = textOf((raw.replace(/class="[^"]*(?:__name|__title)[^"]*"[^>]*>[^<]*/g, '>').match(/<main[^>]*>([\s\S]*?)<\/main>/) ?? [, raw])[1])
+  const mainDash = textOf((raw.replace(/class="[^"]*(?:__name|__title)[^"]*"[^>]*>[^<]*/g, '>').replace(/(<a [^>]*amazon\.com[^>]*>)[^<]*/g, '$1').match(/<main[^>]*>([\s\S]*?)<\/main>/) ?? [, raw])[1])
   for (const m of mainDash.matchAll(DASH_RE)) {
     const a = parseFloat(m[1]), b = parseFloat(m[2])
     const pre = mainDash.slice(Math.max(0, m.index - 3), m.index)
     const post = mainDash.slice(m.index + m[0].length, m.index + m[0].length + 6)
+    if ((mainDash.slice(Math.max(0, m.index - 45), m.index).match(/\b[A-Z][\w-]*\b/g) ?? []).length >= 4) continue   // Title-Case product name
     if (/\b(?:set|pack|box|case|bundle|lot) of\s*$/i.test(mainDash.slice(Math.max(0, m.index - 12), m.index))) continue   // "Set of 4, 14 oz"
     const mixedDecimal = m[1].includes('.') !== m[2].includes('.')   // "VocClear 2.0, 30% Clearer" is a list, not a range
     if (a < b && !mixedDecimal && !pre.includes('/') && !/[x×]\s$/i.test(pre) && !pre.includes(':') && !pre.includes('(') && !/[A-Za-z]$/.test(pre) && !/^\s?(mm)?,\s\d/.test(post)) dashHits.push(m[0])
