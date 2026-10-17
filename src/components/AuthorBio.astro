@@ -2,6 +2,11 @@
 import { getPersona } from '../lib/config'
 
 const persona = getPersona()
+
+// Only approved public fields are rendered here. NEVER render persona.background,
+// bio_short or bio_full in the author box: they hold the internal persona spec
+// (gear lists, subreddits, home details, unverifiable credentials).
+const roleLine = [persona.role_public, persona.location].filter(Boolean).join(' \u00b7 ')
 ---
 
 <div class="author-bio">
@@ -17,8 +22,8 @@ const persona = getPersona()
   <div class="author-bio__body">
     <p class="author-bio__label">About the author</p>
     <h3 class="author-bio__name">{persona.name_formal}</h3>
-    <p class="author-bio__role">{persona.background} &middot; {persona.location}</p>
-    <p class="author-bio__bio">{persona.bio_short}</p>
+    {roleLine && <p class="author-bio__role">{roleLine}</p>}
+    {persona.bio_public && <p class="author-bio__bio">{persona.bio_public}</p>}
     <a href="/about/" class="author-bio__link">Read full bio →</a>
   </div>
 </div>
