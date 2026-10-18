@@ -32,7 +32,7 @@ const MODE_KEYS = {
 }
 // Checks that start as warnings (promote per site with validators: { sourcing_claims: fail })
 const DEFAULT_LEVEL = { 'sourcing-claim': 'warn', 'raw-product-name': 'warn', 'award-conflict': 'warn', 'duplicate-alt': 'warn', 'generic-con': 'warn', 'where-to-buy-partial': 'warn' }
-const GENERIC_CON_RE = /\b(?:may require|requires? (?:regular|periodic|significant|more|careful|ongoing)|limits? (?:flexibility|scalability|capacity|growth)|typical of|adds? weight|may sacrifice|may need|not (?:ideal|suitable) for all|stationary structure|smaller capacity|larger footprint|large footprint)\b/i
+const GENERIC_CON_RE = /\b(?:may require|limits? (?:flexibility|scalability|capacity|growth)|typical of|adds? weight|may sacrifice|may need|not (?:ideal|suitable) for all|stationary structure|smaller capacity|larger footprint|large footprint)\b/i
 // Attributions that imply the author read reviews, forums or named outlets. Invented unless the brief supplied them.
 const SOURCING_RE = /\b(owner (?:report|review|consensus|feedback|experience)s?|verified (?:buyer|owner|purchase)s?|reviewers? (?:commonly|note|report|say|praise|complain)|communit(?:y|ies) (?:consensus|report|discussion|feedback)|field reports?|photographers (?:report|note|say)|users (?:report|say|note)|DPReview|LensRentals|r\/[A-Za-z0-9_]+)\b/gi
 
@@ -132,7 +132,10 @@ export function checkHtmlDefects(raw, rel, ctx) {
   if (roleBadges.filter(r => r === 'Best Overall').length > 1) push('award-conflict', 'More than one product is badged "Best Overall"')
   if (cardNames.length >= 2 && roleBadges.includes('Best Overall') && roleBadges[0] !== 'Best Overall') push('award-conflict', `"Best Overall" is not the first-listed pick (first is "${roleBadges[0]}")`)
   const mainHtml = (raw.match(/<main[^>]*>([\s\S]*?)<\/main>/) ?? [, raw])[1]
-  const alts = [...mainHtml.matchAll(/<img\b[^>]*\balt="([^"]+)"/g)].map(m => m[1].trim().toLowerCase())
+  const ci = mainHtml.indexOf('article-page__content')
+  const cEnd = ci < 0 ? -1 : Math.min(...['class="bottom-cta-box"', 'class="author-bio"', 'class="faq'].map(m => { const k = mainHtml.indexOf(m, ci); return k < 0 ? Infinity : k }))
+  const bodyHtml = ci < 0 ? mainHtml : mainHtml.slice(ci, Number.isFinite(cEnd) ? cEnd : undefined)
+  const alts = [...bodyHtml.matchAll(/<img\b[^>]*\balt="([^"]+)"/g)].map(m => m[1].trim().toLowerCase())
   const altDup = alts.filter((a, i) => alts.indexOf(a) !== i)
   if (altDup.length) push('duplicate-alt', `${altDup.length} image(s) share identical alt text, e.g. "${altDup[0].slice(0, 80)}"`)
   const conTexts = [...raw.matchAll(/pros-cons--cons[\s\S]*?<\/ul>/g)].flatMap(m => [...m[0].matchAll(/<li>([\s\S]*?)<\/li>/g)].map(x => textOf(x[1])))
