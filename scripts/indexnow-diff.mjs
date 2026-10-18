@@ -14,12 +14,13 @@ import { readFileSync, readdirSync, existsSync, writeFileSync, mkdirSync, append
 import { join, resolve } from 'node:path'
 import { createHash } from 'node:crypto'
 
+const arg = (n) => (process.argv.find((a) => a.startsWith(`--${n}=`)) ?? '').split('=').slice(1).join('=') || null
 const root = process.cwd()
-const dist = resolve(root, 'dist')
+const dist = resolve(root, arg('dist') ?? 'dist')   // --dist/--domain/--state support HTML-only sites with no site.config.yaml
+const stateDir = resolve(root, arg('state') ?? '.')
 const dry = process.argv.includes('--dry-run')
 const all = process.argv.includes('--all')
-const cfg = readFileSync(resolve(root, 'site.config.yaml'), 'utf8')
-const domain = (cfg.match(/^\s*domain:\s*["']?([^"'\s#]+)/m) ?? [])[1]
+const domain = arg('domain') ?? (readFileSync(resolve(root, 'site.config.yaml'), 'utf8').match(/^\s*domain:\s*["']?([^"'\s#]+)/m) ?? [])[1]
 if (!domain) { console.error('indexnow-diff: no site.domain in site.config.yaml'); process.exit(2) }
 const keyFile = existsSync(dist) ? readdirSync(dist).find((f) => /^[a-f0-9]{32}\.txt$/.test(f)) : null
 if (!keyFile) { console.error(`indexnow-diff: no IndexNow key file (<32 hex>.txt) in dist/ for ${domain}; add one under public/`); process.exit(2) }
@@ -29,7 +30,7 @@ const urls = []
 for (const f of readdirSync(dist).filter((f) => /^sitemap-\d+\.xml$/.test(f))) {
   for (const m of readFileSync(join(dist, f), 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)) urls.push(m[1])
 }
-const statePath = resolve(root, 'data/indexnow-state.json')
+const statePath = resolve(stateDir, 'data/indexnow-state.json')
 const prev = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : {}
 const next = {}, changed = []
 for (const u of urls) {
@@ -41,7 +42,7 @@ for (const u of urls) {
   if (all || prev[u] !== h) changed.push(u)
 }
 const host = domain.replace(/^www\./, '')
-const log = (rec) => { mkdirSync(resolve(root, 'logs'), { recursive: true }); appendFileSync(resolve(root, 'logs/indexnow.log'), JSON.stringify({ ts: new Date().toISOString(), site: host, ...rec }) + '\n') }
+const log = (rec) => { mkdirSync(resolve(stateDir, 'logs'), { recursive: true }); appendFileSync(resolve(stateDir, 'logs/indexnow.log'), JSON.stringify({ ts: new Date().toISOString(), site: host, ...rec }) + '\n') }
 console.log(`indexnow-diff: ${host}: ${urls.length} sitemap URLs, ${changed.length} new or changed`)
 if (dry || changed.length === 0) { if (!dry) log({ submitted: 0, status: 'nothing-changed' }); process.exit(0) }
 
@@ -59,6 +60,6 @@ for (let i = 0; i < changed.length; i += 9000) {
   if (status !== 200 && status !== 202) ok = false
 }
 log({ submitted: changed.length, status })
-if (ok) { mkdirSync(resolve(root, 'data'), { recursive: true }); writeFileSync(statePath, JSON.stringify(next)) }
+if (ok) { mkdirSync(resolve(stateDir, 'data'), { recursive: true }); writeFileSync(statePath, JSON.stringify(next)) }
 console.log(`indexnow-diff: POST ${ok ? 'accepted' : 'FAILED'} (${status}) for ${changed.length} URL(s)`)
 process.exit(ok ? 0 : 1)

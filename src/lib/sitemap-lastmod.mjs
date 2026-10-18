@@ -94,3 +94,18 @@ export function platformSitemap({ siteUrl, lastmodFor, articleDir } = {}) {
     },
   }
 }
+
+/** Articles that belong in feeds: not noindex and not a redirect source. Pass the getCollection('articles') result. */
+export function publishedArticles(articles) {
+  const blocked = new Set()
+  try {
+    const rd = resolve(process.cwd(), 'public/_redirects')
+    if (existsSync(rd)) {
+      for (const line of readFileSync(rd, 'utf8').split('\n')) {
+        const m = line.trim().match(/^(\/[^\s*:]*)\s+\S+/)
+        if (m && !line.trim().startsWith('#')) blocked.add(m[1].replace(/\/$/, ''))
+      }
+    }
+  } catch { /* no redirects file */ }
+  return articles.filter((a) => !a.data.noindex && !blocked.has('/' + a.data.slug))
+}
