@@ -111,4 +111,10 @@ console.log(`  cwd:     ${cwd}`)
 console.log()
 
 const result = spawnSync('npx', ['wrangler', ...wranglerCmd], { stdio: 'inherit', cwd })
+if ((result.status ?? 1) === 0 && !process.env.SKIP_INDEXNOW) {
+  // Ping IndexNow for new/changed page URLs only (needs the site's key file; logs to logs/indexnow.log)
+  const here = new URL('./indexnow-diff.mjs', import.meta.url).pathname
+  const ping = spawnSync('node', [here], { stdio: 'inherit', cwd })
+  if (ping.status) console.warn('\n⚠ IndexNow ping did not complete (exit ' + ping.status + '); deploy itself succeeded. See logs/indexnow.log')
+}
 process.exit(result.status ?? 1)

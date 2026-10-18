@@ -5,7 +5,7 @@ import rehypeExternalLinks from 'rehype-external-links'
 import { rehypeProductLinks } from '@platform/core/src/plugins/rehype-product-links.mjs'
 import { readFileSync } from 'fs'
 import yaml from 'js-yaml'
-import { makeLastmod } from '@platform/core/src/lib/sitemap-lastmod.mjs'
+import { makeLastmod, platformSitemap } from '@platform/core/src/lib/sitemap-lastmod.mjs'
 
 const _lastmodFor = makeLastmod()
 const _cfg = yaml.load(readFileSync('./site.config.yaml', 'utf8'))
@@ -37,22 +37,7 @@ if (isPlaceholder) {
 export default defineConfig({
   site: siteUrl,
   integrations: [
-    sitemap({
-      filter: (page) => !page.endsWith('/privacy/'),
-      serialize(item) {
-        // Set lastmod to build time for all pages (article pages will be overridden by their frontmatter date when available)
-        item.lastmod = _lastmodFor(item.url)
-        // Prioritise homepage and category pages
-        if (item.url === `${siteUrl}/`) {
-          item.changefreq = 'weekly'
-          item.priority = 1.0
-        } else if (!item.url.includes('.')) {
-          item.changefreq = 'monthly'
-          item.priority = 0.8
-        }
-        return item
-      },
-    }),
+    sitemap(platformSitemap({ siteUrl, lastmodFor: _lastmodFor })),
   ],
   markdown: {
     rehypePlugins: [
