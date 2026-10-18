@@ -8,6 +8,7 @@ import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import yaml from 'js-yaml'
 import { loadSiteContext, checkHtmlDefects, checkSitemapLastmod } from './lib/content-defect-checks.mjs'
+import { checkSitemapsRobotsRss } from './lib/sitemap-checks.mjs'
 
 // All paths resolve relative to the site CWD (where `npm run build` is invoked),
 // not relative to this script file — the script lives in node_modules/@platform/core/scripts/
@@ -218,6 +219,11 @@ walk(DIST)
 for (const d of checkSitemapLastmod(DIST, DEFECT_CTX)) {
   if (d.level === 'warn') warnings.push(`  WARN [${d.check}] sitemap\n       ${d.msg}`)
   else fail(d.check, 'sitemap-*.xml', d.msg)
+}
+
+for (const d of checkSitemapsRobotsRss(DIST, SITE_ROOT, DEFECT_CTX)) {
+  if (d.level === 'warn') warnings.push(`  WARN [${d.check}] sitemap/robots/rss\n       ${d.msg}`)
+  else fail(d.check, 'sitemap/robots/rss', d.msg)
 }
 
 if (warnings.length > 0) {
