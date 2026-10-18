@@ -8,7 +8,7 @@
  * Run via: node scripts/build-validator.mjs
  */
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'fs'
+import { readFileSync, readdirSync, statSync, existsSync, mkdirSync, writeFileSync } from 'fs'
 import { join, relative, resolve } from 'path'
 import yaml from 'js-yaml'
 import { loadSiteContext, checkHtmlDefects, checkSitemapLastmod } from './lib/content-defect-checks.mjs'
@@ -58,7 +58,16 @@ let failures = 0
 const errors = []
 const warnings = []
 
+// Per-site softening (site.config.yaml validators: { duplicate_card_rationale: warn, ... }). Softened checks are
+// reported as warnings and counted in logs/softened-validators.json so the debt stays visible.
+const SOFTENABLE = { 'duplicate-card-rationale': 'duplicate_card_rationale', 'blank-comparison-cell': 'blank_comparison_cell', 'keyword-variant-collision': 'keyword_variant_collision' }
+const softenedCounts = {}
 function fail(check, file, msg) {
+  if (SOFTENABLE[check] && DEFECT_CTX.modes?.[SOFTENABLE[check]] === 'warn') {
+    softenedCounts[check] = (softenedCounts[check] ?? 0) + 1
+    warnings.push(`  WARN [${check}] ${file}\n       ${msg}`)
+    return
+  }
   errors.push(`  FAIL [${check}] ${file}\n       ${msg}`)
   failures++
 }
@@ -658,6 +667,13 @@ for (const d of checkSitemapLastmod(DIST, DEFECT_CTX)) {
 for (const d of checkSitemapsRobotsRss(DIST, SITE_ROOT, DEFECT_CTX)) {
   if (d.level === 'warn') warnings.push(`  WARN [${d.check}] sitemap/robots/rss\n       ${d.msg}`)
   else fail(d.check, 'sitemap/robots/rss', d.msg)
+}
+
+if (Object.keys(softenedCounts).length) {
+  try {
+    mkdirSync(resolve(SITE_ROOT, 'logs'), { recursive: true })
+    writeFileSync(resolve(SITE_ROOT, 'logs/softened-validators.json'), JSON.stringify({ date: new Date().toISOString().slice(0, 10), counts: softenedCounts }, null, 1))
+  } catch {}
 }
 
 if (warnings.length > 0) {
